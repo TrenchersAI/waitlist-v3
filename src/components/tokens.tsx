@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import clsx from "clsx";
 import DevHoldingIcon from "./icons/dev-holding-icon";
 import HoldersIcon from "./icons/holders-icon";
@@ -42,36 +42,20 @@ export interface NFTDatatype {
   index: number;
 }
 
-/** Cap visible cards so the stack stays bounded and list indices stay cheap to reconcile. */
-const MAX_VISIBLE = 7;
-
-type ToastEntry = { id: number; data: (typeof NFTData)[number] };
-
 interface TokenListProps {
   className?: string;
 }
 
 export default function TokenList({ className }: TokenListProps) {
-  const [toasts, setToasts] = useState<ToastEntry[]>([]);
-  const nextIdRef = useRef(0);
-  /** Monotonic sequence so token cycling does not break once the list is capped at MAX_VISIBLE. */
-  const nextTokenSeqRef = useRef(1);
+  const [toasts, setToasts] = useState<typeof NFTData>([]);
 
   useEffect(() => {
-    nextIdRef.current = 0;
-    nextTokenSeqRef.current = 1;
-    setToasts([{ id: nextIdRef.current++, data: NFTData[0] }]);
+    setToasts([NFTData[0]]);
 
     const id = setInterval(() => {
       setToasts((prev) => {
-        const tokenIndex = nextTokenSeqRef.current % NFTData.length;
-        nextTokenSeqRef.current += 1;
-        const entry: ToastEntry = {
-          id: nextIdRef.current++,
-          data: NFTData[tokenIndex],
-        };
-        const next = [...prev, entry];
-        return next.length > MAX_VISIBLE ? next.slice(-MAX_VISIBLE) : next;
+        const nextIndex = prev.length % NFTData.length;
+        return [...prev, NFTData[nextIndex]];
       });
     }, 1600);
 
@@ -86,12 +70,8 @@ export default function TokenList({ className }: TokenListProps) {
       )}
     >
       <div className="flex relative h-[240px] overflow-hidden flex-col w-full items-center justify-center gap-2 before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:z-10 before:h-12 before:bg-gradient-to-b before:from-black before:to-transparent after:pointer-events-none after:absolute after:inset-x-0 after:bottom-0 after:z-10 after:h-12 after:bg-gradient-to-t after:from-black after:to-transparent">
-        {toasts.map((toast, idx) => (
-          <NFT
-            key={toast.id}
-            {...toast.data}
-            index={toasts.length - (idx + 1)}
-          />
+        {toasts.map((data, idx) => (
+          <NFT key={idx} {...data} index={toasts.length - (idx + 1)} />
         ))}
       </div>
     </div>
@@ -118,7 +98,7 @@ function NFT({ name, avatar, value, change, index }: NFTDatatype) {
           opacity: mounted ? 1 : 0,
         } as React.CSSProperties
       }
-      className="absolute bottom-16 w-full max-w-[400px] transition-[transform,opacity] duration-[400ms] ease-in-out will-change-transform"
+      className="absolute bottom-16 w-full max-w-[400px] opacity-0 translate-y-full transition-[transform,opacity] duration-[400ms] ease-in-out"
     >
       <div className="rounded-xl bg-linear-to-tl from-white/8 via-white/1 to-transparent p-px">
         <div className="rounded-[12px] bg-linear-to-br from-white/16 via-white/8 to-transparent p-px">
