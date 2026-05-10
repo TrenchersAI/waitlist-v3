@@ -5,6 +5,8 @@
   --foreground: #0a0a0a;
   /** Darkens the noisy bg.svg for readability (0 = none, 1 = solid black). */
   --bg-noise-overlay-opacity: 0.97;
+  /** Terminal / trading widget panels */
+  --terminal-bg: #0b0c0d;
 }
 
 @theme inline {

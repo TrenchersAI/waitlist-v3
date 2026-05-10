@@ -8,8 +8,10 @@ import { motion, useMotionValue, useTransform } from "motion/react";
 import { BotUnitCard } from "./agent-unit-card";
 import InputFeint, { AGENT_CREATION_PLACEHOLDER } from "./input-feint";
 
-export function mergeRefs<T = any>(
-  refs: Array<React.MutableRefObject<T> | React.LegacyRef<T> | undefined | null>
+export function mergeRefs<T = unknown>(
+  refs: Array<
+    React.MutableRefObject<T> | React.LegacyRef<T> | undefined | null
+  >,
 ): React.RefCallback<T> {
   return (value) => {
     refs.forEach((ref) => {
@@ -123,8 +125,40 @@ type DemoPhase = "intro" | "morph" | "cards";
 
 /** Delay between each agent card entrance (after morph completes). */
 const CARD_ENTRANCE_STAGGER_S = 0.12;
+/** Same stagger for dismiss order (top → bottom). */
+const CARD_EXIT_STAGGER_MS = CARD_ENTRANCE_STAGGER_S * 1000;
+/** Exit animation length per card (must match {@link agentCardVariants}.exit). */
+const CARD_EXIT_DURATION_S = 0.38;
 /** Initial backdrop blur on card entrance (animates to sharp). */
 const CARD_ENTRANCE_BLUR_PX = 10;
+
+const agentCardVariants = {
+  initial: {
+    opacity: 0,
+    y: 16,
+    filter: `blur(${CARD_ENTRANCE_BLUR_PX}px)`,
+  },
+  animate: (i: number) => ({
+    opacity: 1,
+    y: 0,
+    filter: "blur(0px)",
+    transition: {
+      type: "spring" as const,
+      stiffness: 420,
+      damping: 32,
+      delay: i * CARD_ENTRANCE_STAGGER_S,
+    },
+  }),
+  exit: {
+    opacity: 0,
+    y: -14,
+    filter: `blur(${CARD_ENTRANCE_BLUR_PX}px)`,
+    transition: {
+      duration: CARD_EXIT_DURATION_S,
+      ease: "easeInOut" as const,
+    },
+  },
+};
 
 function MorphingSequence({ onComplete }: { onComplete: () => void }) {
   const completeFired = React.useRef(false);
@@ -146,10 +180,11 @@ function MorphingSequence({ onComplete }: { onComplete: () => void }) {
     return `0 0 ${g} rgba(255,255,255,0.35)`;
   });
 
-  const secondaryLabelColor = useTransform(progressValue, [1, 100], [
-    "#737373",
-    "#D4D4D4",
-  ]);
+  const secondaryLabelColor = useTransform(
+    progressValue,
+    [1, 100],
+    ["#737373", "#D4D4D4"],
+  );
 
   React.useEffect(() => {
     progressValue.set(progress);
@@ -306,6 +341,15 @@ export default function Morphing() {
   const [selectedAgentId, setSelectedAgentId] = React.useState<string | null>(
     DEMO_AGENT_UNITS[0].id,
   );
+  const [visibleCardIds, setVisibleCardIds] = React.useState<string[]>(() =>
+    DEMO_AGENT_UNITS.map((u) => u.id),
+  );
+  const dismissTimersRef = React.useRef<number[]>([]);
+
+  const visibleBots = React.useMemo(() => {
+    const keep = new Set(visibleCardIds);
+    return DEMO_AGENT_UNITS.filter((u) => keep.has(u.id));
+  }, [visibleCardIds]);
 
   const handleIntroComplete = React.useCallback(() => {
     setPhase("morph");
@@ -316,16 +360,47 @@ export default function Morphing() {
   }, []);
 
   React.useEffect(() => {
+    if (phase === "cards") {
+      setVisibleCardIds(DEMO_AGENT_UNITS.map((u) => u.id));
+    }
+  }, [phase, loopEpoch]);
+
+  React.useEffect(() => {
     if (phase !== "cards") return;
-    const id = window.setTimeout(() => {
-      setPhase("intro");
-      setLoopEpoch((e) => e + 1);
+
+    dismissTimersRef.current.forEach(clearTimeout);
+    dismissTimersRef.current = [];
+
+    const schedule = (fn: () => void, ms: number) => {
+      const id = window.setTimeout(fn, ms);
+      dismissTimersRef.current.push(id);
+      return id;
+    };
+
+    const n = DEMO_AGENT_UNITS.length;
+    const totalExitMs =
+      (n - 1) * CARD_EXIT_STAGGER_MS + CARD_EXIT_DURATION_S * 1000;
+
+    schedule(() => {
+      DEMO_AGENT_UNITS.forEach((_, index) => {
+        schedule(() => {
+          setVisibleCardIds((prev) => prev.slice(1));
+        }, index * CARD_EXIT_STAGGER_MS);
+      });
+      schedule(() => {
+        setPhase("intro");
+        setLoopEpoch((e) => e + 1);
+      }, totalExitMs);
     }, CARDS_VISIBLE_MS);
-    return () => clearTimeout(id);
-  }, [phase]);
+
+    return () => {
+      dismissTimersRef.current.forEach(clearTimeout);
+      dismissTimersRef.current = [];
+    };
+  }, [phase, loopEpoch]);
 
   return (
-    <div className="relative mx-auto flex w-full max-w-md flex-col items-center gap-6">
+    <div className="relative mx-auto flex w-full max-w-[420px] flex-col items-center gap-6">
       <AnimatePresence mode="wait">
         {phase === "intro" ? (
           <motion.div
@@ -357,37 +432,26 @@ export default function Morphing() {
         ) : (
           <motion.div
             key="agent-cards"
-            exit={{ opacity: 0, y: 8 }}
-            transition={{ duration: 0.25, ease: "easeOut" }}
             className="flex w-full flex-col gap-3"
           >
-            {DEMO_AGENT_UNITS.map((bot, index) => (
-              <motion.div
-                key={bot.id}
-                initial={{
-                  opacity: 0,
-                  y: 16,
-                  filter: `blur(${CARD_ENTRANCE_BLUR_PX}px)`,
-                }}
-                animate={{
-                  opacity: 1,
-                  y: 0,
-                  filter: "blur(0px)",
-                }}
-                transition={{
-                  type: "spring",
-                  stiffness: 420,
-                  damping: 32,
-                  delay: index * CARD_ENTRANCE_STAGGER_S,
-                }}
-              >
-                <BotUnitCard
-                  bot={bot}
-                  isSelected={selectedAgentId === bot.id}
-                  onSelect={() => setSelectedAgentId(bot.id)}
-                />
-              </motion.div>
-            ))}
+            <AnimatePresence>
+              {visibleBots.map((bot) => (
+                <motion.div
+                  key={bot.id}
+                  custom={DEMO_AGENT_UNITS.findIndex((u) => u.id === bot.id)}
+                  variants={agentCardVariants}
+                  initial="initial"
+                  animate="animate"
+                  exit="exit"
+                >
+                  <BotUnitCard
+                    bot={bot}
+                    isSelected={selectedAgentId === bot.id}
+                    onSelect={() => setSelectedAgentId(bot.id)}
+                  />
+                </motion.div>
+              ))}
+            </AnimatePresence>
           </motion.div>
         )}
       </AnimatePresence>

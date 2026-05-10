@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@number-flow/react": "^0.6.0",
     "border-beam": "^1.0.1",
     "clsx": "^2.1.1",
     "motion": "^12.38.0",

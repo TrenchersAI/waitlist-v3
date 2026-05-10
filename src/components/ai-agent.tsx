@@ -1,777 +1,15 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
+import DepositIcon from "@/src/ui/deposit-icon";
+import SolanaIcon from "@/src/ui/solana-icon";
 
 export default function AIAgent() {
   return (
-    <div className="relative w-full h-full flex flex-col justify-center items-center pl-12">
-      <Logo className="absolute top-20 z-10" />
-      <BackgroundLines className="absolute top-20" />
+    <div className="relative mx-auto flex h-full w-full max-w-[420px] flex-col items-center justify-center">
       <MorphSurface />
     </div>
-  );
-}
-
-function Logo({ className }: { className?: string }) {
-  return (
-    <div
-      className={`relative size-16 border border-dashed border-neutral-600 rounded-full ${className}`}
-    >
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 size-10 bg-[linear-gradient(90deg,#FF8989_0%,#2B7FFF_100%)] opacity-50 blur-[6px] rounded-xl -z-10"></div>
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width="80"
-        height="81"
-        viewBox="0 0 80 81"
-        fill="none"
-        className="z-10 absolute top-[78%] left-1/2 -translate-x-1/2 -translate-y-1/2"
-      >
-        <foreignObject x="0" y="-7" width="79.5996" height="87.5996">
-          <div
-            style={{
-              backdropFilter: "blur(4px)",
-              WebkitBackdropFilter: "blur(4px)",
-              clipPath: "url(#bgblur_0_3016_337_clip_path)",
-              height: "100%",
-              width: "100%",
-            }}
-          />
-        </foreignObject>
-        <g filter="url(#filter0_ddd_3016_337)" data-figma-bg-blur-radius="8">
-          <rect
-            x="20"
-            y="1"
-            width="39.6"
-            height="39.6"
-            rx="19.8"
-            fill="url(#paint0_radial_3016_337)"
-            shapeRendering="crispEdges"
-          />
-          <path
-            d="M36.4746 17.7734C38.56 15.688 39.5996 10.8984 39.5996 10.8984V20.8984H29.5996C29.5996 20.8984 34.3892 19.8588 36.4746 17.7734Z"
-            fill="black"
-          />
-          <path
-            d="M39.5996 20.8984H49.5996C49.5996 20.8984 44.81 21.938 42.7246 24.0234C40.6392 26.1088 39.5996 30.8984 39.5996 30.8984V20.8984Z"
-            fill="black"
-          />
-        </g>
-        <defs>
-          <filter
-            id="filter0_ddd_3016_337"
-            x="0"
-            y="-7"
-            width="79.5996"
-            height="87.5996"
-            filterUnits="userSpaceOnUse"
-            colorInterpolationFilters="sRGB"
-          >
-            <feFlood floodOpacity="0" result="BackgroundImageFix" />
-            <feColorMatrix
-              in="SourceAlpha"
-              type="matrix"
-              values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"
-              result="hardAlpha"
-            />
-            <feMorphology
-              radius="6"
-              operator="erode"
-              in="SourceAlpha"
-              result="effect1_dropShadow_3016_337"
-            />
-            <feOffset dy="8" />
-            <feGaussianBlur stdDeviation="5" />
-            <feComposite in2="hardAlpha" operator="out" />
-            <feColorMatrix
-              type="matrix"
-              values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.065 0"
-            />
-            <feBlend
-              mode="normal"
-              in2="BackgroundImageFix"
-              result="effect1_dropShadow_3016_337"
-            />
-            <feColorMatrix
-              in="SourceAlpha"
-              type="matrix"
-              values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"
-              result="hardAlpha"
-            />
-            <feMorphology
-              radius="5"
-              operator="erode"
-              in="SourceAlpha"
-              result="effect2_dropShadow_3016_337"
-            />
-            <feOffset dy="20" />
-            <feGaussianBlur stdDeviation="12.5" />
-            <feComposite in2="hardAlpha" operator="out" />
-            <feColorMatrix
-              type="matrix"
-              values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.065 0"
-            />
-            <feBlend
-              mode="normal"
-              in2="effect1_dropShadow_3016_337"
-              result="effect2_dropShadow_3016_337"
-            />
-            <feColorMatrix
-              in="SourceAlpha"
-              type="matrix"
-              values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"
-              result="hardAlpha"
-            />
-            <feMorphology
-              radius="1"
-              operator="dilate"
-              in="SourceAlpha"
-              result="effect3_dropShadow_3016_337"
-            />
-            <feOffset />
-            <feComposite in2="hardAlpha" operator="out" />
-            <feColorMatrix
-              type="matrix"
-              values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.075 0"
-            />
-            <feBlend
-              mode="normal"
-              in2="effect2_dropShadow_3016_337"
-              result="effect3_dropShadow_3016_337"
-            />
-            <feBlend
-              mode="normal"
-              in="SourceGraphic"
-              in2="effect3_dropShadow_3016_337"
-              result="shape"
-            />
-          </filter>
-          <clipPath id="bgblur_0_3016_337_clip_path" transform="translate(0 7)">
-            <rect x="20" y="1" width="39.6" height="39.6" rx="19.8" />
-          </clipPath>
-          <radialGradient
-            id="paint0_radial_3016_337"
-            cx="0"
-            cy="0"
-            r="1"
-            gradientUnits="userSpaceOnUse"
-            gradientTransform="translate(39.8 20.8) scale(28.0014)"
-          >
-            <stop offset="0.35" stopColor="#d4d4d8" />
-            <stop offset="1" stopColor="#52525b" stopOpacity="0.7" />
-          </radialGradient>
-        </defs>
-      </svg>
-    </div>
-  );
-}
-
-function BackgroundLines(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      width="395"
-      height="182"
-      viewBox="0 0 395 182"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      {...props}
-    >
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 57.3477 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 301.549 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 1 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 5 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 9 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 13 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 17 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 21 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 25 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 29 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 33 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 37 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 41 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 45 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 49 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 53 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 61 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 65 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 69 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 73 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 77 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 81 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 85 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 89 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 93 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 97 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 101 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 105 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 109 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 113 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 117 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 121 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 125 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 129 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 133 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 137 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 141 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 145 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 149 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 153 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 157 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 161 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 165 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 169 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 173 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 177 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 181 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 185 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 189 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 193 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 197 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 201 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 205 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 209 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 213 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 217 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 221 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 225 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 229 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 233 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 237 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 241 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 245 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 249 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 253 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 257 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 261 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 265 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 269 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 273 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 277 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 281 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 285 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 289 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 293 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 297 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 305 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 309 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 313 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 317 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 321 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 325 180.998)"
-        stroke="#5D6FAE"
-      />
-      <line
-        y1="-0.5"
-        x2="191.631"
-        y2="-0.5"
-        transform="matrix(0.343078 -0.939307 0.343078 0.939307 329 180.998)"
-        stroke="#5D6FAE"
-      />
-      <rect width="394" height="182" fill="url(#paint0_radial_3027_161)" />
-      <defs>
-        <radialGradient
-          id="paint0_radial_3027_161"
-          cx="0"
-          cy="0"
-          r="1"
-          gradientUnits="userSpaceOnUse"
-          gradientTransform="translate(197 91) scale(208.82 163.8)"
-        >
-          <stop stopColor="#030305" stopOpacity="0" />
-          <stop offset="0.635007" stopColor="#141418" />
-        </radialGradient>
-      </defs>
-    </svg>
   );
 }
 
@@ -790,7 +28,7 @@ const useFooter = () => React.useContext(FooterContext);
 export function MorphSurface() {
   const rootRef = React.useRef<HTMLDivElement>(null);
 
-  const feedbackRef = React.useRef<HTMLTextAreaElement | null>(null);
+  const feedbackRef = React.useRef<HTMLInputElement | null>(null);
   const [showFeedback, setShowFeedback, mouse] = useLoop();
   const [success, setSuccess] = React.useState(false);
 
@@ -857,7 +95,10 @@ export function MorphSurface() {
       >
         <FooterContext value={context}>
           <Dock />
-          <Feedback ref={feedbackRef} onSuccess={onFeedbackSuccess} />
+          <TerminalTradingForm
+            ref={feedbackRef}
+            onSuccess={onFeedbackSuccess}
+          />
         </FooterContext>
       </motion.div>
     </div>
@@ -901,27 +142,416 @@ function Dock() {
               </AnimatePresence>
             </motion.div>
           )}
-          <div className="text-xs text-neutral-300">AI Agent</div>
+          <div className="text-xs text-neutral-300">Trading terminal</div>
         </div>
 
-        <button
+        {/* <button
           className="button -m-2 flex justify-end rounded-full p-2 flex-1 gap-1 -outline-offset-2"
           data-variant="ghost"
           onClick={openFeedback}
         >
-          <span className="ml-1 max-w-[20ch] truncate text-xs text-neutral-300">
-            AI Agent
+          <span className="ml-1 max-w-[24ch] truncate text-xs text-neutral-300">
+            Buy · sell · market & limit
           </span>
-        </button>
+        </button> */}
       </div>
     </footer>
   );
 }
 
+type TerminalTradingFormProps = {
+  /** Optional wrapper classes (e.g. max width on a standalone page). */
+  className?: string;
+  /** Token symbol shown on the primary CTA. */
+  tokenSymbol?: string;
+  /** Called when user presses the main trade action button. */
+  onSuccess?: () => void;
+};
+
+/**
+ * Buy/Sell trading widget (Market / Limit / Adv., amount, quick amounts, advanced strategy, primary CTA).
+ * Extracted for reuse and isolated demo routes.
+ */
+const TerminalTradingForm = React.forwardRef<
+  HTMLInputElement,
+  TerminalTradingFormProps
+>(function TerminalTradingForm(
+  { className = "", tokenSymbol = "ORBITX", onSuccess },
+  ref,
+) {
+  const { showFeedback } = useFooter();
+  const [side, setSide] = useState<"buy" | "sell">("buy");
+  const [orderType, setOrderType] = useState<"market" | "limit" | "advanced">(
+    "market",
+  );
+  const [advancedStrategyEnabled, setAdvancedStrategyEnabled] = useState(false);
+  const [showAdvancedMenu, setShowAdvancedMenu] = useState(false);
+  const [amount, setAmount] = useState("");
+  const [quickAmounts, setQuickAmounts] = useState(["0.01", "0.1", "1", "10"]);
+  const [isEditingQuickAmounts, setIsEditingQuickAmounts] = useState(false);
+  const [marketCap, setMarketCap] = useState("2327");
+  const [limitPercent, setLimitPercent] = useState(0);
+  const [advancedTab, setAdvancedTab] = useState<
+    "migration" | "dev-sell" | "dca"
+  >("migration");
+
+  return (
+    <form
+      className="absolute bottom-0"
+      style={{
+        width: FEEDBACK_WIDTH,
+        height: FEEDBACK_HEIGHT,
+        pointerEvents: showFeedback ? "all" : "none",
+      }}
+      onSubmit={(e) => e.preventDefault()}
+    >
+      <AnimatePresence>
+        {showFeedback && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{
+              type: "spring",
+              stiffness: 550 / SPEED,
+              damping: 45,
+              mass: 0.7,
+            }}
+            className={`space-y-2 rounded-none bg-(--terminal-bg) p-3 ${className}`}
+          >
+            <div className="grid grid-cols-2 gap-1 rounded-md bg-(--terminal-bg) p-1">
+              <button
+                type="button"
+                onClick={() => setSide("buy")}
+                className={`rounded py-1.5 text-sm font-medium transition-colors ${
+                  side === "buy"
+                    ? "bg-[#2FE0E3] text-black"
+                    : "bg-transparent text-white/70"
+                }`}
+              >
+                Buy
+              </button>
+              <button
+                type="button"
+                onClick={() => setSide("sell")}
+                className={`rounded py-1.5 text-sm font-medium transition-colors ${
+                  side === "sell"
+                    ? "bg-[#D73540] text-white"
+                    : "bg-transparent text-white/70"
+                }`}
+              >
+                Sell
+              </button>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setOrderType("market")}
+                  className={`pb-1 ${
+                    orderType === "market" ? "text-white" : "text-white/70"
+                  }`}
+                >
+                  Market
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setOrderType("limit")}
+                  className={`pb-1 ${
+                    orderType === "limit" ? "text-white" : "text-white/70"
+                  }`}
+                >
+                  Limit
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setOrderType("advanced")}
+                  className={`pb-1 ${
+                    orderType === "advanced" ? "text-white" : "text-white/70"
+                  }`}
+                >
+                  Adv.
+                </button>
+              </div>
+              <div className="inline-flex shrink-0 items-center gap-1 rounded-md border border-white/6 px-2 py-1 text-[11px] font-medium text-white sm:gap-1.5">
+                <span className="inline-flex items-center gap-1 ">
+                  <DepositIcon className="opacity-50 size-3.5" />
+                  <span className="text-neutral-400">3</span>
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <span className="inline-flex h-4 w-4 items-center justify-center text-neutral-400">
+                    <SolanaIcon className="size-3.5" />
+                  </span>
+                  <span className="text-neutral-400">1.2</span>
+                </span>
+              </div>
+            </div>
+
+            {orderType === "advanced" ? (
+              <div className="grid grid-cols-3 gap-2 rounded-md border border-white/6 p-1.5">
+                <button
+                  type="button"
+                  onClick={() => setAdvancedTab("migration")}
+                  className={`rounded-md px-2 py-1.5 text-[12px] font-medium transition-colors ${
+                    advancedTab === "migration"
+                      ? "bg-[#4D68FF] text-white"
+                      : "text-white/90 hover:bg-white/6"
+                  }`}
+                >
+                  » Migration
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAdvancedTab("dev-sell")}
+                  className={`rounded-md px-2 py-1.5 text-[12px] font-medium transition-colors ${
+                    advancedTab === "dev-sell"
+                      ? "bg-[#4D68FF] text-white"
+                      : "text-white/90 hover:bg-white/6"
+                  }`}
+                >
+                  ⌃ Dev Sell
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAdvancedTab("dca")}
+                  className={`rounded-md px-2 py-1.5 text-[12px] font-medium transition-colors ${
+                    advancedTab === "dca"
+                      ? "bg-[#4D68FF] text-white"
+                      : "text-white/90 hover:bg-white/6"
+                  }`}
+                >
+                  ◴ DCA
+                </button>
+              </div>
+            ) : null}
+
+            <div className="overflow-hidden rounded-md border border-white/6 bg-(--terminal-bg)">
+              <div className="flex items-center justify-between border-b border-white/6 px-3 py-2 text-xs focus-within:rounded-md focus-within:shadow-[inset_0_0_0_1px_#4D68FF]">
+                <span className="text-white/45">AMOUNT</span>
+                <input
+                  ref={ref}
+                  type="text"
+                  inputMode="decimal"
+                  value={amount}
+                  onChange={(event) => setAmount(event.target.value)}
+                  placeholder="0.0"
+                  aria-label="Amount"
+                  className="w-16 bg-transparent text-center font-semibold text-white outline-none"
+                />
+                <span className="inline-flex h-4 w-4 items-center justify-center text-[#4D68FF]">
+                  <SolanaIcon className="size-full" />
+                </span>
+              </div>
+              <div className="grid grid-cols-5 text-xs">
+                {quickAmounts.map((quickAmount, index) =>
+                  isEditingQuickAmounts ? (
+                    <div
+                      key={`edit-${index}`}
+                      className="border-r border-white/6 px-1 last:border-r-0"
+                    >
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        value={quickAmount}
+                        onChange={(event) =>
+                          setQuickAmounts((current) =>
+                            current.map((value, currentIndex) =>
+                              currentIndex === index
+                                ? event.target.value
+                                : value,
+                            ),
+                          )
+                        }
+                        aria-label={`Quick amount ${index + 1}`}
+                        className="w-full rounded-sm border border-transparent bg-transparent py-1.5 text-center text-white/90 outline-none focus:border-[#4D68FF] focus:ring-1 focus:ring-[#4D68FF]/50"
+                      />
+                    </div>
+                  ) : (
+                    <button
+                      key={`value-${index}`}
+                      type="button"
+                      onClick={() => setAmount(quickAmount)}
+                      className="border-r border-white/6 py-1.5 text-white/90 last:border-r-0"
+                    >
+                      {quickAmount}
+                    </button>
+                  ),
+                )}
+                <button
+                  type="button"
+                  onClick={() =>
+                    setIsEditingQuickAmounts((editing) => !editing)
+                  }
+                  aria-label={
+                    isEditingQuickAmounts
+                      ? "Save quick amounts"
+                      : "Edit quick amounts"
+                  }
+                  className="py-1.5 text-white/70"
+                >
+                  {isEditingQuickAmounts ? "✓" : "✎"}
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 text-xs text-white/50">
+              <span>⚒ 20%</span>
+              <span>⌗ 0.001</span>
+              <span className="text-[#f6c64d]">◉ 0.01</span>
+              <span>◬ Off</span>
+            </div>
+
+            {orderType === "limit" ? (
+              <>
+                <div className="flex items-center justify-between rounded-md border border-white/6 px-4 py-2 text-xs focus-within:shadow-[inset_0_0_0_1px_#4D68FF]">
+                  <span className="text-white/50">MKT CAP</span>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={marketCap}
+                    onChange={(event) => setMarketCap(event.target.value)}
+                    aria-label="Market cap"
+                    className="w-24 bg-transparent text-center font-semibold text-white outline-none"
+                  />
+                  <span className="text-xs font-semibold text-white ">$</span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <div className="min-w-0 flex-1">
+                    <input
+                      type="range"
+                      min={-100}
+                      max={100}
+                      step={1}
+                      value={limitPercent}
+                      onChange={(event) =>
+                        setLimitPercent(Number(event.target.value))
+                      }
+                      className="h-1 w-full accent-[#4D68FF]"
+                    />
+                    <div className="mt-1 flex items-center justify-between text-[10px] text-white/85">
+                      <span>-100%</span>
+                      <span>-50%</span>
+                      <span>0%</span>
+                      <span>+50%</span>
+                      <span>+100%</span>
+                    </div>
+                  </div>
+
+                  <div className="inline-flex w-16 items-center justify-between rounded-md border border-white/6 px-2 py-1.5 text-white">
+                    <span>{limitPercent}</span>
+                    <span>%</span>
+                  </div>
+                </div>
+              </>
+            ) : null}
+
+            {orderType === "market" ? (
+              <>
+                <div className="mt-6 flex items-center justify-between text-xs text-white/85">
+                  <span>Advanced Trading Strategy</span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setAdvancedStrategyEnabled((enabled) => {
+                        const nextEnabled = !enabled;
+                        if (!nextEnabled) {
+                          setShowAdvancedMenu(false);
+                        }
+                        return nextEnabled;
+                      })
+                    }
+                    aria-label="Toggle advanced trading strategy"
+                    aria-pressed={advancedStrategyEnabled}
+                    className={`relative inline-flex h-5 w-9 items-center rounded-full border border-white/6 transition-colors ${
+                      advancedStrategyEnabled
+                        ? "bg-[#464650] border border-white/15"
+                        : "bg-white/15"
+                    }`}
+                  >
+                    <span
+                      className={`inline-block size-3 transform rounded-full bg-white transition-transform ${
+                        advancedStrategyEnabled
+                          ? "translate-x-5"
+                          : "translate-x-1"
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {advancedStrategyEnabled ? (
+                  <div className="relative">
+                    <div className="flex items-center justify-between rounded-md border border-white/6 bg-(--terminal-bg) px-3 py-2 text-[#4D68FF]">
+                      <button
+                        type="button"
+                        onClick={() => setShowAdvancedMenu((open) => !open)}
+                        className="text-sm font-medium"
+                      >
+                        Add
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowAdvancedMenu((open) => !open)}
+                        aria-label="Toggle advanced strategy options"
+                        aria-expanded={showAdvancedMenu}
+                        className="text-xl leading-none text-white/70"
+                      >
+                        +
+                      </button>
+                    </div>
+
+                    {showAdvancedMenu ? (
+                      <div className="absolute left-0 top-[calc(100%+6px)] z-20 w-full overflow-hidden rounded-md border border-white/6 bg-[#12141d] shadow-lg shadow-black/40">
+                        {[
+                          "Take Profit",
+                          "Stop loss",
+                          "Trailing Stop Loss",
+                          "Dev Sell",
+                          "Migration",
+                        ].map((option) => (
+                          <button
+                            key={option}
+                            type="button"
+                            className="flex w-full items-center px-3 py-2 text-left text-sm text-white/80 hover:bg-white/6 hover:text-white"
+                          >
+                            {option}
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
+              </>
+            ) : null}
+
+            <button
+              type="button"
+              onClick={() => onSuccess?.()}
+              className={`mt-8 w-full rounded-lg py-2 text-sm font-semibold ${
+                side === "buy"
+                  ? "bg-[#2FE0E3] text-black"
+                  : "bg-[#D73540] text-white"
+              }`}
+            >
+              {side === "buy" ? "Buy" : "Sell"} {tokenSymbol}{" "}
+              <span className="inline-flex h-3.5 w-3.5 align-middle">
+                <SolanaIcon className="size-full" />
+              </span>{" "}
+              {amount || "0"}
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </form>
+  );
+});
+
 ///////////////////////////////////////////////////////////////////////////////////////
 
-const FEEDBACK_WIDTH = 360;
-const FEEDBACK_HEIGHT = 200;
+/** Align with `TokenList` column (`max-w-[420px]` in `hero.tsx`). */
+const FEEDBACK_WIDTH = 390;
+const FEEDBACK_HEIGHT = 250;
 
 function Feedback({
   ref,
@@ -979,10 +609,10 @@ function Feedback({
               <div className="flex items-center justify-between w-full">
                 <div className="flex items-start gap-1 justify-center flex-col">
                   <span className="text-xs text-neutral-100">
-                    Understand Query
+                    Parse trade intent
                   </span>
                   <span className="text-[10px] text-neutral-400">
-                    Identify intent and key terms
+                    Pairs, direction, size, and strategy from your prompt
                   </span>
                 </div>
                 <div className="size-5 rounded-full bg-emerald-950/90 ring-1 ring-emerald-500/35 flex items-center justify-center">
@@ -1000,10 +630,10 @@ function Feedback({
               <div className="flex items-center justify-between w-full">
                 <div className="flex items-start gap-1 justify-center flex-col">
                   <span className="text-xs text-neutral-100">
-                    Context Retrieval
+                    Pull market context
                   </span>
                   <span className="text-[10px] text-neutral-400">
-                    Retrieving relevant information
+                    Liquidity, volatility, and smart-money flows
                   </span>
                 </div>
                 <div className="size-5 rounded-full bg-blue-950/90 ring-1 ring-[#455EFF]/40 flex items-center justify-center">
@@ -1021,14 +651,14 @@ function Feedback({
               <div className="flex items-center justify-between w-full">
                 <div className="flex items-start gap-1 justify-center flex-col">
                   <span className="text-xs text-neutral-100">
-                    Build Context
+                    Plan execution
                   </span>
                   <span className="text-[10px] text-neutral-400">
-                    Combine results for execution
+                    Route, slippage limits, and risk guardrails
                   </span>
                 </div>
                 <div className="px-1 py-0.5 text-[10px] rounded-full text-neutral-400 bg-neutral-800 flex items-center justify-center">
-                  Pending
+                  Standby
                 </div>
               </div>
             </div>
