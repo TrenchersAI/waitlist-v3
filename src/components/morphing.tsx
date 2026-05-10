@@ -5,6 +5,8 @@ import useMeasure from "react-use-measure";
 import { AnimatePresence, useInView } from "motion/react";
 import { motion, useMotionValue, useTransform } from "motion/react";
 
+import { BOT_UNIT_CARD_ENTRANCE_STAGGER_MS } from "@/src/components/bot-unit-card-styles";
+
 import { BotUnitCard } from "./agent-unit-card";
 import InputFeint, { AGENT_CREATION_PLACEHOLDER } from "./input-feint";
 
@@ -124,7 +126,7 @@ const INTRO_DURATION_MS = 4800;
 type DemoPhase = "intro" | "morph" | "cards";
 
 /** Delay between each agent card entrance (after morph completes). */
-const CARD_ENTRANCE_STAGGER_S = 0.12;
+const CARD_ENTRANCE_STAGGER_S = BOT_UNIT_CARD_ENTRANCE_STAGGER_MS / 1000;
 /** Same stagger for dismiss order (top → bottom). */
 const CARD_EXIT_STAGGER_MS = CARD_ENTRANCE_STAGGER_S * 1000;
 /** Exit animation length per card (must match {@link agentCardVariants}.exit). */
@@ -448,6 +450,10 @@ export default function Morphing() {
                     bot={bot}
                     isSelected={selectedAgentId === bot.id}
                     onSelect={() => setSelectedAgentId(bot.id)}
+                    sparklineEntranceIndex={Math.max(
+                      0,
+                      DEMO_AGENT_UNITS.findIndex((u) => u.id === bot.id),
+                    )}
                   />
                 </motion.div>
               ))}

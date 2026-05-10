@@ -133,11 +133,14 @@ export function BotUnitCard({
   isSelected,
   onSelect,
   className,
+  sparklineEntranceIndex,
 }: {
   bot: BotUnit;
   isSelected: boolean;
   onSelect: () => void;
   className?: string;
+  /** When cards mount in a staggered list (e.g. morph demo), sparkline draws follow the same cadence. */
+  sparklineEntranceIndex?: number;
 }) {
   const live = useLiveTradingMetrics(bot);
 
@@ -194,6 +197,7 @@ export function BotUnitCard({
             className="pointer-events-none shrink-0"
             trendStroke={live.sparklineStroke}
             negative={live.deltaNegative}
+            entranceIndex={sparklineEntranceIndex}
           />
         </div>
       </div>
