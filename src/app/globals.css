@@ -3,14 +3,24 @@
 :root {
   --background: #ffffff;
   --foreground: #0a0a0a;
-  /** Darkens the noisy bg.svg for readability (0 = none, 1 = solid black). */
-  --bg-noise-overlay-opacity: 0.97;
-  /** Terminal / trading widget panels */
-  --terminal-bg: #0f1010;
+
   /**
-   * Black overlay on terminal `bg.svg` only (lower than --bg-noise-overlay-opacity
-   * so the noise shows through more than on the full page body).
+   * Full-page background (`body`) — same idea as `.terminal-panel-bg` / `ai-agent`:
+   * base color → `bg.svg` grain → uniform darken → optional radial wash. Tune each
+   * independently from `--terminal-*` (widgets keep their own stack).
    */
+  --site-base-color: #ffffff;
+  /** Uniform black layer over grain (0 = grain only, 1 = solid black). */
+  --site-noise-overlay-opacity: 0.64;
+  /**
+   * Extra top-weighted radial darken (edges stay transparent). 0 disables this layer.
+   * Does not affect `.terminal-panel-bg`.
+   */
+  --site-radial-overlay-opacity: 0.2;
+
+  /** Terminal / trading widget panels (`terminal-panel-bg`, e.g. ai-agent shell) */
+  --terminal-bg: #0f1010;
+  /** Uniform darken over grain inside terminal surfaces only. */
   --terminal-noise-overlay-opacity: 0.88;
 }
 
@@ -25,6 +35,14 @@
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
+    --site-base-color: #0a0a0a;
+  }
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --site-radial-overlay-opacity: 0;
+    --site-noise-overlay-opacity: 0.06;
   }
 }
 
@@ -38,23 +56,36 @@ body {
   min-height: 100%;
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
-  background-color: var(--background);
-  /* Semi-transparent black over noise; first layer paints on top */
+  background-color: var(--site-base-color);
+  /**
+   * Top-to-bottom stack (first list item = painted on top):
+   * 1) radial wash   2) uniform overlay on grain   3) `bg.svg`
+   * Mirrors `.terminal-panel-bg` but with `--site-*` + extra radial.
+   */
   background-image:
+    radial-gradient(
+      ellipse 130% 85% at 50% -15%,
+      rgb(0 0 0 / var(--site-radial-overlay-opacity)) 0%,
+      transparent 58%
+    ),
     linear-gradient(
-      rgb(0 0 0 / var(--bg-noise-overlay-opacity)),
-      rgb(0 0 0 / var(--bg-noise-overlay-opacity))
+      rgb(0 0 0 / var(--site-noise-overlay-opacity)),
+      rgb(0 0 0 / var(--site-noise-overlay-opacity))
     ),
     url("/bg.svg");
-  background-size: cover, cover;
+  background-size: cover, cover, cover;
   background-position:
+    center top,
     center center,
     center center;
-  background-repeat: no-repeat, no-repeat;
-  background-attachment: scroll, scroll;
+  background-repeat: no-repeat, no-repeat, no-repeat;
+  background-attachment: scroll, scroll, scroll;
 }
 
-/** Terminal / trading widgets: black @ --terminal-noise-overlay-opacity over bg.svg */
+/**
+ * Terminal surfaces (e.g. ai-agent MorphSurface): base → uniform overlay → grain.
+ * Controlled only by `--terminal-bg` and `--terminal-noise-overlay-opacity`.
+ */
 .terminal-panel-bg {
   background-color: var(--terminal-bg);
   background-image:

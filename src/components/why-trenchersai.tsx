@@ -132,7 +132,7 @@ export default function WhyTrenchersAI({ embedded = false }: WhyTrenchersAIProps
         "relative w-full",
         embedded
           ? "min-h-0 py-0"
-          : "flex h-screen items-center justify-center bg-[#0a0a0a] bg-[linear-gradient(rgb(0_0_0/var(--bg-noise-overlay-opacity)),rgb(0_0_0/var(--bg-noise-overlay-opacity))),url('/bg.svg')] bg-cover bg-center bg-no-repeat",
+          : "flex h-screen items-center justify-center bg-[#0a0a0a] bg-[linear-gradient(rgb(0_0_0/var(--site-noise-overlay-opacity)),rgb(0_0_0/var(--site-noise-overlay-opacity))),url('/bg.svg')] bg-cover bg-center bg-no-repeat",
       )}
     >
       <WhyTrenchersAICards embedded={embedded} />
