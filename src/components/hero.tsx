@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Badge from "./badge";
 import PnlGrowth from "./pnl-growth";
 import InputFeint from "./input-feint";
@@ -8,6 +9,10 @@ import EmailCapture from "./email-capture";
 import Morphing from "./morphing";
 import AIAgent from "./ai-agent";
 import Graph from "./graph";
+import MultiStepComponent from "./multi-step-component";
+import logoMark from "./icons/logo-mark.svg";
+import Logo from "./logo";
+import AIInsights from "./ai-insights";
 
 export default function Hero() {
   return (
@@ -22,11 +27,22 @@ export default function Hero() {
 
           <div className="relative order-1 flex w-full flex-col items-center justify-center gap-5 border-neutral-900 text-center lg:order-2 lg:w-[36%] lg:border-x">
             {/* <Morphing /> */}
-            <Graph />
+            {/* <Graph /> */}
+            {/* <MultiStepComponent /> */}
+            {/* <Logo /> */}
+            <AIInsights />
+            <Image
+              src={logoMark}
+              alt="Trenchers logo mark"
+              width={40}
+              height={35}
+              // className="opacity-95"
+              priority
+            />
             <div className="flex flex-col gap-8">
               <div className="flex flex-col items-center gap-2">
-                <Badge text="Coming Q2 2026" />
                 <div className="flex flex-col items-center gap-6">
+                  {/* <Badge text="Coming Q2 2026" /> */}
                   <h1 className="text-4xl font-medium text-white md:text-5xl">
                     Trenchers AI
                   </h1>
@@ -38,7 +54,7 @@ export default function Hero() {
                 </div>
               </div>
             </div>
-            <Graph />
+            {/* <Graph /> */}
           </div>
 
           <div className="order-3 flex w-full flex-col items-center justify-center py-12 lg:w-[32%] lg:pl-8">

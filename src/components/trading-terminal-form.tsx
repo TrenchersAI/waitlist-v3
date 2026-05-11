@@ -34,7 +34,7 @@ export default function TerminalTradingForm({
 
   return (
     <div
-      className={`space-y-2 rounded-none bg-(--terminal-bg) p-3 ${className}`}
+      className={`terminal-panel-bg relative space-y-2 rounded-none p-3 ${className}`}
     >
       <div className="grid grid-cols-2 gap-1 rounded-md bg-(--terminal-bg) p-1">
         <button

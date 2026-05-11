@@ -6,7 +6,12 @@
   /** Darkens the noisy bg.svg for readability (0 = none, 1 = solid black). */
   --bg-noise-overlay-opacity: 0.97;
   /** Terminal / trading widget panels */
-  --terminal-bg: #0b0c0d;
+  --terminal-bg: #0f1010;
+  /**
+   * Black overlay on terminal `bg.svg` only (lower than --bg-noise-overlay-opacity
+   * so the noise shows through more than on the full page body).
+   */
+  --terminal-noise-overlay-opacity: 0.88;
 }
 
 @theme inline {
@@ -45,6 +50,22 @@ body {
     center center;
   background-repeat: no-repeat, no-repeat;
   background-attachment: scroll, scroll;
+}
+
+/** Terminal / trading widgets: black @ --terminal-noise-overlay-opacity over bg.svg */
+.terminal-panel-bg {
+  background-color: var(--terminal-bg);
+  background-image:
+    linear-gradient(
+      rgb(0 0 0 / var(--terminal-noise-overlay-opacity)),
+      rgb(0 0 0 / var(--terminal-noise-overlay-opacity))
+    ),
+    url("/bg.svg");
+  background-size: cover, cover;
+  background-position:
+    center center,
+    center center;
+  background-repeat: no-repeat, no-repeat;
 }
 
 @keyframes text-shimmer {
