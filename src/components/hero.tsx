@@ -88,7 +88,7 @@ export default function Hero() {
             <Morphing />
           </div>
 
-          <div className="scrollbar-minimal-black relative order-1 flex min-h-0 w-full flex-1 flex-col items-center gap-5 overflow-y-auto border-neutral-900 px-2 pb-10 pt-24 text-center max-h-dvh lg:order-2 lg:h-dvh lg:max-h-none lg:w-[36%] lg:flex-none lg:border-x lg:border-dashed lg:pt-24">
+          <div className="relative order-1 flex min-h-0 w-full flex-1 flex-col items-center gap-5 border-neutral-900 px-2 pb-10 pt-24 text-center lg:order-2 lg:min-h-dvh lg:w-[36%] lg:flex-none lg:border-x lg:border-dashed lg:pt-24">
             {/* <Morphing /> */}
             {/* <Graph /> */}
             {/* <MultiStepComponent /> */}
