@@ -19,11 +19,22 @@ export default function AboutUs() {
           <p className="text-[16px] leading-7 text-neutral-500">
             The trenches are already automated. You are not just competing with
             other traders anymore. You are competing with infra, faster
-            execution, and wallets that react before CT even notices. Advanced
-            trading is still too hard to use. The best traders have automation,
-            fast execution, private infra, and bots. Most trenches have tabs,
-            wallet popups, telegram commands, confusing dashboards, and a brutal
-            learning curve. The edge is there. The onboarding is broken.
+            execution, and wallets that react before CT even notices.
+          </p>
+          <ul className="list-disc space-y-4 pl-5 text-[16px] leading-7 text-neutral-500 marker:text-neutral-600">
+            <li>Advanced trading is still too hard to use.</li>
+            <li>
+              The best traders have automation, fast execution, private infra,
+              and bots.
+            </li>
+            <li>
+              Most trenches have tabs, wallet popups, telegram commands,
+              confusing dashboards, and a brutal learning curve.
+            </li>
+            <li>The edge is there. The onboarding is broken.</li>
+          </ul>
+          <p className="text-[16px] leading-7 text-neutral-500">
+            TrenchersAI makes pro-level trading tools feel simple
           </p>
         </motion.section>
 

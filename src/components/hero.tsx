@@ -192,7 +192,15 @@ export default function Hero() {
                     </p>
                   </div>
                 </div>
-                <AIInsights />
+                <div
+                  className={`transition-all duration-700 ${
+                    showAnimatedSections
+                      ? "translate-y-0 opacity-100"
+                      : "pointer-events-none translate-y-2 opacity-0"
+                  }`}
+                >
+                  <AIInsights />
+                </div>
               </div>
             </div>
             {/* <Graph /> */}
