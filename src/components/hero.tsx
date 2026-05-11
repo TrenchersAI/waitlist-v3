@@ -15,6 +15,7 @@ import MultiStepComponent from "./multi-step-component";
 import logoMark from "./icons/logo-mark.svg";
 import Logo from "./logo";
 import AIInsights from "./ai-insights";
+import { WhyTrenchersAICards } from "./why-trenchersai";
 
 export default function Hero() {
   const [showAnimatedSections, setShowAnimatedSections] = useState(false);
@@ -35,9 +36,9 @@ export default function Hero() {
   return (
     <section
       id="hero"
-      className="relative w-full min-h-screen border-b border-neutral-900"
+      className="relative flex min-h-dvh w-full flex-col border-b border-neutral-900 bg-black"
     >
-      <div className="mx-auto max-w-[1550px] px-4 md:px-6 lg:px-8">
+      <div className="mx-auto flex min-h-dvh w-full max-w-[1550px] flex-1 flex-col px-4 md:px-6 lg:px-8">
         <div className="fixed top-0 left-0 right-0 z-30 border-b border-white/10 bg-black">
           <nav className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-5 md:px-6 lg:px-8">
             <div className="flex items-center gap-2.5">
@@ -74,75 +75,77 @@ export default function Hero() {
             </div>
           </nav>
         </div>
-        <div className="flex min-h-screen flex-col items-stretch lg:flex-row">
+        <div className="flex min-h-0 flex-1 flex-col items-stretch lg:flex-row">
           <div
-            className={`order-2 flex w-full flex-col items-center justify-center gap-4 py-12 transition-all duration-700 lg:order-1 lg:sticky lg:top-0 lg:h-screen lg:w-[32%] lg:pr-8 ${
+            className={`order-2 flex w-full flex-col items-center justify-center gap-4 py-12 transition-all duration-700 lg:order-1 lg:sticky lg:top-0 lg:min-h-0 lg:h-dvh lg:w-[32%] lg:shrink-0 lg:pr-8 ${
               showAnimatedSections
                 ? "translate-y-0 opacity-100"
                 : "pointer-events-none translate-y-2 opacity-0"
             }`}
           >
-            {/* <InputFeint /> */}
-            {/* <PnlGrowth /> */}
+            {/* <InputFeint />
+            <PnlGrowth /> */}
             <Morphing />
           </div>
 
-          <div className="relative order-1 flex w-full flex-col items-center gap-5 border-neutral-900 pt-24 text-center lg:order-2 lg:w-[36%] lg:border-x lg:border-dashed lg:pt-24">
+          <div className="scrollbar-minimal-black relative order-1 flex min-h-0 w-full flex-1 flex-col items-center gap-5 overflow-y-auto border-neutral-900 px-2 pb-10 pt-24 text-center max-h-dvh lg:order-2 lg:h-dvh lg:max-h-none lg:w-[36%] lg:flex-none lg:border-x lg:border-dashed lg:pt-24">
             {/* <Morphing /> */}
             {/* <Graph /> */}
             {/* <MultiStepComponent /> */}
             {/* <Logo /> */}
-            <div className="w-full">
-              <div className="flex min-h-[calc(100vh-6rem)] flex-col items-center justify-center gap-8 pb-12">
-                <div
-                  className={`transition-all duration-700 ${
-                    showAnimatedSections
-                      ? "translate-y-0 opacity-100"
-                      : "pointer-events-none -translate-y-2 opacity-0"
-                  }`}
-                ></div>
-                <div
-                  className={`transition-all duration-700 ${
-                    showAnimatedSections
-                      ? "translate-y-0 opacity-100"
-                      : "pointer-events-none -translate-y-2 opacity-0"
-                  }`}
-                >
-                  <AIInsights />
-                </div>
-                <div className="flex flex-col items-center gap-2 mb-5">
-                  <div className="flex flex-col items-center gap-6">
-                    <h1 className="text-4xl font-medium text-white md:text-4xl w-[450px]">
-                      AI Native Trading Terminal For The Trenches
-                    </h1>
-                    {/* <p className="max-w-[480px] text-sm leading-6 text-neutral-400 md:text-[16px]">
+            {/* First “page” inside this column: fills viewport so cards stay below until you scroll */}
+            <div className="flex w-full min-h-[calc(100dvh-9rem)] shrink-0 flex-col items-center justify-center gap-8 px-1 pb-4 pt-2 lg:min-h-[calc(100dvh-10rem)]">
+              <div
+                className={`transition-all duration-700 ${
+                  showAnimatedSections
+                    ? "translate-y-0 opacity-100"
+                    : "pointer-events-none -translate-y-2 opacity-0"
+                }`}
+              ></div>
+              <div
+                className={`transition-all duration-700 ${
+                  showAnimatedSections
+                    ? "translate-y-0 opacity-100"
+                    : "pointer-events-none -translate-y-2 opacity-0"
+                }`}
+              >
+                <AIInsights />
+              </div>
+              <div className="flex flex-col items-center gap-2">
+                <div className="flex flex-col items-center gap-6">
+                  <h1 className="w-[min(100%,450px)] text-4xl font-medium text-white md:text-4xl">
+                    AI Native Trading Terminal For The Trenches
+                  </h1>
+                  {/* <p className="max-w-[480px] text-sm leading-6 text-neutral-400 md:text-[16px]">
                       AI-native platform for automated trading. Built for vibe
                       trenching. Snipe launches, copy whales, and automate
                       trades instantly.
                     </p> */}
-                    <EmailCapture />
-                    <p className="max-w-[520px] text-[12px] leading-5 text-neutral-500">
-                      Early access is limited. Cryptocurrency trading carries
-                      substantial risk of loss.
-                    </p>
-                  </div>
+                  <EmailCapture />
+                  <p className="max-w-[520px] text-[12px] leading-5 text-neutral-500">
+                    Early access is limited. Cryptocurrency trading carries
+                    substantial risk of loss.
+                  </p>
                 </div>
-                {/* <div
-                  className={`transition-all duration-700 ${
-                    showAnimatedSections
-                      ? "translate-y-0 opacity-100"
-                      : "pointer-events-none translate-y-2 opacity-0"
-                  }`}
-                >
-                  <AIInsights />
-                </div> */}
+              </div>
+            </div>
+
+            {/* Space before cards — only appears as you scroll */}
+            <div
+              className="w-full shrink-0 min-h-12 lg:min-h-20"
+              aria-hidden
+            />
+
+            <div className="flex w-full flex-col items-center px-1 pb-12 pt-2">
+              <div className="w-full origin-top scale-[0.93] sm:scale-[0.95]">
+                <WhyTrenchersAICards embedded />
               </div>
             </div>
             {/* <Graph /> */}
           </div>
 
           <div
-            className={`order-3 flex w-full flex-col items-center justify-center py-12 transition-all duration-700 lg:order-3 lg:sticky lg:top-0 lg:h-screen lg:w-[32%] lg:pl-8 ${
+            className={`order-3 flex w-full flex-col items-center justify-center py-12 transition-all duration-700 lg:order-3 lg:sticky lg:top-0 lg:min-h-0 lg:h-dvh lg:w-[32%] lg:shrink-0 lg:pl-8 ${
               showAnimatedSections
                 ? "translate-y-0 opacity-100"
                 : "pointer-events-none translate-y-2 opacity-0"

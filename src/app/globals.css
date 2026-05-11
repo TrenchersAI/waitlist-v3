@@ -79,6 +79,26 @@ body {
   }
 }
 
+/**
+ * No visible scrollbar — wheel / trackpad / touch / keyboard still scroll.
+ * (Custom thin thumbs still let Chromium show its default overlay bar on hover.)
+ */
+.scrollbar-minimal-black {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.scrollbar-minimal-black::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+  background: transparent;
+}
+
+.scrollbar-minimal-black::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
 .shimmer-text {
   background-image: linear-gradient(
     90deg,
