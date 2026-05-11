@@ -9,7 +9,7 @@ export default function SiteFooter() {
   const year = new Date().getFullYear();
 
   return (
-    <footer className="w-full min-w-0 border-t border-neutral-900 bg-[#0a0a0a]">
+    <footer className="site-canvas-bg w-full min-w-0 border-t border-neutral-900">
       <div className="mx-auto flex w-full min-w-0 max-w-7xl flex-col gap-10 px-4 py-12 md:flex-row md:items-start md:justify-between md:px-6 lg:px-8">
         <div className="flex max-w-md flex-col gap-3">
           <Link

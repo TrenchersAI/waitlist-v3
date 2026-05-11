@@ -11,7 +11,7 @@
    */
   --site-base-color: #ffffff;
   /** Uniform black layer over grain (0 = grain only, 1 = solid black). */
-  --site-noise-overlay-opacity: 0.64;
+  --site-noise-overlay-opacity: 0.95;
   /**
    * Extra top-weighted radial darken (edges stay transparent). 0 disables this layer.
    * Does not affect `.terminal-panel-bg`.
@@ -42,7 +42,7 @@
 @media (prefers-color-scheme: light) {
   :root {
     --site-radial-overlay-opacity: 0;
-    --site-noise-overlay-opacity: 0.06;
+    /* Keep `--site-noise-overlay-opacity` from `:root` so one control tints grain site-wide. */
   }
 }
 
@@ -52,10 +52,12 @@ html {
   /* scrollbar-gutter: stable; */
 }
 
-body {
-  min-height: 100%;
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/**
+ * Same stack as `body` — use on full-bleed sections instead of `bg-black`, which hides
+ * the grain entirely. `fixed` keeps one viewport-locked texture across adjacent panels.
+ */
+body,
+.site-canvas-bg {
   background-color: var(--site-base-color);
   /**
    * Top-to-bottom stack (first list item = painted on top):
@@ -79,7 +81,17 @@ body {
     center center,
     center center;
   background-repeat: no-repeat, no-repeat, no-repeat;
+}
+
+body {
+  min-height: 100%;
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
   background-attachment: scroll, scroll, scroll;
+}
+
+.site-canvas-bg {
+  background-attachment: fixed, fixed, fixed;
 }
 
 /**

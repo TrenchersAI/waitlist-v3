@@ -143,7 +143,7 @@ const FEATURES: Feature[] = [
 
 export default function TrenchersFeaturesGrid() {
   return (
-    <section className="relative w-full border-t border-neutral-900/80 bg-black py-20 md:py-28">
+    <section className="site-canvas-bg relative w-full border-t border-neutral-900/80 py-20 md:py-28">
       <div className="mx-auto w-full min-w-0 max-w-6xl px-4 md:px-6 lg:px-8">
         <motion.header
           className="mx-auto flex w-full min-w-0 max-w-2xl flex-col items-center gap-4 text-center"
@@ -171,7 +171,7 @@ export default function TrenchersFeaturesGrid() {
           {FEATURES.map((item) => (
             <div
               key={item.title}
-              className="flex w-full min-w-0 flex-col items-start gap-3 bg-black px-4 py-8 sm:py-10 md:px-6 lg:px-6"
+              className="site-canvas-bg flex w-full min-w-0 flex-col items-start gap-3 px-4 py-8 sm:py-10 md:px-6 lg:px-6"
             >
               {item.icon}
               <h3 className="text-base font-semibold leading-snug text-white md:text-[17px]">

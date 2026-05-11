@@ -8,7 +8,7 @@ import logoMark from "@/src/components/icons/logo-mark.svg";
 export default function AboutUsPage() {
   return (
     <section className="relative min-h-screen w-full min-w-0">
-      <nav className="absolute left-0 right-0 top-0 z-30 mx-auto flex w-full max-w-7xl items-center justify-between border-b border-white/10 bg-black px-4 py-5 md:px-6 lg:px-8">
+      <nav className="site-canvas-bg absolute left-0 right-0 top-0 z-30 mx-auto flex w-full max-w-7xl items-center justify-between border-b border-white/10 px-4 py-5 md:px-6 lg:px-8">
         <div className="flex items-center gap-2.5">
           <Image
             src={logoMark}

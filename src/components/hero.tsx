@@ -36,10 +36,10 @@ export default function Hero() {
   return (
     <section
       id="hero"
-      className="relative flex min-h-dvh w-full flex-col border-b border-neutral-900 bg-black"
+      className="site-canvas-bg relative flex min-h-dvh w-full flex-col border-b border-neutral-900"
     >
       <div className="mx-auto flex min-h-dvh w-full min-w-0 max-w-[1550px] flex-1 flex-col px-4 md:px-6 lg:px-8">
-        <div className="fixed top-0 left-0 right-0 z-30 w-full border-b border-white/10 bg-black">
+        <div className="site-canvas-bg fixed top-0 left-0 right-0 z-50 w-full border-b border-white/10 bg-black">
           <nav className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-5 md:px-6 lg:px-8">
             <div className="flex items-center gap-2.5">
               <Image
@@ -112,7 +112,7 @@ export default function Hero() {
                 >
                   <AIInsights />
                 </div>
-                <div className="flex w-full flex-col items-center gap-2 -mt-6 md:-mt-0 z-50">
+                <div className="flex w-full flex-col items-center gap-2 -mt-6 md:-mt-0 z-30">
                   <div className="flex flex-col items-center gap-6">
                     <h1 className="w-full min-w-0 max-w-[450px] text-balance text-4xl font-medium text-white md:text-4xl">
                       AI Native Trading Terminal For The Trenches
