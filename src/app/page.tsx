@@ -3,7 +3,7 @@ import TrenchersFeaturesGrid from "../components/trenchers-features-grid";
 
 export default function Home() {
   return (
-    <div className="relative w-full font-sans">
+    <div className="relative w-full min-w-0 font-sans">
       <Hero />
       <TrenchersFeaturesGrid />
     </div>

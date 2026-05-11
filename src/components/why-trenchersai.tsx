@@ -22,8 +22,8 @@ export function WhyTrenchersAICards({ embedded = false }: CardsProps) {
       className={clsx(
         "mx-auto flex w-full flex-col rounded-xl text-left",
         embedded
-          ? "max-w-88 gap-5 sm:max-w-96 md:max-w-104 md:gap-6"
-          : "max-w-[600px] gap-16 px-6 py-20 md:gap-20 md:py-8",
+          ? "min-w-0 w-full max-w-none gap-5 sm:max-w-96 md:max-w-104 md:gap-6"
+          : "w-full max-w-[600px] gap-16 px-4 py-20 md:gap-20 md:px-6 md:py-8 lg:px-6",
       )}
     >
       <BorderBeam

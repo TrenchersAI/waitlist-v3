@@ -112,3 +112,30 @@ body {
   color: transparent;
   animation: text-shimmer 2.4s linear infinite;
 }
+
+@keyframes text-shimmer-nav {
+  0% {
+    background-position: 180% center;
+  }
+  100% {
+    background-position: -180% center;
+  }
+}
+
+/** Nav link shimmer — brighter peak than body `.shimmer-text`, still slower. */
+.shimmer-text-nav {
+  background-image: linear-gradient(
+    100deg,
+    rgba(255, 255, 255, 0.72) 0%,
+    rgba(255, 255, 255, 0.8) 34%,
+    rgba(255, 255, 255, 1) 50%,
+    rgba(255, 255, 255, 0.8) 66%,
+    rgba(255, 255, 255, 0.72) 100%
+  );
+  background-size: 200% 100%;
+  background-position: 100% center;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  animation: text-shimmer-nav 4.2s ease-in-out infinite;
+}
