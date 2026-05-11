@@ -1,76 +1,77 @@
 "use client";
 
 import { motion } from "motion/react";
+import { BorderBeam } from "border-beam";
+
+const reveal = {
+  initial: { opacity: 0, y: 24, filter: "blur(10px)" } as const,
+  whileInView: { opacity: 1, y: 0, filter: "blur(0px)" } as const,
+  viewport: { once: true, amount: 0.35 } as const,
+  transition: { duration: 0.65, ease: "easeOut" as const },
+};
 
 export default function AboutUs() {
   return (
-    <section className="relative min-h-screen w-full bg-[#0a0a0a] bg-[linear-gradient(rgb(0_0_0/var(--bg-noise-overlay-opacity)),rgb(0_0_0/var(--bg-noise-overlay-opacity))),url('/bg.svg')] bg-cover bg-center bg-no-repeat">
-      <main className="mx-auto flex items-center justify-center min-h-screen w-full max-w-2xl flex-col gap-12 px-6 py-24 text-left">
-        <motion.section
-          className="flex w-full flex-col gap-16 md:gap-24"
-          initial={{ opacity: 0, y: 28, filter: "blur(12px)" }}
-          whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-          viewport={{ once: true, amount: 0.35 }}
-          transition={{ duration: 0.7, ease: "easeOut" }}
+    <section className="relative h-screen flex items-center justify-center w-full bg-[#0a0a0a] bg-[linear-gradient(rgb(0_0_0/var(--bg-noise-overlay-opacity)),rgb(0_0_0/var(--bg-noise-overlay-opacity))),url('/bg.svg')] bg-cover bg-center bg-no-repeat">
+      <main className="mx-auto rounded-xl flex w-full max-w-[600px] flex-col gap-16 px-6 py-20 text-left md:gap-20 md:py-8">
+        <BorderBeam
+          size="sm"
+          theme="dark"
+          colorVariant="ocean"
+          duration={2.4}
+          strength={0.68}
+          borderRadius={12}
+          className="relative w-full rounded-xl"
         >
-          <div className="mx-auto flex w-full max-w-xl flex-col items-center gap-5 text-center md:max-w-2xl md:gap-6">
-            <h2 className="text-2xl font-semibold tracking-tight text-white md:text-3xl">
-              The trenches are already automated
+          <motion.section
+            className="relative flex flex-col gap-4 rounded-xl bg-[#121212] px-6 pt-6 pb-16 md:gap-5"
+            {...reveal}
+          >
+            <h2 className="text-[16px] font-semibold text-white md:text-xl">
+              Challenges
             </h2>
-            <p className="text-[15px] leading-7 text-neutral-400 md:text-[16px]">
-              You are not just competing with other traders anymore. You are
-              competing with bots, private infra, faster execution, and wallets
-              that react before CT even notices.
+            <p className="text-[14px] font-normal leading-7 text-neutral-400 md:text-[16px]">
+              The trenches are already automated. You are not just competing
+              with other traders anymore. You are competing with infra, faster
+              execution, and wallets that react before CT even notices. Advanced
+              trading is still too hard to use. The best traders have
+              automation, fast execution, private infra, and bots. Most trenches
+              have tabs, wallet popups, telegram commands, confusing dashboards,
+              and a brutal learning curve. The edge is there. The onboarding is
+              broken.
             </p>
-          </div>
+            <div className="absolute bottom-0 left-0 right-0 h-22 bg-linear-to-t from-black to-transparent" />
+          </motion.section>
+        </BorderBeam>
 
-          <div className="w-full text-left">
-            <h3 className="text-2xl font-semibold tracking-tight text-white md:text-3xl">
-              Advanced trading is still too hard to use
-            </h3>
-            <div className="mt-10 flex flex-col gap-8 text-[15px] font-normal leading-7 text-neutral-400 md:mt-12 md:gap-10 md:text-[16px]">
-              <p>
-                The best traders have automation, fast execution, private infra,
-                and custom bots.
-              </p>
-              <p>
-                Most trenchers have tabs, wallet popups, Telegram commands,
-                confusing dashboards, and a brutal learning curve.
-              </p>
-              <p>The edge is there.</p>
-              <p>The onboarding is broken.</p>
-            </div>
-          </div>
-
-          <p className="text-[16px] leading-7 text-white text-center">
-            TrenchersAI makes pro-level trading tools feel simple
-          </p>
-        </motion.section>
-
-        <motion.section
-          className="flex w-full flex-col items-center gap-8 pb-12 text-center md:gap-10"
-          aria-labelledby="what-changes-heading"
-          initial={{ opacity: 0, y: 28, filter: "blur(12px)" }}
-          whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-          viewport={{ once: true, amount: 0.35 }}
-          transition={{ duration: 0.7, ease: "easeOut", delay: 0.08 }}
+        <BorderBeam
+          size="sm"
+          theme="dark"
+          colorVariant="ocean"
+          duration={2.4}
+          strength={0.68}
+          borderRadius={12}
+          className="relative w-full rounded-xl"
         >
-          <h2 id="what-changes-heading" className="sr-only">
-            What changes with TrenchersAI
-          </h2>
-          <p className="max-w-5xl text-2xl font-semibold leading-snug tracking-tight text-white md:text-3xl md:leading-tight">
-            One terminal. Spawnable AI agents. Full control.
-          </p>
-          <p className="max-w-xl text-[15px] font-normal leading-7 text-white md:text-lg md:leading-8">
-            TrenchersAI gives traders one place to discover, snipe, copy, track,
-            and manage positions — with AI agents built directly into the
-            terminal.
-          </p>
-          <p className="max-w-2xl text-sm font-normal leading-6 text-white md:text-base md:leading-7">
-            Describe what you want {">"} Fund the bot {">"} Let it run while you
-            are asleep
-          </p>
-        </motion.section>
+          <motion.section
+            className="relative flex flex-col gap-4 rounded-xl bg-[#121212] px-6 pt-6 pb-16 md:gap-5 md:pb-12"
+            {...reveal}
+            transition={{ ...reveal.transition, delay: 0.06 }}
+          >
+            <h2 className="text-[16px] font-semibold text-white md:text-xl">
+              What changes with TrenchersAI
+            </h2>
+            <p className="text-[14px] font-normal leading-7 text-neutral-400 md:text-[16px]">
+              One terminal. Spawnable AI agents. Full control. TrenchersAI gives
+              traders one place to discover, snipe, copy, track, and manage
+              positions with AI agents built directly into the terminal.
+              Describe what you want {">"} Fund the bot {">"} Let it run while
+              you are asleep.
+            </p>
+            <div className="absolute bottom-0 left-0 right-0 h-22 bg-linear-to-t from-black to-transparent" />
+          </motion.section>
+        </BorderBeam>
+        {/* <div className="h-32 gra"></div> */}
       </main>
     </section>
   );
