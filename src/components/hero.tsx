@@ -60,13 +60,13 @@ export default function Hero() {
               >
                 Join Early Access
               </a>
-            {/* <Link
+              {/* <Link
               href="/about-us"
               className="transition-colors hover:text-white"
             >
               Why TrenchersAI ?
             </Link> */}
-            {/* <Link
+              {/* <Link
               href="/about-us"
               className="transition-colors hover:text-white"
             >
@@ -131,10 +131,7 @@ export default function Hero() {
             </div>
 
             {/* Space before cards — only appears as you scroll */}
-            <div
-              className="w-full shrink-0 min-h-12 lg:min-h-20"
-              aria-hidden
-            />
+            <div className="w-full shrink-0 min-h-12 lg:min-h-20" aria-hidden />
 
             <div className="flex w-full flex-col items-center px-1 pb-12 pt-2">
               <div className="w-full origin-top scale-[0.93] sm:scale-[0.95]">
