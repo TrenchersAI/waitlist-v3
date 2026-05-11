@@ -140,12 +140,12 @@ export default function Hero() {
                 </svg>
               </a>
             </div>
-            <Link
+            {/* <Link
               href="/about-us"
               className="transition-colors hover:text-white"
             >
               Why TrenchersAI ?
-            </Link>
+            </Link> */}
           </div>
         </nav>
         <div className="flex min-h-screen flex-col items-stretch lg:flex-row">
@@ -175,6 +175,15 @@ export default function Hero() {
                       : "pointer-events-none -translate-y-2 opacity-0"
                   }`}
                 ></div>
+                <div
+                  className={`transition-all duration-700 ${
+                    showAnimatedSections
+                      ? "translate-y-0 opacity-100"
+                      : "pointer-events-none -translate-y-2 opacity-0"
+                  }`}
+                >
+                  <AIInsights />
+                </div>
                 <div className="flex flex-col items-center gap-2 mb-5">
                   <div className="flex flex-col items-center gap-6">
                     <h1 className="text-4xl font-medium text-white md:text-4xl w-[450px]">
@@ -192,7 +201,7 @@ export default function Hero() {
                     </p>
                   </div>
                 </div>
-                <div
+                {/* <div
                   className={`transition-all duration-700 ${
                     showAnimatedSections
                       ? "translate-y-0 opacity-100"
@@ -200,7 +209,7 @@ export default function Hero() {
                   }`}
                 >
                   <AIInsights />
-                </div>
+                </div> */}
               </div>
             </div>
             {/* <Graph /> */}
