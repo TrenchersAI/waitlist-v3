@@ -47,8 +47,8 @@ export default function AIInsights() {
                 {insightsTab === "Market Intel" ? (
                   <>
                     <p className="text-sm leading-relaxed text-white/82">
-                      Your AI agent sees cooling momentum and mixed follow-through
-                      in recent fills.
+                      Your AI agent sees cooling momentum and mixed
+                      follow-through in recent fills.
                     </p>
                     {/* <p className="text-sm leading-relaxed text-white/70">
                       Suggested action: keep current size until a cleaner
