@@ -29,7 +29,9 @@
 }
 
 html {
-  min-height: 100%;
+  /* min-height: 100%; */
+  /* Prevent horizontal layout shift when delayed sections cause scrollbar to appear. */
+  /* scrollbar-gutter: stable; */
 }
 
 body {
