@@ -1,10 +1,11 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useState, useSyncExternalStore } from "react";
 import Image from "next/image";
 import { BorderBeam } from "border-beam";
 import { useReducedMotion } from "motion/react";
-import EmailCapture from "./email-capture";import logoMark from "./icons/logo-mark.svg";
+import EmailCapture from "./email-capture";
+import logoMark from "./icons/logo-mark.svg";
 import {
   PreviewSection,
   ProblemSection,
@@ -40,6 +41,8 @@ type HeroProps = {
 };
 
 export default function Hero({ initialVerified = false }: HeroProps) {
+  const [suppressVerifiedWelcomeChrome, setSuppressVerifiedWelcomeChrome] =
+    useState(false);
   const hydrated = useHydrated();
   const storedSession = useSyncExternalStore(
     subscribeWaitlistSession,
@@ -52,6 +55,9 @@ export default function Hero({ initialVerified = false }: HeroProps) {
   const hasReturningVerifiedSession = hydrated
     ? storedSession
     : initialVerified;
+
+  const showVerifiedWelcomeHeadline =
+    hasReturningVerifiedSession && !suppressVerifiedWelcomeChrome;
 
   return (
     <>
@@ -73,7 +79,7 @@ export default function Hero({ initialVerified = false }: HeroProps) {
           className="relative mx-auto flex w-full min-w-0 max-w-[1240px] flex-col items-center px-5 pb-20 pt-32 text-center md:px-8 md:pt-40 md:pb-28"
         >
           {!hasReturningVerifiedSession && (
-            <div className="feature-strip-marquee w-full max-w-[640px]">
+            <div className="feature-strip-marquee mb-1 w-full max-w-[640px]">
               <div className="feature-strip-track">
                 {/* Items duplicated 4x so the track always spans wider than
                    any viewport. Keyframes translate -50% (i.e. 2 of the 4
@@ -96,13 +102,17 @@ export default function Hero({ initialVerified = false }: HeroProps) {
 
           <h1
             className={`text-balance font-medium leading-[1.04] tracking-[-0.02em] text-white ${
-              hasReturningVerifiedSession
+              showVerifiedWelcomeHeadline
                 ? "mt-2 max-w-[860px] text-[32px] sm:text-[44px] md:text-[52px]"
-                : "mt-7 max-w-[min(1120px,100%)] text-[40px] sm:text-[56px] md:text-[68px]"
+                : hasReturningVerifiedSession
+                  ? "mt-2 max-w-[860px] text-[28px] text-white/90 sm:text-[36px] md:text-[40px]"
+                  : "mt-10 max-w-[min(1120px,100%)] text-[40px] sm:mt-11 sm:text-[56px] md:mt-12 md:text-[68px]"
             }`}
           >
-            {hasReturningVerifiedSession ? (
+            {showVerifiedWelcomeHeadline ? (
               "Welcome to TrenchersAI"
+            ) : hasReturningVerifiedSession ? (
+              `You're in the trenches.`
             ) : (
               <>
                 An AI-native trading terminal,
@@ -112,18 +122,26 @@ export default function Hero({ initialVerified = false }: HeroProps) {
           </h1>
 
           {!hasReturningVerifiedSession && (
-            <p className="mt-5 max-w-[640px] text-balance text-[15px] leading-[1.6] text-white/55 sm:text-[17px] md:text-[18px]">
+            <p className="mt-7 max-w-[640px] text-balance text-[15px] leading-[1.65] text-white/55 sm:mt-8 sm:text-[17px] md:text-[18px]">
               Spawn AI trading agents from chat. Discover, snipe, copy, track,
               and manage positions, all from one terminal built for speed.
             </p>
           )}
 
-          <div className="mt-9 flex w-full justify-center">
-            <EmailCapture initialVerified={initialVerified} />
+          <div className="mt-10 flex w-full justify-center md:mt-11">
+            <EmailCapture
+              initialVerified={initialVerified}
+              onVerifiedFollowGateOpen={() =>
+                setSuppressVerifiedWelcomeChrome(true)
+              }
+              onVerifiedFollowGateClose={() =>
+                setSuppressVerifiedWelcomeChrome(false)
+              }
+            />
           </div>
 
           {!hasReturningVerifiedSession && (
-            <p className="max-w-[520px] text-balance text-[12px] tracking-wide text-white/35">
+            <p className="mt-2 max-w-[520px] text-balance text-[12px] tracking-wide text-white/35">
               Early access is limited. Cryptocurrency trading carries
               substantial risk of loss.
             </p>
@@ -190,7 +208,7 @@ function SiteNav() {
               href="#waitlist"
               className="inline-flex items-center rounded-full border border-white/15 bg-black px-3.5 py-1.5 text-[12.5px] font-semibold text-white outline-none transition-colors hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-white/35"
             >
-              Join Early Access
+              Get Early Access
             </a>
           </BorderBeam>
         </div>

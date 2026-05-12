@@ -10,6 +10,7 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
+import { createPortal } from "react-dom";
 import { BorderBeam } from "border-beam";
 import { motion, useReducedMotion } from "motion/react";
 import XIcon from "../icons/x-icon";
@@ -24,6 +25,9 @@ import {
 import { useHydrated } from "@/src/hooks/use-hydrated";
 
 const LAUNCH_TWEET_URL = "https://x.com/TrenchersAI/status/2048148307650998392";
+
+const TRENCHERS_X_FOLLOW_INTENT_URL =
+  "https://x.com/intent/follow?screen_name=TrenchersAI";
 
 /** Max wait before showing the dashboard with email fallback (no referral code yet). */
 const TRENCHES_DECK_LOAD_MS = 14_000;
@@ -66,10 +70,16 @@ type EmailCaptureProps = {
      unverified shell flash on refresh. The post-hydration localStorage check
      can still revoke this if the cookie went stale. */
   initialVerified?: boolean;
+  /** Shown once after OTP (or instant-verify) succeeds so the hero can hide
+     the full welcome headline until the user dismisses the follow-on-X step. */
+  onVerifiedFollowGateOpen?: () => void;
+  onVerifiedFollowGateClose?: () => void;
 };
 
 export default function EmailCapture({
   initialVerified = false,
+  onVerifiedFollowGateOpen,
+  onVerifiedFollowGateClose,
 }: EmailCaptureProps) {
   /** Belt-and-suspenders against hydration mismatch:
      - ⁠ useSyncExternalStore ⁠ already returns "" on the server / during the
@@ -93,6 +103,7 @@ export default function EmailCapture({
      post-hydration localStorage email; the API confirmation + cookie/storage
      divergence effects can still revoke this if the cookie was stale. */
   const [isVerified, setIsVerified] = useState(initialVerified);
+  const [followOnXGateOpen, setFollowOnXGateOpen] = useState(false);
   const [copiedReferral, setCopiedReferral] = useState(false);
   const [referralCode, setReferralCode] = useState("");
   const [referralCount, setReferralCount] = useState(0);
@@ -246,6 +257,8 @@ export default function EmailCapture({
       if (otpStep === "request") {
         if (data.verified) {
           setIsVerified(true);
+          setFollowOnXGateOpen(true);
+          onVerifiedFollowGateOpen?.();
           setOtpStep("request");
           setOtpDigits(Array(6).fill(""));
           if (normalizedEmail) {
@@ -256,6 +269,8 @@ export default function EmailCapture({
         }
       } else {
         setIsVerified(true);
+        setFollowOnXGateOpen(true);
+        onVerifiedFollowGateOpen?.();
         setOtpDigits(Array(6).fill(""));
         setSubmitState({
           loading: false,
@@ -533,6 +548,27 @@ join the trenches:`;
     window.open(intentUrl, "_blank", "noopener,noreferrer");
   };
 
+  useEffect(() => {
+    if (!followOnXGateOpen) return;
+    const onKey = (e: globalThis.KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setFollowOnXGateOpen(false);
+        onVerifiedFollowGateClose?.();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [followOnXGateOpen, onVerifiedFollowGateClose]);
+
+  useEffect(() => {
+    if (!followOnXGateOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [followOnXGateOpen]);
+
   if (isVerified) {
     /** SSR/pre-hydration: ⁠ hydrated ⁠ is false, so we always show the loader
        skeleton (referralCode hasn't been fetched yet). Post-hydration:
@@ -542,13 +578,72 @@ join the trenches:`;
     const trenchesDeckReady =
       hydrated && (referralCode.length > 0 || trenchesLoadTimedOut);
 
+    const followOnXModal =
+      followOnXGateOpen &&
+      typeof document !== "undefined" &&
+      createPortal(
+        <div
+          className="fixed inset-0 z-[200] flex items-center justify-center bg-black/85 p-4 backdrop-blur-sm"
+          role="presentation"
+          onClick={() => {
+            setFollowOnXGateOpen(false);
+            onVerifiedFollowGateClose?.();
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="follow-x-dialog-title"
+            className="w-full max-w-md rounded-2xl border border-white/10 bg-neutral-950 p-6 shadow-[0_24px_80px_rgba(0,0,0,0.75)]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2
+              id="follow-x-dialog-title"
+              className="text-lg font-semibold tracking-tight text-white"
+            >
+              Follow TrenchersAI on X
+            </h2>
+            <p className="mt-2 text-sm leading-relaxed text-white/55">
+              Launches, alpha, and trench updates hit the timeline first.
+            </p>
+            <div className="mt-6 flex flex-col gap-2.5 sm:flex-row sm:gap-3">
+              <a
+                href={TRENCHERS_X_FOLLOW_INTENT_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-neutral-700 bg-neutral-950 px-4 py-3 text-sm font-semibold text-white transition-colors hover:border-neutral-600 hover:bg-black"
+              >
+                <XIcon />
+                Follow on X
+              </a>
+              <button
+                type="button"
+                className="inline-flex flex-1 cursor-pointer items-center justify-center rounded-xl border border-white/15 bg-white/8 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-white/12"
+                onClick={() => {
+                  setFollowOnXGateOpen(false);
+                  onVerifiedFollowGateClose?.();
+                }}
+              >
+                Continue
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      );
+
     return (
-      <motion.div
-        className="mx-auto w-full min-h-[360px] min-w-0 max-w-[480px] shrink-0 rounded-[20px] border border-white/10 bg-linear-to-br from-black/55 via-black/40 to-black/30 p-6 text-left text-[#fafafa] shadow-[inset_0_1px_0_rgba(255,255,255,0.28),inset_0_-1px_0_rgba(255,255,255,0.06),0_24px_70px_rgba(0,0,0,0.58)] backdrop-blur-sm [-webkit-backdrop-filter:blur(4px)] max-[420px]:p-4 sm:min-h-[440px]"
-        variants={fadeUpVariants}
-        initial="hidden"
-        animate="visible"
-      >
+      <>
+        {followOnXModal}
+        <motion.div
+          className={`mx-auto w-full min-h-[360px] min-w-0 max-w-[480px] shrink-0 rounded-[20px] border border-white/10 bg-linear-to-br from-black/55 via-black/40 to-black/30 p-6 text-left text-[#fafafa] shadow-[inset_0_1px_0_rgba(255,255,255,0.28),inset_0_-1px_0_rgba(255,255,255,0.06),0_24px_70px_rgba(0,0,0,0.58)] backdrop-blur-sm [-webkit-backdrop-filter:blur(4px)] max-[420px]:p-4 sm:min-h-[440px] ${
+            followOnXGateOpen ? "pointer-events-none invisible" : ""
+          }`}
+          variants={fadeUpVariants}
+          initial="hidden"
+          animate="visible"
+          aria-hidden={followOnXGateOpen}
+        >
         {!trenchesDeckReady ? (
           <TrenchesDashboardLoader />
         ) : (
@@ -646,12 +741,13 @@ join the trenches:`;
           </>
         )}
       </motion.div>
+      </>
     );
   }
 
   return (
     <motion.div
-      className="flex w-full max-w-[480px] flex-col items-center gap-3 max-sm:max-w-[min(100%,20rem)] max-sm:gap-2"
+      className="flex w-full max-w-[480px] flex-col items-center gap-1.5 max-sm:max-w-[min(100%,20rem)] max-sm:gap-1.5"
       variants={fadeUpVariants}
       initial="hidden"
       animate="visible"
@@ -675,7 +771,7 @@ join the trenches:`;
             active={!prefersReducedMotion}
             className="w-full"
           >
-            <div className="flex w-full flex-col items-center gap-2 rounded-xl border border-white/10 bg-linear-to-br from-black/55 via-black/40 to-black/30 p-2 shadow-[0_12px_30px_rgba(0,0,0,0.3)] max-sm:gap-2 max-sm:rounded-xl max-sm:border-white/12 max-sm:p-2 max-sm:shadow-[0_8px_28px_rgba(0,0,0,0.45)] sm:flex-row sm:gap-2 sm:overflow-hidden sm:rounded-xl sm:border-white/10 sm:p-2 sm:shadow-[0_12px_30px_rgba(0,0,0,0.3)]">
+            <div className="flex w-full flex-col items-center gap-2.5 rounded-xl border border-white/10 bg-linear-to-br from-black/55 via-black/40 to-black/30 px-2.5 py-2.5 shadow-[0_12px_30px_rgba(0,0,0,0.3)] max-sm:gap-2.5 max-sm:rounded-xl max-sm:border-white/12 max-sm:px-2.5 max-sm:py-2.5 max-sm:shadow-[0_8px_28px_rgba(0,0,0,0.45)] sm:flex-row sm:gap-3 sm:overflow-hidden sm:rounded-xl sm:border-white/10 sm:px-3 sm:py-3 sm:shadow-[0_12px_30px_rgba(0,0,0,0.3)]">
               <div className="relative flex h-10 w-full min-w-0 items-center justify-center sm:flex-1 sm:justify-start">
                 <input
                   type="email"
@@ -685,14 +781,14 @@ join the trenches:`;
                   autoComplete="email"
                   inputMode="email"
                   name="email"
-                  className="hero-waitlist-email h-10 w-full min-w-0 border-0 bg-transparent px-2.5 text-center text-base leading-tight text-white outline-none placeholder:text-neutral-500 max-sm:placeholder:text-neutral-500 sm:px-3 sm:text-left sm:text-sm"
+                  className="hero-waitlist-email h-10 w-full min-w-0 border-0 bg-transparent px-3 text-center text-base leading-tight text-white outline-none placeholder:text-neutral-500 max-sm:placeholder:text-neutral-500 sm:px-3.5 sm:text-left sm:text-sm"
                   required
                 />
               </div>
               <div className="flex w-full justify-end sm:w-auto">
                 <button
                   type="submit"
-                  className="enabled:cursor-pointer inline-flex h-10 w-full max-w-md shrink-0 items-center justify-center whitespace-nowrap rounded-lg bg-white px-4 text-sm font-semibold text-zinc-950 shadow-sm transition hover:bg-white/90 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70 max-sm:max-w-none max-sm:shadow-[0_2px_12px_rgba(0,0,0,0.3)] sm:h-10 sm:w-auto sm:rounded-lg sm:px-4 sm:text-sm sm:shadow-sm sm:active:scale-100"
+                  className="enabled:cursor-pointer inline-flex h-10 w-full max-w-md shrink-0 items-center justify-center whitespace-nowrap rounded-lg bg-white px-5 text-sm font-semibold text-zinc-950 shadow-sm transition hover:bg-white/90 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70 max-sm:max-w-none max-sm:shadow-[0_2px_12px_rgba(0,0,0,0.3)] sm:h-10 sm:w-auto sm:rounded-lg sm:px-5 sm:text-sm sm:shadow-sm sm:active:scale-100"
                   disabled={submitState.loading}
                 >
                   {submitState.loading ? (
@@ -780,16 +876,16 @@ join the trenches:`;
         )}
       </form>
       <p
-        className={`min-h-5 text-sm max-sm:min-h-4 max-sm:text-xs ${
+        className={`text-sm max-sm:text-xs ${
           submitState.message
             ? submitState.error
               ? "text-rose-300"
               : "text-emerald-300"
-            : "invisible"
+            : "hidden"
         }`}
         aria-live="polite"
       >
-        {submitState.message || " "}
+        {submitState.message}
       </p>
     </motion.div>
   );
