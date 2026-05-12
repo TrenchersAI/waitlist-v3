@@ -162,67 +162,83 @@ export function PreviewSection() {
   return (
     <section className="site-canvas-bg relative w-full border-t border-white/6">
       <div className="mx-auto w-full max-w-[1200px] px-4 py-20 sm:px-6 md:px-8 md:py-28">
-        <div className="grid gap-6 md:gap-8 lg:grid-cols-2 lg:items-stretch lg:gap-10">
-          <motion.div
-            className="flex h-full flex-col gap-5 rounded-[24px] border border-white/8 bg-white/2 px-6 py-8 text-left shadow-[0_20px_60px_-35px_rgba(0,0,0,0.8)] md:px-8 md:py-9"
-            {...reveal}
-          >
-            <Eyebrow>Inside the terminal</Eyebrow>
-            <h2 className="text-balance text-[30px] font-medium leading-[1.08] tracking-[-0.02em] text-white md:text-[40px]">
-              The pro terminal traders know.
-            </h2>
-            <h3 className="text-balance text-[22px] font-medium leading-[1.1] tracking-[-0.015em] text-white/85 md:text-[30px]">
-              But with AI.
-            </h3>
-
-            <div className="mt-1 flex flex-col gap-4 text-[15px] leading-[1.7] text-white/65 md:text-[17px]">
-              <p>
-                TrenchersAI brings the tools traders already use across the
-                trenches into one terminal: sniping, copy trading, whale tracking,
-                charts, watchlists, position management, and fast execution.
-              </p>
-              <p>
-                Then it adds the missing layer: AI agents that help configure and
-                run bots without turning the product into a black box.
-              </p>
+        <motion.div
+          className="relative flex flex-col gap-6 overflow-hidden rounded-[24px] bg-[linear-gradient(160deg,rgba(255,255,255,0.12)_0%,rgba(255,255,255,0.05)_58%,rgba(140,149,255,0.1)_100%)] px-6 py-8 text-left shadow-[0_18px_50px_-35px_rgba(0,0,0,0.7)] md:px-8 md:py-9 lg:px-9"
+          {...reveal}
+        >
+          <div
+            aria-hidden
+            className="pointer-events-none absolute -right-20 -top-20 h-52 w-52 rounded-full bg-[#8C95FF]/12 blur-3xl"
+          />
+          <div className="-mx-6 -mt-8 mb-1 flex items-center justify-between bg-black/10 px-6 py-3 md:-mx-8 md:-mt-9 md:px-8 lg:-mx-9 lg:px-9">
+            <div className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-full bg-white/20" />
+              <span className="h-2.5 w-2.5 rounded-full bg-white/20" />
+              <span className="h-2.5 w-2.5 rounded-full bg-white/20" />
             </div>
+            <span className="text-[10.5px] font-semibold tracking-[0.18em] text-white/45 uppercase">
+              Inside the terminal
+            </span>
+            <span aria-hidden className="h-2.5 w-10" />
+          </div>
+          <h2 className="max-w-[18ch] text-balance text-[32px] font-medium leading-[1.08] tracking-tight text-white md:text-[44px]">
+            The pro terminal traders know.
+          </h2>
+          <h3 className="text-balance text-[24px] font-medium leading-[1.12] tracking-tight text-[#C5CBFF] md:text-[32px]">
+            But with AI.
+          </h3>
 
-            <div className="mt-2 flex flex-col gap-2 rounded-xl border border-white/8 bg-black/25 p-4 text-[15px] font-medium leading-[1.55] text-white md:mt-auto md:text-[17px]">
-              <p>Manual when you want control</p>
-              <p>AI-assisted when you want speed.</p>
-              <p>Delegated when you want the agent to handle the setup.</p>
-            </div>
-          </motion.div>
-
-          <motion.div
-            className="flex h-full flex-col"
-            {...reveal}
-            transition={{ ...reveal.transition, delay: 0.05 }}
-          >
-            <p className="mb-3 px-1 text-[11px] font-semibold tracking-[0.18em] text-white/40 uppercase">
-              TrenchersAI terminal preview
+          <div className="mt-1 flex max-w-[64ch] flex-col gap-4 text-[15px] leading-[1.72] text-white/72 md:text-[17px]">
+            <p>
+              TrenchersAI brings the tools traders already use across the
+              trenches into one terminal: sniping, copy trading, whale tracking,
+              charts, watchlists, position management, and fast execution.
             </p>
-            <div className="group relative flex-1 overflow-hidden rounded-[24px] border border-white/12 bg-[#07080a] p-2 shadow-[0_30px_120px_-20px_rgba(94,104,255,0.32)]">
-              <div
-                aria-hidden
-                className="pointer-events-none absolute inset-0 bg-[radial-gradient(80%_70%_at_50%_100%,rgba(94,104,255,0.22),transparent_72%)]"
+            <p>
+              Then it adds the missing layer: AI agents that help configure and
+              run bots without turning the product into a black box.
+            </p>
+          </div>
+
+          <div className="mt-1 flex flex-col gap-2 rounded-xl bg-white/4 p-4 text-[15px] font-medium leading-[1.55] text-white/92 md:p-5 md:text-[17px]">
+            <p className="flex items-start gap-2.5">
+              <span aria-hidden className="mt-2 h-1.5 w-1.5 rounded-full bg-white/65" />
+              <span>Manual when you want control</span>
+            </p>
+            <p className="flex items-start gap-2.5">
+              <span aria-hidden className="mt-2 h-1.5 w-1.5 rounded-full bg-white/65" />
+              <span>AI-assisted when you want speed.</span>
+            </p>
+            <p className="flex items-start gap-2.5">
+              <span aria-hidden className="mt-2 h-1.5 w-1.5 rounded-full bg-white/65" />
+              <span>Delegated when you want the agent to handle the setup.</span>
+            </p>
+          </div>
+        </motion.div>
+
+        <motion.div
+          className="group relative mt-8 overflow-hidden rounded-[24px] border border-white/12 bg-[#07080a] p-2 shadow-[0_30px_120px_-20px_rgba(94,104,255,0.32)] ring-1 ring-inset ring-white/5 md:mt-10"
+          {...reveal}
+          transition={{ ...reveal.transition, delay: 0.05 }}
+        >
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 bg-[radial-gradient(80%_70%_at_50%_100%,rgba(94,104,255,0.22),transparent_72%)]"
+          />
+          <div className="relative overflow-hidden rounded-[18px] border border-white/8 bg-black/30">
+            <div className="aspect-21/9 w-full">
+              <Image
+                src="/image.png"
+                alt="TrenchersAI terminal preview"
+                width={1854}
+                height={925}
+                sizes="(min-width: 1280px) 1100px, 100vw"
+                unoptimized
+                className="h-full w-full object-cover object-top transition-transform duration-500 group-hover:scale-[1.03]"
               />
-              <div className="relative overflow-hidden rounded-[18px] border border-white/8 bg-black/30">
-                <div className="aspect-16/10 w-full">
-                  <Image
-                    src="/image.png"
-                    alt="TrenchersAI terminal preview"
-                    width={1854}
-                    height={925}
-                    sizes="(min-width: 1280px) 560px, 100vw"
-                    unoptimized
-                    className="h-full w-full object-cover object-center transition-transform duration-500 group-hover:scale-[1.03]"
-                  />
-                </div>
-              </div>
             </div>
-          </motion.div>
-        </div>
+          </div>
+        </motion.div>
       </div>
     </section>
   );
