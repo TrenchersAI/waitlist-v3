@@ -19,6 +19,15 @@ const reveal = {
   transition: { duration: 0.5, ease: "easeOut" as const },
 };
 
+const LOOP_STEPS = [
+  { src: "/feature_1.svg", label: "Describe what you want" },
+  { src: "/feature_3.svg", label: "Fund the bot" },
+  {
+    src: "/feature_2.svg",
+    label: "Let it run while you are asleep",
+  },
+] as const;
+
 function Eyebrow({ children }: { children: ReactNode }) {
   return (
     <span className="inline-flex items-center gap-3 text-[11px] font-semibold tracking-[0.18em] text-white/45 uppercase">
@@ -97,33 +106,48 @@ export function ProblemSection() {
 export function SolutionSection() {
   return (
     <section className="site-canvas-bg relative w-full border-t border-white/6">
-      <div className="mx-auto w-full max-w-[1200px] px-4 py-20 sm:px-6 md:px-8 md:py-28">
-        <motion.div
-          className="mx-auto flex w-full max-w-[980px] flex-col items-center rounded-[28px] border border-white/8 bg-white/2 px-6 py-10 text-center shadow-[0_40px_120px_-52px_rgba(94,104,255,0.65)] md:px-10 md:py-14"
-          {...reveal}
-        >
+      <div className="mx-auto w-full max-w-[1480px] px-5 py-24 text-center md:px-8 md:py-32">
+        <motion.div className="flex flex-col items-center gap-6" {...reveal}>
           <Eyebrow>What changes with TrenchersAI</Eyebrow>
-          <h2 className="mt-5 text-balance text-[30px] font-medium leading-[1.08] tracking-[-0.02em] text-white md:text-[42px]">
+          <h2 className="text-balance text-[30px] font-medium leading-[1.1] tracking-[-0.02em] text-white md:text-[42px]">
             One terminal. Spawnable AI agents. Full control.
           </h2>
-          <p className="mt-5 max-w-[60ch] text-balance text-[15px] leading-[1.7] text-white/65 md:text-[17px]">
+          <p className="max-w-[60ch] text-balance text-[15px] leading-[1.7] text-white/65 md:text-[17px]">
             TrenchersAI gives traders one place to discover, snipe, copy, track,
-            and manage positions with AI agents built directly into the terminal.
+            and manage positions with AI agents built directly into the
+            terminal.
           </p>
+        </motion.div>
 
-          <motion.div
-            className="mt-9 inline-flex flex-col items-center gap-2 self-center rounded-full border border-[#8C95FF]/35 bg-[#8C95FF]/10 px-5 py-3 md:mt-12 md:px-7"
-            {...reveal}
-            transition={{ ...reveal.transition, delay: 0.05 }}
-          >
-            <p className="font-mono text-[11px] tracking-[0.16em] text-white/40 uppercase">
-              The loop
-            </p>
-            <p className="text-balance text-[15px] font-medium leading-[1.55] tracking-[-0.01em] text-white md:text-[19px]">
-              Describe what you want &rsaquo; Fund the bot &rsaquo; Let it run
-              while you are asleep
-            </p>
-          </motion.div>
+        <motion.div
+          className="mt-16 flex w-full flex-col items-center md:mt-20"
+          {...reveal}
+          transition={{ ...reveal.transition, delay: 0.05 }}
+        >
+          <p className="font-mono text-[12px] tracking-[0.16em] text-white/35 uppercase">
+            The loop
+          </p>
+          <div className="mt-6 mx-auto grid w-max max-w-full grid-cols-1 justify-items-center gap-12 lg:grid-cols-3 lg:gap-x-6 lg:gap-y-10">
+            {LOOP_STEPS.map((step) => (
+              <div
+                key={step.src}
+                className="flex min-w-0 flex-col items-center gap-4 text-center"
+              >
+                <div className="relative mx-auto h-[360px] w-[360px] shrink-0 lg:h-[440px] lg:w-[440px]">
+                  <Image
+                    src={step.src}
+                    alt=""
+                    fill
+                    className="object-contain border border-neutral-800 rounded-lg"
+                    sizes="(min-width: 1024px) 440px, 360px"
+                  />
+                </div>
+                <p className="max-w-[28ch] text-balance text-[15px] font-medium leading-[1.45] tracking-[-0.01em] text-white md:text-[16px]">
+                  {step.label}
+                </p>
+              </div>
+            ))}
+          </div>
         </motion.div>
       </div>
     </section>
@@ -138,9 +162,9 @@ export function PreviewSection() {
   return (
     <section className="site-canvas-bg relative w-full border-t border-white/6">
       <div className="mx-auto w-full max-w-[1200px] px-4 py-20 sm:px-6 md:px-8 md:py-28">
-        <div className="grid gap-8 lg:grid-cols-12 lg:items-start lg:gap-10">
+        <div className="grid gap-6 md:gap-8 lg:grid-cols-2 lg:items-stretch lg:gap-10">
           <motion.div
-            className="flex flex-col gap-5 rounded-[24px] border border-white/8 bg-white/2 px-6 py-8 text-left md:px-8 md:py-9 lg:col-span-5"
+            className="flex h-full flex-col gap-5 rounded-[24px] border border-white/8 bg-white/2 px-6 py-8 text-left shadow-[0_20px_60px_-35px_rgba(0,0,0,0.8)] md:px-8 md:py-9"
             {...reveal}
           >
             <Eyebrow>Inside the terminal</Eyebrow>
@@ -163,7 +187,7 @@ export function PreviewSection() {
               </p>
             </div>
 
-            <div className="mt-2 flex flex-col gap-2 rounded-xl border border-white/8 bg-black/25 p-4 text-[15px] font-medium leading-[1.55] text-white md:text-[17px]">
+            <div className="mt-2 flex flex-col gap-2 rounded-xl border border-white/8 bg-black/25 p-4 text-[15px] font-medium leading-[1.55] text-white md:mt-auto md:text-[17px]">
               <p>Manual when you want control</p>
               <p>AI-assisted when you want speed.</p>
               <p>Delegated when you want the agent to handle the setup.</p>
@@ -171,23 +195,31 @@ export function PreviewSection() {
           </motion.div>
 
           <motion.div
-            className="lg:col-span-7"
+            className="flex h-full flex-col"
             {...reveal}
             transition={{ ...reveal.transition, delay: 0.05 }}
           >
-            <p className="mb-3 text-[11px] font-semibold tracking-[0.18em] text-white/40 uppercase">
+            <p className="mb-3 px-1 text-[11px] font-semibold tracking-[0.18em] text-white/40 uppercase">
               TrenchersAI terminal preview
             </p>
-            <div className="overflow-hidden rounded-[24px] border border-white/10 bg-[#08090b] p-2 shadow-[0_30px_120px_-20px_rgba(94,104,255,0.3)]">
-              <Image
-                src="/image.png"
-                alt="TrenchersAI terminal preview"
-                width={1854}
-                height={925}
-                sizes="(min-width: 1280px) 760px, 100vw"
-                unoptimized
-                className="h-auto w-full rounded-[18px]"
+            <div className="group relative flex-1 overflow-hidden rounded-[24px] border border-white/12 bg-[#07080a] p-2 shadow-[0_30px_120px_-20px_rgba(94,104,255,0.32)]">
+              <div
+                aria-hidden
+                className="pointer-events-none absolute inset-0 bg-[radial-gradient(80%_70%_at_50%_100%,rgba(94,104,255,0.22),transparent_72%)]"
               />
+              <div className="relative overflow-hidden rounded-[18px] border border-white/8 bg-black/30">
+                <div className="aspect-16/10 w-full">
+                  <Image
+                    src="/image.png"
+                    alt="TrenchersAI terminal preview"
+                    width={1854}
+                    height={925}
+                    sizes="(min-width: 1280px) 560px, 100vw"
+                    unoptimized
+                    className="h-full w-full object-cover object-center transition-transform duration-500 group-hover:scale-[1.03]"
+                  />
+                </div>
+              </div>
             </div>
           </motion.div>
         </div>

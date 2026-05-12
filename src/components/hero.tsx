@@ -161,12 +161,12 @@ function SiteNav() {
           <Image
             src={logoMark}
             alt="TrenchersAI logo"
-            width={26}
-            height={23}
-            className="h-[23px] w-[26px]"
+            width={32}
+            height={28}
+            className="h-[28px] w-[32px]"
             priority
           />
-          <span className="text-[15px] font-medium tracking-wide">
+          <span className="text-[17px] font-medium tracking-wide">
             TrenchersAI
           </span>
         </a>
