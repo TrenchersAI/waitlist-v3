@@ -20,7 +20,7 @@ const reveal = {
 const CHALLENGES = [
   {
     lead: "The trenches are already automated.",
-    rest: "You're not racing humans—you're racing infra, speed, and wallets that move before CT blinks.",
+    rest: "You aren't racing humans, you're racing infra, speed, and wallets that move before CT blinks.",
   },
   {
     lead: "Top traders have private infra and custom bots.",
@@ -32,7 +32,7 @@ const CHALLENGES = [
   },
   {
     lead: "Most trenches are still a patchwork of tools.",
-    rest: "Popups, TG, dashboards—same grind, new week.",
+    rest: "Popups, TG, dashboards, same grind every week.",
   },
   {
     lead: "The edge is there.",
@@ -43,19 +43,19 @@ const CHALLENGES = [
 const SOLUTIONS = [
   {
     lead: "One terminal for everything.",
-    rest: "Discover, snipe, copy, track—one surface, zero tab circus.",
+    rest: "Discover, snipe, copy, and track from one surface, fewer tabs.",
   },
   {
     lead: "Spawnable AI agents. Full control.",
-    rest: "Agents live inside the terminal—not a folder of half-working scripts.",
+    rest: "Agents stay in the terminal, not in a folder of half-done scripts.",
   },
   {
     lead: "Spawn AI agents that run while you sleep.",
-    rest: "Each agent, its own wallet—you only risk what you fund.",
+    rest: "Each agent has its own wallet, so you only risk what you fund.",
   },
   {
     lead: "Say it → fund it → let it trade.",
-    rest: "No script surgery—keeps running while you're AFK.",
+    rest: "No script surgery, it keeps running while you're AFK.",
   },
 ];
 
@@ -67,7 +67,7 @@ export function WhyTrenchersAICards({ className }: WhyTrenchersAICardsProps) {
   return (
     <div
       className={cn(
-        "mx-auto flex w-full min-w-0 max-w-none flex-col gap-5 rounded-xl text-left sm:max-w-96 md:max-w-104 md:gap-6",
+        "mx-auto flex w-full min-w-0 max-w-none flex-col gap-6 rounded-xl text-left sm:max-w-96 md:max-w-104 md:gap-8",
         className,
       )}
     >
@@ -99,20 +99,23 @@ function Card({ title, items, delay }: CardProps) {
       className="relative w-full rounded-xl"
     >
       <motion.section
-        className="relative flex flex-col gap-3 rounded-xl bg-[#121212] px-4 pt-4 pb-6 md:gap-4 md:pb-7"
+        className="relative flex flex-col gap-5 rounded-xl bg-[#121212] px-5 pt-5 pb-7 md:gap-6 md:px-6 md:pt-6 md:pb-8"
         {...reveal}
         transition={{ ...reveal.transition, delay }}
       >
-        <h2 className="text-[14px] font-semibold text-white md:text-[15px]">
+        <h2 className="text-[15px] font-semibold leading-snug tracking-tight text-white md:text-base">
           {title}
         </h2>
-        <ul className="flex flex-col gap-2.5 md:gap-3">
+        <ul className="flex flex-col gap-0">
           {items.map((item) => (
-            <li key={item.lead} className="text-[12px] md:text-[13px]">
-              <div className="font-medium leading-tight text-white">
+            <li
+              key={item.lead}
+              className="flex flex-col gap-1.5 border-t border-white/6 py-4 first:border-t-0 first:pt-0 md:gap-2 md:py-5"
+            >
+              <div className="text-[13px] font-medium leading-snug text-white md:text-[14px]">
                 {item.lead}
               </div>
-              <div className="-mt-1 leading-snug text-neutral-400">
+              <div className="text-[12px] leading-relaxed text-neutral-400 md:text-[13px] md:leading-relaxed">
                 {item.rest}
               </div>
             </li>
