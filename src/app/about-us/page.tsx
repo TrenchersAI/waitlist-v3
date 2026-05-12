@@ -7,8 +7,9 @@ import logoMark from "@/src/components/icons/logo-mark.svg";
 
 export default function AboutUsPage() {
   return (
-    <section className="relative min-h-screen w-full min-w-0">
-      <nav className="site-canvas-bg absolute left-0 right-0 top-0 z-30 mx-auto flex w-full max-w-7xl items-center justify-between border-b border-white/10 px-4 py-5 md:px-6 lg:px-8">
+    <section className="site-canvas-bg relative min-h-screen w-full min-w-0">
+      <nav className="fixed inset-x-0 top-0 z-30 border-b border-white/8 bg-black/45 backdrop-blur-xl">
+        <div className="mx-auto flex w-full max-w-[1200px] items-center justify-between px-4 py-4 sm:px-6 md:px-8">
         <div className="flex items-center gap-2.5">
           <Image
             src={logoMark}
@@ -17,9 +18,11 @@ export default function AboutUsPage() {
             height={25}
             priority
           />
-          <span className="text-lg tracking-wide text-white">TrenchersAI</span>
+          <span className="text-base font-medium tracking-wide text-white sm:text-lg">
+            TrenchersAI
+          </span>
         </div>
-        <div className="flex items-center gap-4 text-sm text-white/70">
+        <div className="flex items-center gap-3 text-[13px] text-white/70 sm:gap-4 sm:text-sm">
           <Link href="/" className="transition-colors hover:text-white">
             Home
           </Link>
@@ -48,11 +51,12 @@ export default function AboutUsPage() {
             Discord
           </a>
         </div>
+        </div>
       </nav>
 
-      <main className="mx-auto flex min-h-screen w-full min-w-0 max-w-2xl flex-col items-center justify-center gap-12 px-4 py-24 text-left md:px-6 lg:px-6">
+      <main className="mx-auto flex min-h-screen w-full min-w-0 max-w-[1200px] flex-col justify-center gap-8 px-4 pb-16 pt-28 sm:px-6 md:gap-10 md:px-8 md:pb-20 md:pt-36">
         <motion.section
-          className="flex w-full min-w-0 flex-col gap-4"
+          className="flex w-full min-w-0 flex-col gap-4 rounded-2xl border border-white/8 bg-white/2 p-6 md:p-8"
           initial={{ opacity: 0, y: 28, filter: "blur(12px)" }}
           whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
           viewport={{ once: true, amount: 0.35 }}
@@ -61,7 +65,7 @@ export default function AboutUsPage() {
           <h2 className="text-xl font-medium text-white md:text-2xl">
             Challenges
           </h2>
-          <p className="text-[16px] leading-7 text-neutral-500">
+          <p className="max-w-[85ch] text-[15px] leading-7 text-white/60 md:text-[16px]">
             The trenches are already automated. You are not just competing with
             other traders anymore. You are competing with infra, faster
             execution, and wallets that react before CT even notices. Advanced
@@ -73,7 +77,7 @@ export default function AboutUsPage() {
         </motion.section>
 
         <motion.section
-          className="flex w-full min-w-0 flex-col gap-4 pb-12"
+          className="flex w-full min-w-0 flex-col gap-4 rounded-2xl border border-white/8 bg-white/2 p-6 md:p-8"
           initial={{ opacity: 0, y: 28, filter: "blur(12px)" }}
           whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
           viewport={{ once: true, amount: 0.35 }}
@@ -82,7 +86,7 @@ export default function AboutUsPage() {
           <h2 className="text-xl font-medium text-white md:text-2xl">
             What changes with TrenchersAI
           </h2>
-          <p className="text-[16px] leading-7 text-neutral-500">
+          <p className="max-w-[85ch] text-[15px] leading-7 text-white/60 md:text-[16px]">
             One terminal. Spawnable AI agents. Full control. TrenchersAI gives
             traders one place to discover, snipe, copy, track, and manage
             positions with AI agents built directly into the terminal. Describe

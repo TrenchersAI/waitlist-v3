@@ -10,7 +10,7 @@ export default function SiteFooter() {
 
   return (
     <footer className="site-canvas-bg w-full min-w-0 border-t border-white/6">
-      <div className="mx-auto flex w-full min-w-0 max-w-7xl flex-col gap-12 px-5 py-20 md:flex-row md:items-start md:justify-between md:gap-16 md:px-8 md:py-24 lg:py-28">
+      <div className="mx-auto flex w-full min-w-0 max-w-[1200px] flex-col gap-12 px-4 py-16 sm:px-6 md:flex-row md:items-start md:justify-between md:gap-16 md:px-8 md:py-20 lg:py-24">
         <div className="flex max-w-md flex-col gap-4">
           <Link
             href="/"
@@ -35,10 +35,7 @@ export default function SiteFooter() {
           </p>
         </div>
 
-        <nav
-          className="flex flex-col gap-6 text-sm md:items-end"
-          aria-label="Footer"
-        >
+        <nav className="flex flex-col gap-7 text-sm md:items-end" aria-label="Footer">
           <div className="flex flex-col gap-3 md:items-end">
             <span className="text-[10.5px] font-semibold tracking-[0.2em] text-white/35 uppercase">
               Site
@@ -86,8 +83,8 @@ export default function SiteFooter() {
         </nav>
       </div>
 
-      <div className="border-t border-white/6">
-        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 px-5 py-8 text-[12px] text-white/40 md:flex-row md:px-8 md:py-10">
+      <div className="border-t border-white/5 bg-white/1.5">
+        <div className="mx-auto flex max-w-[1200px] flex-col items-center justify-between gap-3 px-4 py-7 text-[12px] text-white/40 sm:px-6 md:flex-row md:px-8 md:py-9">
           <p>© {year} TrenchersAI. All rights reserved.</p>
           <p className="text-white/30">
             Built for the trenches.

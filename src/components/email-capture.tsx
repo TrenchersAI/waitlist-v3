@@ -779,16 +779,16 @@ join the trenches:`;
         </div>
       </form>
       <p
-        className={`min-h-5 text-sm max-sm:min-h-4 max-sm:text-xs ${
+        className={`text-sm max-sm:text-xs ${
           submitState.message
             ? submitState.error
               ? "text-rose-300"
               : "text-emerald-300"
-            : "invisible"
+            : "hidden"
         }`}
         aria-live="polite"
       >
-        {submitState.message || " "}
+        {submitState.message}
       </p>
     </motion.div>
   );
