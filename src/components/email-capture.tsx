@@ -259,8 +259,6 @@ export default function EmailCapture({
           setOtpStep("verify");
         } else if (data.verified) {
           setIsVerified(true);
-          setFollowOnXGateOpen(true);
-          onVerifiedFollowGateOpen?.();
           setOtpStep("request");
           setOtpDigits(Array(6).fill(""));
           if (normalizedEmail) {
