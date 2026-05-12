@@ -174,7 +174,50 @@ body {
   animation: text-shimmer-nav 4.2s ease-in-out infinite;
 }
 
+/**
+ * Feature strip marquee (mobile hero). Edge fade keeps the items from
+ * popping in/out abruptly. Items are duplicated in the DOM so the track
+ * can translate by -50% and loop seamlessly. Reduced-motion users get a
+ * static row (handled by the prefers-reduced-motion block below).
+ */
+.feature-strip-marquee {
+  overflow: hidden;
+  mask-image: linear-gradient(
+    to right,
+    transparent 0%,
+    black 10%,
+    black 90%,
+    transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0%,
+    black 10%,
+    black 90%,
+    transparent 100%
+  );
+}
+
+.feature-strip-track {
+  display: flex;
+  width: max-content;
+  gap: 0.5rem;
+  animation: feature-strip-scroll 28s linear infinite;
+}
+
+@keyframes feature-strip-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .feature-strip-track {
+    animation: none;
+  }
   *,
   *::before,
   *::after {

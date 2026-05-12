@@ -544,7 +544,7 @@ join the trenches:`;
 
     return (
       <motion.div
-        className="mx-auto w-full min-h-[440px] min-w-0 max-w-[480px] shrink-0 rounded-[20px] border border-white/10 bg-gradient-to-br from-black/55 via-black/40 to-black/30 p-6 text-left text-[#fafafa] shadow-[inset_0_1px_0_rgba(255,255,255,0.28),inset_0_-1px_0_rgba(255,255,255,0.06),0_24px_70px_rgba(0,0,0,0.58)] backdrop-blur-sm [-webkit-backdrop-filter:blur(4px)] max-[420px]:p-4"
+        className="mx-auto w-full min-h-[360px] min-w-0 max-w-[480px] shrink-0 rounded-[20px] border border-white/10 bg-gradient-to-br from-black/55 via-black/40 to-black/30 p-6 text-left text-[#fafafa] shadow-[inset_0_1px_0_rgba(255,255,255,0.28),inset_0_-1px_0_rgba(255,255,255,0.06),0_24px_70px_rgba(0,0,0,0.58)] backdrop-blur-sm [-webkit-backdrop-filter:blur(4px)] max-[420px]:p-4 sm:min-h-[440px]"
         variants={fadeUpVariants}
         initial="hidden"
         animate="visible"
@@ -593,9 +593,9 @@ join the trenches:`;
           </div>
         </div>
 
-        <div className="mt-4 rounded-[10px] border border-neutral-800 bg-white/[0.03] py-[5px] pr-[5px] pl-[14px]">
-          <div className="flex min-h-[52px] items-center gap-3 rounded-[8px] px-2 py-1">
-            <p className="min-w-0 flex-1 break-all font-mono text-[12px] font-medium leading-snug text-[#fafafa] sm:text-[13px]">
+        <div className="mt-4 overflow-hidden rounded-[10px] border border-neutral-800 bg-white/[0.03] py-[5px] pr-[5px] pl-[14px]">
+          <div className="flex min-h-[48px] items-center gap-3 rounded-[8px] px-2 py-1 sm:min-h-[52px]">
+            <p className="min-w-0 flex-1 font-mono text-[12px] font-medium leading-snug text-[#fafafa] max-sm:overflow-hidden max-sm:text-ellipsis max-sm:whitespace-nowrap sm:break-all sm:text-[13px] sm:whitespace-normal">
               {referralUrl}
             </p>
             <button
@@ -603,7 +603,7 @@ join the trenches:`;
               onClick={() => {
                 void handleCopyReferral();
               }}
-              className="cursor-pointer rounded-[8px] bg-[#1f1f1f] px-[14px] py-[8px] text-[13px] font-medium text-[#fafafa] transition-all duration-200 hover:bg-[#1f1f1f]/50"
+              className="shrink-0 cursor-pointer rounded-[8px] bg-[#1f1f1f] px-[14px] py-[8px] text-[13px] font-medium text-[#fafafa] transition-all duration-200 hover:bg-[#1f1f1f]/50"
               aria-label={
                 copyState === "failed"
                   ? "Copy failed. Select the link manually."
@@ -651,21 +651,21 @@ join the trenches:`;
 
   return (
     <motion.div
-      className="flex w-full max-w-[480px] flex-col items-center gap-3"
+      className="flex w-full max-w-[480px] flex-col items-center gap-3 max-sm:max-w-[min(100%,20rem)] max-sm:gap-2"
       variants={fadeUpVariants}
       initial="hidden"
       animate="visible"
     >
       <form
-        className={`flex w-full flex-col items-center gap-2 sm:gap-2 ${
+        className={`flex w-full flex-col items-center gap-2 ${
           otpStep === "verify"
             ? "rounded-3xl border border-white/10 bg-gradient-to-br from-black/55 via-black/40 to-black/30 px-4 py-4 shadow-[0_12px_30px_rgba(0,0,0,0.3)] sm:p-5"
-            : "sm:flex-row sm:overflow-hidden sm:rounded-xl sm:border sm:border-white/10 sm:bg-gradient-to-br sm:from-black/55 sm:via-black/40 sm:to-black/30 sm:p-2 sm:shadow-[0_12px_30px_rgba(0,0,0,0.3)]"
+            : "rounded-xl border border-white/10 bg-gradient-to-br from-black/55 via-black/40 to-black/30 p-2 shadow-[0_12px_30px_rgba(0,0,0,0.3)] max-sm:gap-2 max-sm:rounded-xl max-sm:border-white/12 max-sm:p-2 max-sm:shadow-[0_8px_28px_rgba(0,0,0,0.45)] sm:flex-row sm:gap-2 sm:overflow-hidden sm:rounded-xl sm:border-white/10 sm:p-2 sm:shadow-[0_12px_30px_rgba(0,0,0,0.3)]"
         }`}
         onSubmit={handleWaitlistSubmit}
       >
         {otpStep !== "verify" && (
-          <div className="flex w-full justify-center">
+          <div className="flex w-full justify-center max-sm:rounded-lg max-sm:bg-black/40 max-sm:p-1.5 max-sm:ring-1 max-sm:ring-inset max-sm:ring-white/8 sm:bg-transparent sm:p-0 sm:ring-0">
             <input
               type="email"
               value={email}
@@ -673,8 +673,12 @@ join the trenches:`;
               placeholder="Please Enter Your Email ID"
               autoComplete="email"
               inputMode="email"
-              /* text-base (16px) on mobile prevents iOS Safari from zooming on focus */
-              className="h-10 w-full min-w-0 rounded-lg border border-white/10 bg-black/40 px-4 text-center text-base text-white outline-none placeholder:text-neutral-500 sm:flex-1 sm:border-0 sm:bg-transparent sm:px-3 sm:text-left sm:text-sm"
+              /* text-base (16px) on mobile prevents iOS Safari from zooming on focus.
+                 No own border/bg — the parent <form> is now the dark-glass
+                 container on every breakpoint, so the input dissolves into it
+                 and reads as part of one unified surface (was two stacked
+                 dark cards on mobile before). */
+              className="h-10 w-full min-w-0 rounded-md border-0 bg-transparent px-2.5 text-center text-base leading-tight text-white outline-none placeholder:text-neutral-500 max-sm:placeholder:text-neutral-500 sm:h-10 sm:flex-1 sm:rounded-lg sm:px-3 sm:text-left sm:text-sm"
               required
             />
           </div>
@@ -758,17 +762,24 @@ join the trenches:`;
             <div className="flex w-full justify-end sm:w-auto">
               <button
                 type="submit"
-                className="enabled:cursor-pointer inline-flex h-10 w-full max-w-md shrink-0 items-center justify-center whitespace-nowrap rounded-lg border border-white/15 bg-zinc-950 px-5 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto sm:max-w-none sm:border-none sm:px-4"
+                className="enabled:cursor-pointer inline-flex h-10 w-full max-w-md shrink-0 items-center justify-center whitespace-nowrap rounded-lg bg-white px-4 text-sm font-semibold text-zinc-950 shadow-sm transition hover:bg-white/90 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70 max-sm:max-w-none max-sm:shadow-[0_2px_12px_rgba(0,0,0,0.3)] sm:h-10 sm:w-auto sm:rounded-lg sm:bg-zinc-950 sm:px-4 sm:text-sm sm:text-white sm:shadow-none sm:hover:bg-zinc-800 sm:active:scale-100"
                 disabled={submitState.loading}
               >
-                {submitState.loading ? "Sending code..." : "Join Now"}
+                {submitState.loading ? (
+                  "Sending code..."
+                ) : (
+                  <>
+                    <span className="sm:hidden">Get early access</span>
+                    <span className="hidden sm:inline">Join Now</span>
+                  </>
+                )}
               </button>
             </div>
           )}
         </div>
       </form>
       <p
-        className={`min-h-5 text-sm ${
+        className={`min-h-5 text-sm max-sm:min-h-4 max-sm:text-xs ${
           submitState.message
             ? submitState.error
               ? "text-rose-300"
