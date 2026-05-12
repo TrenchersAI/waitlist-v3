@@ -1,0 +1,191 @@
+:root {
+  color-scheme: light;
+  supported-color-schemes: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: #ffffff;
+  color: #000000;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
+    Arial, sans-serif;
+}
+
+.email-shell {
+  width: 100%;
+  background-color: #ffffff;
+}
+
+.email-card {
+  width: 100%;
+  background-color: #ffffff;
+}
+
+.navbar {
+  padding: 20px 28px;
+  background-color: #000000;
+}
+
+.brand-cell {
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.logo-img {
+  display: block;
+  height: 52px;
+  width: auto;
+  border: 0;
+  outline: none;
+  text-decoration: none;
+  -ms-interpolation-mode: bicubic;
+}
+
+.nav-text {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #9ca3af;
+  vertical-align: middle;
+}
+
+.hero {
+  text-align: center;
+  padding: 52px 32px 44px;
+}
+
+h1 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  color: #000000;
+}
+
+.otp-label {
+  margin: 10px 0 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #6b7280;
+}
+
+.otp-code-wrap {
+  margin: 28px 0 0;
+}
+
+.otp-code {
+  display: inline-block;
+  padding: 16px 28px;
+  background-color: #000000;
+  border-radius: 12px;
+  font-family: "SF Mono", "Menlo", "Consolas", monospace;
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: 0.28em;
+  color: #ffffff;
+}
+
+.otp-note {
+  margin: 22px 0 0;
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.footer {
+  padding: 18px 28px 20px;
+  border-top: 1px solid #eef0f3;
+  background-color: #fafbfc;
+}
+
+.footer-left,
+.footer-right {
+  margin: 0;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.footer-left {
+  color: #6b7280;
+}
+
+.footer-link {
+  color: #374151;
+  text-decoration: none;
+}
+
+.disclaimer {
+  margin: 18px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #9ca3af;
+  text-align: center;
+  max-width: 520px;
+}
+
+@media (max-width: 540px) {
+  .navbar {
+    padding: 16px 20px;
+  }
+
+  .navbar td {
+    display: block;
+    width: 100%;
+    text-align: center !important;
+  }
+
+  .brand-cell {
+    margin-bottom: 10px;
+  }
+
+  .logo-img {
+    height: 44px;
+    width: auto;
+    margin-left: auto !important;
+    margin-right: auto !important;
+  }
+
+  .hero {
+    padding: 40px 20px 32px;
+  }
+
+  h1 {
+    font-size: 22px;
+  }
+
+  .otp-code {
+    padding: 14px 22px;
+    font-size: 26px;
+    letter-spacing: 0.22em;
+  }
+
+  .footer {
+    padding: 14px 20px 16px;
+  }
+
+  .footer td {
+    display: block;
+    width: 100%;
+    text-align: center !important;
+  }
+
+  .footer-left {
+    margin-bottom: 6px;
+  }
+
+  .footer-left,
+  .footer-right {
+    white-space: normal;
+    line-height: 1.6;
+  }
+}
