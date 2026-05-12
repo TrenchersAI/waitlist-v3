@@ -4,10 +4,10 @@ import { motion } from "motion/react";
 import { BorderBeam } from "border-beam";
 
 const reveal = {
-  initial: { opacity: 0, y: 24, filter: "blur(10px)" } as const,
-  whileInView: { opacity: 1, y: 0, filter: "blur(0px)" } as const,
+  initial: { opacity: 0, y: 24 } as const,
+  whileInView: { opacity: 1, y: 0 } as const,
   viewport: { once: true, amount: 0.35 } as const,
-  transition: { duration: 0.65, ease: "easeOut" as const },
+  transition: { duration: 0.45, ease: "easeOut" as const },
 };
 
 const CHALLENGES = [
@@ -56,7 +56,11 @@ export function WhyTrenchersAICards() {
   return (
     <div className="mx-auto flex w-full min-w-0 max-w-none flex-col gap-5 rounded-xl text-left sm:max-w-96 md:max-w-104 md:gap-6">
       <Card title="Challenges" items={CHALLENGES} delay={0} />
-      <Card title="What changes with TrenchersAI" items={SOLUTIONS} delay={0.06} />
+      <Card
+        title="What changes with TrenchersAI"
+        items={SOLUTIONS}
+        delay={0.02}
+      />
     </div>
   );
 }

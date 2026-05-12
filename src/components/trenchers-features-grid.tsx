@@ -150,7 +150,7 @@ export default function TrenchersFeaturesGrid() {
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.35 }}
-          transition={{ duration: 0.6, ease: "easeOut" }}
+          transition={{ duration: 0.5, ease: "easeOut" }}
         >
           <h2 className="w-full min-w-0 text-3xl font-semibold tracking-tight text-white md:text-4xl">
             The Trenches Are Evolving.
@@ -166,7 +166,7 @@ export default function TrenchersFeaturesGrid() {
           initial={{ opacity: 0, y: 24 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.2 }}
-          transition={{ duration: 0.65, ease: "easeOut", delay: 0.05 }}
+          transition={{ duration: 0.5, ease: "easeOut", delay: 0.02 }}
         >
           {FEATURES.map((item) => (
             <div

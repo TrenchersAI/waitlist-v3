@@ -56,7 +56,7 @@ export default function AboutUsPage() {
           initial={{ opacity: 0, y: 28, filter: "blur(12px)" }}
           whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
           viewport={{ once: true, amount: 0.35 }}
-          transition={{ duration: 0.7, ease: "easeOut" }}
+          transition={{ duration: 0.55, ease: "easeOut" }}
         >
           <h2 className="text-xl font-medium text-white md:text-2xl">
             Challenges
@@ -77,7 +77,7 @@ export default function AboutUsPage() {
           initial={{ opacity: 0, y: 28, filter: "blur(12px)" }}
           whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
           viewport={{ once: true, amount: 0.35 }}
-          transition={{ duration: 0.7, ease: "easeOut", delay: 0.08 }}
+          transition={{ duration: 0.55, ease: "easeOut", delay: 0.03 }}
         >
           <h2 className="text-xl font-medium text-white md:text-2xl">
             What changes with TrenchersAI

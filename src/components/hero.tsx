@@ -1,10 +1,12 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useState, useSyncExternalStore } from "react";
 import Image from "next/image";
 import TokenList from "./tokens";
 import EmailCapture from "./email-capture";
 import Morphing from "./morphing";
+import InputFeint from "./input-feint";
+import { BotUnitCard, type BotUnit } from "./agent-unit-card";
 import AIAgent from "./ai-agent";
 import logoMark from "./icons/logo-mark.svg";
 import AIInsights from "./ai-insights";
@@ -24,6 +26,19 @@ type HeroProps = {
   initialVerified?: boolean;
 };
 
+/** Demo unit for the mobile hero (replaces `<AIAgent />` + `<TokenList />`
+   below `lg`, where the desktop sticky right column is hidden). */
+const MOBILE_HERO_DEMO_BOT: BotUnit = {
+  id: "mobile-hero-unit",
+  name: "Sniper bot",
+  pid: "7xh…9kp",
+  balance: "$2.40k",
+  delta: "+12.4%",
+  trend: "#2FE0A4",
+  dateLabel: "Today",
+  trades: "0",
+};
+
 export default function Hero({ initialVerified = false }: HeroProps) {
   const hydrated = useHydrated();
   const storedSession = useSyncExternalStore(
@@ -35,6 +50,7 @@ export default function Hero({ initialVerified = false }: HeroProps) {
      server-rendered HTML matches what the client will paint. Post-hydration:
      trust localStorage so we react to the user signing out in another tab. */
   const hasReturningVerifiedSession = hydrated ? storedSession : initialVerified;
+  const [mobileHeroBotSelected, setMobileHeroBotSelected] = useState(true);
 
   return (
     <section
@@ -68,7 +84,7 @@ export default function Hero({ initialVerified = false }: HeroProps) {
           </nav>
         </div>
         <div className="flex min-h-0 flex-1 flex-col items-stretch lg:flex-row">
-          <div className="order-2 flex w-full flex-col items-center justify-center gap-4 py-12 lg:order-1 lg:sticky lg:top-0 lg:h-dvh lg:w-[32%] lg:shrink-0 lg:self-start lg:pr-8">
+          <div className="order-2 hidden w-full flex-col items-center justify-center gap-4 py-12 lg:order-1 lg:flex lg:sticky lg:top-0 lg:h-dvh lg:w-[32%] lg:shrink-0 lg:self-start lg:pr-8">
             <Morphing />
           </div>
 
@@ -120,8 +136,21 @@ export default function Hero({ initialVerified = false }: HeroProps) {
 
           <div className="order-3 flex w-full flex-col items-center justify-center py-12 lg:order-3 lg:sticky lg:top-0 lg:h-dvh lg:w-[32%] lg:shrink-0 lg:self-start lg:pl-8">
             <div className="mx-auto flex w-full max-w-[420px] flex-col items-center gap-6">
-              <AIAgent />
-              <TokenList className="w-full" />
+              <div className="flex w-full flex-col gap-6 lg:hidden">
+                <InputFeint className="w-full" />
+                <BotUnitCard
+                  bot={MOBILE_HERO_DEMO_BOT}
+                  isSelected={mobileHeroBotSelected}
+                  onSelect={() =>
+                    setMobileHeroBotSelected((prev) => !prev)
+                  }
+                  sparklineEntranceIndex={0}
+                />
+              </div>
+              <div className="hidden w-full flex-col items-center gap-6 lg:flex">
+                <AIAgent />
+                <TokenList className="w-full" />
+              </div>
             </div>
           </div>
         </div>
