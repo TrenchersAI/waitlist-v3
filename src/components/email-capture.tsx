@@ -10,6 +10,7 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
+import { BorderBeam } from "border-beam";
 import { motion, useReducedMotion } from "motion/react";
 import XIcon from "../icons/x-icon";
 import TelegramIcon from "../icons/telegram-icon";
@@ -22,14 +23,13 @@ import {
 } from "@/src/lib/waitlist-session-client";
 import { useHydrated } from "@/src/hooks/use-hydrated";
 
-const LAUNCH_TWEET_URL =
-  "https://x.com/TrenchersAI/status/2048148307650998392";
+const LAUNCH_TWEET_URL = "https://x.com/TrenchersAI/status/2048148307650998392";
 
 /** Max wait before showing the dashboard with email fallback (no referral code yet). */
 const TRENCHES_DECK_LOAD_MS = 14_000;
 
-/** Match the proxy's ref-code regex so legacy `?ref=` query links AND
-   the new `/CODE` path links both populate the referrer field. */
+/** Match the proxy's ref-code regex so legacy ⁠ ?ref= ⁠ query links AND
+   the new ⁠ /CODE ⁠ path links both populate the referrer field. */
 const PATH_REF_CODE_PATTERN = /^[a-z0-9]{6,12}$/;
 
 function getReferralCodeFromUrl() {
@@ -61,7 +61,7 @@ const reducedFadeUp = {
 };
 
 type EmailCaptureProps = {
-  /** Server-rendered hint from the `trencher_verified` cookie. Lets the SSR
+  /** Server-rendered hint from the ⁠ trencher_verified ⁠ cookie. Lets the SSR
      HTML render the verified card directly so returning users don't see the
      unverified shell flash on refresh. The post-hydration localStorage check
      can still revoke this if the cookie went stale. */
@@ -72,9 +72,9 @@ export default function EmailCapture({
   initialVerified = false,
 }: EmailCaptureProps) {
   /** Belt-and-suspenders against hydration mismatch:
-     - `useSyncExternalStore` already returns "" on the server / during the
+     - ⁠ useSyncExternalStore ⁠ already returns "" on the server / during the
        hydration commit, then swaps to the real snapshot post-hydration.
-     - `useHydrated` flips to true *after* the first client `useLayoutEffect`,
+     - ⁠ useHydrated ⁠ flips to true after the first client ⁠ useLayoutEffect ⁠,
        guaranteeing the first paint mirrors the SSR HTML even if any other
        browser-only data sneaks into the render path. */
   const hydrated = useHydrated();
@@ -534,7 +534,7 @@ join the trenches:`;
   };
 
   if (isVerified) {
-    /** SSR/pre-hydration: `hydrated` is false, so we always show the loader
+    /** SSR/pre-hydration: ⁠ hydrated ⁠ is false, so we always show the loader
        skeleton (referralCode hasn't been fetched yet). Post-hydration:
        reveal the dashboard once the API responds with a referral code OR
        the 14 s timeout fires. Suppressing the timeout pre-hydration avoids
@@ -553,96 +553,96 @@ join the trenches:`;
           <TrenchesDashboardLoader />
         ) : (
           <>
-        <h2 className="text-[22px] leading-[1.2] font-medium tracking-[-0.01em] text-[#fafafa]">
-          You&apos;re in the trenches.
-        </h2>
-        <p className="mt-3 text-[13px] leading-[1.5] text-neutral-400">
-          Share your referral link to onboard more trenchers.
-        </p>
-
-        <div
-          className={`mt-5 min-h-[148px] rounded-[12px] border p-[1.1rem] ${onboardedTierClass}`}
-        >
-          <div className="flex items-end justify-between gap-3">
-            <div>
-              <p className="text-[10.5px] font-medium tracking-[0.12em] text-[#fafafa]">
-                TRENCHERS ONBOARDED
-              </p>
-              <p className="mt-2 font-mono text-[32px] leading-none font-medium text-[#fafafa]">
-                {referralCount}
-              </p>
-            </div>
-            <div className="text-right">
-              <p className="text-[10.5px] font-medium tracking-[0.12em] text-[#fafafa]">
-                TIER
-              </p>
-              <p className="mt-2 text-[13px] font-extrabold tracking-[0.08em] text-[#fafafa] uppercase">
-                {tier}
-              </p>
-            </div>
-          </div>
-          <div className="mt-4 h-1 rounded-full bg-[#1f1f1f]">
-            <div
-              className="h-1 rounded-full bg-[#fafafa]"
-              style={{ width: `${tierProgressPercent}%` }}
-            />
-          </div>
-          <div className="mt-2 flex min-h-[2.75rem] items-center justify-between text-[10.5px] font-medium tracking-[0.12em] text-[#fafafa]">
-            <span>{`${referralsNeededForNextTier} MORE → ${nextTierLabel}`}</span>
-            <span className="font-mono">{`${Math.min(referralCount, nextTierThreshold)} / ${nextTierThreshold}`}</span>
-          </div>
-        </div>
-
-        <div className="mt-4 overflow-hidden rounded-[10px] border border-neutral-800 bg-white/[0.03] py-[5px] pr-[5px] pl-[14px]">
-          <div className="flex min-h-[48px] items-center gap-3 rounded-[8px] px-2 py-1 sm:min-h-[52px]">
-            <p className="min-w-0 flex-1 font-mono text-[12px] font-medium leading-snug text-[#fafafa] max-sm:overflow-hidden max-sm:text-ellipsis max-sm:whitespace-nowrap sm:break-all sm:text-[13px] sm:whitespace-normal">
-              {referralUrl}
+            <h2 className="text-[22px] leading-[1.2] font-medium tracking-[-0.01em] text-[#fafafa]">
+              You&apos;re in the trenches.
+            </h2>
+            <p className="mt-3 text-[13px] leading-[1.5] text-neutral-400">
+              Share your referral link to onboard more trenchers.
             </p>
-            <button
-              type="button"
-              onClick={() => {
-                void handleCopyReferral();
-              }}
-              className="shrink-0 cursor-pointer rounded-[8px] bg-[#1f1f1f] px-[14px] py-[8px] text-[13px] font-medium text-[#fafafa] transition-all duration-200 hover:bg-[#1f1f1f]/50"
-              aria-label={
-                copyState === "failed"
-                  ? "Copy failed. Select the link manually."
-                  : copyState === "copied"
-                    ? "Referral link copied"
-                    : "Copy referral link"
-              }
-            >
-              {copyState === "failed"
-                ? "Copy failed"
-                : copiedReferral
-                  ? "Copied"
-                  : "Copy"}
-            </button>
-          </div>
-        </div>
 
-        <div className="mt-5 border-t border-white/10 pt-5">
-          <div className="rounded-[12px] border border-neutral-800/90 bg-black/35 p-2.5 sm:p-3">
-            <div className="flex w-full flex-col gap-2 sm:flex-row sm:gap-2.5">
-              <button
-                type="button"
-                onClick={handleShareOnX}
-                className="inline-flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-[9px] border border-neutral-700 bg-neutral-950 px-3 py-2.5 text-[13px] font-semibold text-white transition-colors hover:border-neutral-600 hover:bg-black sm:py-3 sm:text-[14px] [&_svg]:h-[18px] [&_svg]:w-[18px] sm:[&_svg]:h-5 sm:[&_svg]:w-5"
-              >
-                Post on X
-                <XIcon />
-              </button>
-              <button
-                type="button"
-                onClick={handleShareOnTelegram}
-                className="inline-flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-[9px] border border-[#1e8bc4] bg-[#229ED9] px-3 py-2.5 text-[13px] font-semibold text-white transition-colors hover:border-[#26a8e0] hover:bg-[#26a8e0] sm:py-3 sm:text-[14px] [&_svg]:h-[18px] [&_svg]:w-[18px] sm:[&_svg]:h-5 sm:[&_svg]:w-5"
-              >
-                <TelegramIcon />
-                Send link
-              </button>
+            <div
+              className={`mt-5 min-h-[148px] rounded-[12px] border p-[1.1rem] ${onboardedTierClass}`}
+            >
+              <div className="flex items-end justify-between gap-3">
+                <div>
+                  <p className="text-[10.5px] font-medium tracking-[0.12em] text-[#fafafa]">
+                    TRENCHERS ONBOARDED
+                  </p>
+                  <p className="mt-2 font-mono text-[32px] leading-none font-medium text-[#fafafa]">
+                    {referralCount}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[10.5px] font-medium tracking-[0.12em] text-[#fafafa]">
+                    TIER
+                  </p>
+                  <p className="mt-2 text-[13px] font-extrabold tracking-[0.08em] text-[#fafafa] uppercase">
+                    {tier}
+                  </p>
+                </div>
+              </div>
+              <div className="mt-4 h-1 rounded-full bg-[#1f1f1f]">
+                <div
+                  className="h-1 rounded-full bg-[#fafafa]"
+                  style={{ width: `${tierProgressPercent}%` }}
+                />
+              </div>
+              <div className="mt-2 flex min-h-[2.75rem] items-center justify-between text-[10.5px] font-medium tracking-[0.12em] text-[#fafafa]">
+                <span>{`${referralsNeededForNextTier} MORE → ${nextTierLabel}`}</span>
+                <span className="font-mono">{`${Math.min(referralCount, nextTierThreshold)} / ${nextTierThreshold}`}</span>
+              </div>
             </div>
-          </div>
-        </div>
+
+            <div className="mt-4 overflow-hidden rounded-[10px] border border-neutral-800 bg-white/[0.03] py-[5px] pr-[5px] pl-[14px]">
+              <div className="flex min-h-[48px] items-center gap-3 rounded-[8px] px-2 py-1 sm:min-h-[52px]">
+                <p className="min-w-0 flex-1 font-mono text-[12px] font-medium leading-snug text-[#fafafa] max-sm:overflow-hidden max-sm:text-ellipsis max-sm:whitespace-nowrap sm:break-all sm:text-[13px] sm:whitespace-normal">
+                  {referralUrl}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void handleCopyReferral();
+                  }}
+                  className="shrink-0 cursor-pointer rounded-[8px] bg-[#1f1f1f] px-[14px] py-[8px] text-[13px] font-medium text-[#fafafa] transition-all duration-200 hover:bg-[#1f1f1f]/50"
+                  aria-label={
+                    copyState === "failed"
+                      ? "Copy failed. Select the link manually."
+                      : copyState === "copied"
+                        ? "Referral link copied"
+                        : "Copy referral link"
+                  }
+                >
+                  {copyState === "failed"
+                    ? "Copy failed"
+                    : copiedReferral
+                      ? "Copied"
+                      : "Copy"}
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-5 border-t border-white/10 pt-5">
+              <div className="rounded-[12px] border border-neutral-800/90 bg-black/35 p-2.5 sm:p-3">
+                <div className="flex w-full flex-col gap-2 sm:flex-row sm:gap-2.5">
+                  <button
+                    type="button"
+                    onClick={handleShareOnX}
+                    className="inline-flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-[9px] border border-neutral-700 bg-neutral-950 px-3 py-2.5 text-[13px] font-semibold text-white transition-colors hover:border-neutral-600 hover:bg-black sm:py-3 sm:text-[14px] [&_svg]:h-[18px] [&_svg]:w-[18px] sm:[&_svg]:h-5 sm:[&_svg]:w-5"
+                  >
+                    Post on X
+                    <XIcon />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleShareOnTelegram}
+                    className="inline-flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-[9px] border border-[#1e8bc4] bg-[#229ED9] px-3 py-2.5 text-[13px] font-semibold text-white transition-colors hover:border-[#26a8e0] hover:bg-[#26a8e0] sm:py-3 sm:text-[14px] [&_svg]:h-[18px] [&_svg]:w-[18px] sm:[&_svg]:h-5 sm:[&_svg]:w-5"
+                  >
+                    <TelegramIcon />
+                    Send link
+                  </button>
+                </div>
+              </div>
+            </div>
           </>
         )}
       </motion.div>
@@ -657,138 +657,138 @@ join the trenches:`;
       animate="visible"
     >
       <form
-        className={`flex w-full flex-col items-center gap-2 ${
+        className={
           otpStep === "verify"
-            ? "rounded-3xl border border-white/10 bg-gradient-to-br from-black/55 via-black/40 to-black/30 px-4 py-4 shadow-[0_12px_30px_rgba(0,0,0,0.3)] sm:p-5"
-            : "rounded-xl border border-white/10 bg-gradient-to-br from-black/55 via-black/40 to-black/30 p-2 shadow-[0_12px_30px_rgba(0,0,0,0.3)] max-sm:gap-2 max-sm:rounded-xl max-sm:border-white/12 max-sm:p-2 max-sm:shadow-[0_8px_28px_rgba(0,0,0,0.45)] sm:flex-row sm:gap-2 sm:overflow-hidden sm:rounded-xl sm:border-white/10 sm:p-2 sm:shadow-[0_12px_30px_rgba(0,0,0,0.3)]"
-        }`}
+            ? "flex w-full flex-col items-center gap-2 rounded-3xl border border-white/10 bg-gradient-to-br from-black/55 via-black/40 to-black/30 px-4 py-4 shadow-[0_12px_30px_rgba(0,0,0,0.3)] sm:p-5"
+            : "w-full"
+        }
         onSubmit={handleWaitlistSubmit}
       >
-        {otpStep !== "verify" && (
-          <div className="flex w-full justify-center max-sm:rounded-lg max-sm:bg-black/40 max-sm:p-1.5 max-sm:ring-1 max-sm:ring-inset max-sm:ring-white/8 sm:bg-transparent sm:p-0 sm:ring-0">
-            <input
-              type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              placeholder="Please Enter Your Email ID"
-              autoComplete="email"
-              inputMode="email"
-              /* text-base (16px) on mobile prevents iOS Safari from zooming on focus.
-                 No own border/bg. The parent <form> is now the dark-glass
-                 container on every breakpoint, so the input dissolves into it
-                 and reads as part of one unified surface (was two stacked
-                 dark cards on mobile before). */
-              className="h-10 w-full min-w-0 rounded-md border-0 bg-transparent px-2.5 text-center text-base leading-tight text-white outline-none placeholder:text-neutral-500 max-sm:placeholder:text-neutral-500 sm:h-10 sm:flex-1 sm:rounded-lg sm:px-3 sm:text-left sm:text-sm"
-              required
-            />
-          </div>
-        )}
-
-        {otpStep === "verify" && (
-          <div className="mb-1 flex w-full flex-nowrap items-center justify-center gap-1 px-1 sm:gap-2 sm:px-0">
-            {Array.from({ length: 6 }).map((_, index) => (
-              <input
-                key={`otp-${index}`}
-                ref={(element) => {
-                  otpInputRefs.current[index] = element;
-                }}
-                type="text"
-                inputMode="numeric"
-                pattern="[0-9]"
-                maxLength={1}
-                value={otpDigits[index]}
-                onChange={(event) =>
-                  handleOtpInputChange(index, event.target.value)
-                }
-                onKeyDown={(event) => handleOtpKeyDown(index, event)}
-                onPaste={handleOtpPaste}
-                autoComplete="one-time-code"
-                /* text-base on mobile to avoid iOS focus zoom; tighter on desktop */
-                className="h-10 w-10 rounded-xl border border-white/15 bg-black/40 text-center text-sm font-semibold text-white outline-none focus:ring-2 focus:ring-white/40 sm:h-11 sm:w-11"
-                aria-label={`Code digit ${index + 1}`}
-                required
-              />
-            ))}
-          </div>
-        )}
-
-        <div
-          className={otpStep === "verify" ? "w-auto" : "w-full sm:w-auto"}
-        >
-          {otpStep === "verify" ? (
-            <div className="mt-1 flex w-full flex-col items-center gap-4">
-              <button
-                type="submit"
-                className="enabled:cursor-pointer inline-flex h-10 w-[15rem] max-w-full items-center justify-center rounded-full border bg-zinc-950 px-5 text-[13px] font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-70 sm:px-8 sm:text-sm"
-                disabled={submitState.loading}
-              >
-                {submitState.loading
-                  ? "Verifying Code..."
-                  : "Verify & Join"}
-              </button>
-              <div className="mt-1 flex items-center justify-center gap-4 text-sm">
+        {otpStep !== "verify" ? (
+          <BorderBeam
+            size="md"
+            theme="dark"
+            colorVariant="ocean"
+            duration={2.4}
+            strength={0.68}
+            borderRadius={12}
+            active={!prefersReducedMotion}
+            className="w-full"
+          >
+            <div className="flex w-full flex-col items-center gap-2 rounded-xl border border-white/10 bg-gradient-to-br from-black/55 via-black/40 to-black/30 p-2 shadow-[0_12px_30px_rgba(0,0,0,0.3)] max-sm:gap-2 max-sm:rounded-xl max-sm:border-white/12 max-sm:p-2 max-sm:shadow-[0_8px_28px_rgba(0,0,0,0.45)] sm:flex-row sm:gap-2 sm:overflow-hidden sm:rounded-xl sm:border-white/10 sm:p-2 sm:shadow-[0_12px_30px_rgba(0,0,0,0.3)]">
+              <div className="relative flex h-10 w-full min-w-0 items-center justify-center sm:flex-1 sm:justify-start">
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  placeholder="Please Enter Your Email ID"
+                  autoComplete="email"
+                  inputMode="email"
+                  className="h-10 w-full min-w-0 border-0 bg-transparent px-2.5 text-center text-base leading-tight text-white outline-none placeholder:text-neutral-500 max-sm:placeholder:text-neutral-500 sm:px-3 sm:text-left sm:text-sm"
+                  required
+                />
+              </div>
+              <div className="flex w-full justify-end sm:w-auto">
                 <button
-                  type="button"
-                  className="cursor-pointer bg-transparent text-white/85 underline-offset-4 transition hover:text-white hover:underline disabled:cursor-not-allowed disabled:text-white/40"
-                  onClick={() => {
-                    setOtpStep("request");
-                    setOtpDigits(Array(6).fill(""));
-                    setSubmitState({
-                      loading: false,
-                      message: "",
-                      error: false,
-                    });
-                  }}
+                  type="submit"
+                  className="enabled:cursor-pointer inline-flex h-10 w-full max-w-md shrink-0 items-center justify-center whitespace-nowrap rounded-lg bg-white px-4 text-sm font-semibold text-zinc-950 shadow-sm transition hover:bg-white/90 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70 max-sm:max-w-none max-sm:shadow-[0_2px_12px_rgba(0,0,0,0.3)] sm:h-10 sm:w-auto sm:rounded-lg sm:px-4 sm:text-sm sm:shadow-sm sm:active:scale-100"
                   disabled={submitState.loading}
                 >
-                  Change Email
-                </button>
-                <span className="text-white/25" aria-hidden>
-                  |
-                </span>
-                <button
-                  type="button"
-                  className="cursor-pointer bg-transparent text-white/85 underline-offset-4 transition hover:text-white hover:underline disabled:cursor-not-allowed disabled:text-white/40"
-                  onClick={handleResendOtp}
-                  disabled={submitState.loading || resendCooldown > 0}
-                >
-                  {resendCooldown > 0
-                    ? `Resend in ${resendCooldown}s`
-                    : "Resend Code"}
+                  {submitState.loading ? (
+                    "Sending code..."
+                  ) : (
+                    <>
+                      <span className="sm:hidden">Get early access</span>
+                      <span className="hidden sm:inline">Join Now</span>
+                    </>
+                  )}
                 </button>
               </div>
             </div>
-          ) : (
-            <div className="flex w-full justify-end sm:w-auto">
-              <button
-                type="submit"
-                className="enabled:cursor-pointer inline-flex h-10 w-full max-w-md shrink-0 items-center justify-center whitespace-nowrap rounded-lg bg-white px-4 text-sm font-semibold text-zinc-950 shadow-sm transition hover:bg-white/90 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70 max-sm:max-w-none max-sm:shadow-[0_2px_12px_rgba(0,0,0,0.3)] sm:h-10 sm:w-auto sm:rounded-lg sm:bg-zinc-950 sm:px-4 sm:text-sm sm:text-white sm:shadow-none sm:hover:bg-zinc-800 sm:active:scale-100"
-                disabled={submitState.loading}
-              >
-                {submitState.loading ? (
-                  "Sending code..."
-                ) : (
-                  <>
-                    <span className="sm:hidden">Get early access</span>
-                    <span className="hidden sm:inline">Join Now</span>
-                  </>
-                )}
-              </button>
+          </BorderBeam>
+        ) : (
+          <>
+            <div className="mb-1 flex w-full flex-nowrap items-center justify-center gap-1 px-1 sm:gap-2 sm:px-0">
+              {Array.from({ length: 6 }).map((_, index) => (
+                <input
+                  key={`otp-${index}`}
+                  ref={(element) => {
+                    otpInputRefs.current[index] = element;
+                  }}
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]"
+                  maxLength={1}
+                  value={otpDigits[index]}
+                  onChange={(event) =>
+                    handleOtpInputChange(index, event.target.value)
+                  }
+                  onKeyDown={(event) => handleOtpKeyDown(index, event)}
+                  onPaste={handleOtpPaste}
+                  autoComplete="one-time-code"
+                  className="h-10 w-10 rounded-xl border border-white/15 bg-black/40 text-center text-sm font-semibold text-white outline-none focus:ring-2 focus:ring-white/40 sm:h-11 sm:w-11"
+                  aria-label={`Code digit ${index + 1}`}
+                  required
+                />
+              ))}
             </div>
-          )}
-        </div>
+
+            <div className="w-auto">
+              <div className="mt-1 flex w-full flex-col items-center gap-4">
+                <button
+                  type="submit"
+                  className="enabled:cursor-pointer inline-flex h-10 w-[15rem] max-w-full items-center justify-center rounded-full border bg-zinc-950 px-5 text-[13px] font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-70 sm:px-8 sm:text-sm"
+                  disabled={submitState.loading}
+                >
+                  {submitState.loading ? "Verifying Code..." : "Verify & Join"}
+                </button>
+                <div className="mt-1 flex items-center justify-center gap-4 text-sm">
+                  <button
+                    type="button"
+                    className="cursor-pointer bg-transparent text-white/85 underline-offset-4 transition hover:text-white hover:underline disabled:cursor-not-allowed disabled:text-white/40"
+                    onClick={() => {
+                      setOtpStep("request");
+                      setOtpDigits(Array(6).fill(""));
+                      setSubmitState({
+                        loading: false,
+                        message: "",
+                        error: false,
+                      });
+                    }}
+                    disabled={submitState.loading}
+                  >
+                    Change Email
+                  </button>
+                  <span className="text-white/25" aria-hidden>
+                    |
+                  </span>
+                  <button
+                    type="button"
+                    className="cursor-pointer bg-transparent text-white/85 underline-offset-4 transition hover:text-white hover:underline disabled:cursor-not-allowed disabled:text-white/40"
+                    onClick={handleResendOtp}
+                    disabled={submitState.loading || resendCooldown > 0}
+                  >
+                    {resendCooldown > 0
+                      ? `Resend in ${resendCooldown}s`
+                      : "Resend Code"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
       </form>
       <p
-        className={`text-sm max-sm:text-xs ${
+        className={`min-h-5 text-sm max-sm:min-h-4 max-sm:text-xs ${
           submitState.message
             ? submitState.error
               ? "text-rose-300"
               : "text-emerald-300"
-            : "hidden"
+            : "invisible"
         }`}
         aria-live="polite"
       >
-        {submitState.message}
+        {submitState.message || " "}
       </p>
     </motion.div>
   );

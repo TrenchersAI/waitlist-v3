@@ -2,8 +2,9 @@
 
 import { useSyncExternalStore } from "react";
 import Image from "next/image";
-import EmailCapture from "./email-capture";
-import logoMark from "./icons/logo-mark.svg";
+import { BorderBeam } from "border-beam";
+import { useReducedMotion } from "motion/react";
+import EmailCapture from "./email-capture";import logoMark from "./icons/logo-mark.svg";
 import {
   PreviewSection,
   ProblemSection,
@@ -20,7 +21,7 @@ import {
 import { useHydrated } from "@/src/hooks/use-hydrated";
 
 /** Items shown in the horizontal marquee above the headline. Source SVGs are
-   drawn in black, so the wrapper's `[&_svg]:invert` flips them to white on
+   drawn in black, so the wrapper's ⁠ [&_svg]:invert ⁠ flips them to white on
    the dark canvas. */
 const FEATURE_STRIP_ITEMS = [
   { label: "Snipe New Launches", icon: <SnipeIcon /> },
@@ -30,7 +31,7 @@ const FEATURE_STRIP_ITEMS = [
 ];
 
 type HeroProps = {
-  /** Server-rendered hint from the `trencher_verified` cookie. Lets the SSR
+  /** Server-rendered hint from the ⁠ trencher_verified ⁠ cookie. Lets the SSR
      HTML render the verified shell ("Welcome to TrenchersAI" + EmailCapture's
      verified dashboard) so returning users don't see the unverified shell
      flash on refresh. The post-hydration localStorage snapshot can still
@@ -56,7 +57,10 @@ export default function Hero({ initialVerified = false }: HeroProps) {
     <>
       <SiteNav />
 
-      <section id="hero" className="site-canvas-bg relative w-full overflow-hidden">
+      <section
+        id="hero"
+        className="site-canvas-bg relative w-full overflow-hidden"
+      >
         {/* Soft top accent glow - single subtle indigo wash so the eye lands
            on the headline. Sized in viewport units so it scales with display. */}
         <div
@@ -66,10 +70,10 @@ export default function Hero({ initialVerified = false }: HeroProps) {
 
         <div
           id="waitlist"
-          className="relative mx-auto flex w-full min-w-0 max-w-[1240px] flex-col items-center px-4 pb-16 pt-28 text-center sm:px-6 md:px-8 md:pb-24 md:pt-40"
+          className="relative mx-auto flex w-full min-w-0 max-w-[1240px] flex-col items-center px-5 pb-20 pt-32 text-center md:px-8 md:pt-40 md:pb-28"
         >
           {!hasReturningVerifiedSession && (
-            <div className="feature-strip-marquee w-full max-w-[620px] px-1 py-1">
+            <div className="feature-strip-marquee w-full max-w-[640px]">
               <div className="feature-strip-track">
                 {/* Items duplicated 4x so the track always spans wider than
                    any viewport. Keyframes translate -50% (i.e. 2 of the 4
@@ -91,10 +95,10 @@ export default function Hero({ initialVerified = false }: HeroProps) {
           )}
 
           <h1
-            className={`max-w-[860px] text-balance font-medium leading-[1.04] tracking-[-0.02em] text-white ${
+            className={`text-balance font-medium leading-[1.04] tracking-[-0.02em] text-white ${
               hasReturningVerifiedSession
-                ? "mt-4 text-[32px] sm:text-[44px] md:text-[52px]"
-                : "mt-8 text-[36px] sm:text-[52px] md:text-[64px] lg:text-[72px]"
+                ? "mt-2 max-w-[860px] text-[32px] sm:text-[44px] md:text-[52px]"
+                : "mt-7 max-w-[min(1120px,100%)] text-[40px] sm:text-[56px] md:text-[68px]"
             }`}
           >
             {hasReturningVerifiedSession ? (
@@ -102,37 +106,29 @@ export default function Hero({ initialVerified = false }: HeroProps) {
             ) : (
               <>
                 An AI-native trading terminal,
-                <span className="text-white/55">
-                  {" "}
-                  made for the trenches.
-                </span>
+                <span className="text-white/55"> made for the trenches.</span>
               </>
             )}
           </h1>
 
           {!hasReturningVerifiedSession && (
-            <p className="mt-6 max-w-[680px] text-balance text-[15px] leading-[1.62] text-white/62 sm:text-[17px] md:text-[19px]">
+            <p className="mt-5 max-w-[640px] text-balance text-[15px] leading-[1.6] text-white/55 sm:text-[17px] md:text-[18px]">
               Spawn AI trading agents from chat. Discover, snipe, copy, track,
               and manage positions, all from one terminal built for speed.
             </p>
           )}
 
-          <div className="mt-10 flex w-full justify-center md:mt-11">
+          <div className="mt-9 flex w-full justify-center">
             <EmailCapture initialVerified={initialVerified} />
           </div>
 
           {!hasReturningVerifiedSession && (
-            <p className="mt-2 max-w-[520px] text-balance text-[12px] tracking-wide text-white/40 md:mt-3">
+            <p className="max-w-[520px] text-balance text-[12px] tracking-wide text-white/35">
               Early access is limited. Cryptocurrency trading carries
               substantial risk of loss.
             </p>
           )}
         </div>
-
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-[linear-gradient(to_bottom,transparent,rgba(0,0,0,0.45))]"
-        />
       </section>
 
       {!hasReturningVerifiedSession && (
@@ -151,9 +147,11 @@ export default function Hero({ initialVerified = false }: HeroProps) {
 /* ----------------------------------------------------------------------- */
 
 function SiteNav() {
+  const prefersReducedMotion = useReducedMotion();
+
   return (
-    <header className="fixed inset-x-0 top-0 z-50 border-b border-white/6 bg-black/45 backdrop-blur-xl">
-      <nav className="mx-auto flex w-full max-w-[1240px] items-center justify-between px-4 py-4.5 sm:px-6 md:px-8 md:py-5">
+    <header className="fixed inset-x-0 top-0 z-50 border-b border-white/6 bg-black/55 backdrop-blur-md">
+      <nav className="mx-auto flex w-full max-w-7xl items-center justify-between px-5 py-3.5 md:px-8">
         <a
           href="/"
           className="flex items-center gap-2.5 text-white outline-none focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-white/30"
@@ -161,29 +159,40 @@ function SiteNav() {
           <Image
             src={logoMark}
             alt="TrenchersAI logo"
-            width={32}
-            height={28}
-            className="h-[28px] w-[32px]"
+            width={26}
+            height={23}
+            className="h-[23px] w-[26px]"
             priority
           />
-          <span className="text-[17px] font-medium tracking-wide">
+          <span className="text-[15px] font-medium tracking-wide">
             TrenchersAI
           </span>
         </a>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-1.5">
           <a
             href="/about-us"
-            className="hidden rounded-full border border-white/10 px-3.5 py-2 text-[12.5px] font-medium text-white/65 transition-colors hover:border-white/20 hover:text-white sm:inline-flex"
+            className="hidden rounded-full px-3 py-1.5 text-[13px] font-medium text-white/60 transition-colors hover:text-white sm:inline-flex"
           >
             About
           </a>
-          <a
-            href="#waitlist"
-            className="inline-flex items-center rounded-full bg-white px-4 py-2 text-[12px] font-semibold text-black transition-colors hover:bg-white/90 sm:text-[12.5px]"
+          <BorderBeam
+            size="line"
+            theme="dark"
+            colorVariant="ocean"
+            duration={2.4}
+            strength={0.62}
+            borderRadius={9999}
+            active={!prefersReducedMotion}
+            className="shrink-0"
           >
-            Join Early Access
-          </a>
+            <a
+              href="#waitlist"
+              className="inline-flex items-center rounded-full border border-white/15 bg-black px-3.5 py-1.5 text-[12.5px] font-semibold text-white outline-none transition-colors hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-white/35"
+            >
+              Join Early Access
+            </a>
+          </BorderBeam>
         </div>
       </nav>
     </header>
