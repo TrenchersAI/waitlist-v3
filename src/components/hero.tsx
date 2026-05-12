@@ -66,11 +66,10 @@ export default function Hero({ initialVerified = false }: HeroProps) {
 
         <div
           id="waitlist"
-          className="relative mx-auto flex w-full min-w-0 max-w-[1240px] flex-col items-center px-4 pb-14 pt-28 text-center sm:px-6 md:px-8 md:pb-20 md:pt-36"
+          className="relative mx-auto flex w-full min-w-0 max-w-[1240px] flex-col items-center px-4 pb-16 pt-28 text-center sm:px-6 md:px-8 md:pb-24 md:pt-40"
         >
-          <div className="flex w-full max-w-[1120px] flex-col items-center rounded-[28px] border border-white/8 bg-white/2 px-4 py-10 shadow-[0_40px_140px_-48px_rgba(94,104,255,0.5)] backdrop-blur-[2px] sm:px-6 sm:py-12 md:px-10 md:py-14">
           {!hasReturningVerifiedSession && (
-            <div className="feature-strip-marquee w-full max-w-[640px]">
+            <div className="feature-strip-marquee w-full max-w-[620px] rounded-full border border-white/10 bg-white/3 px-1 py-1">
               <div className="feature-strip-track">
                 {/* Items duplicated 4x so the track always spans wider than
                    any viewport. Keyframes translate -50% (i.e. 2 of the 4
@@ -94,8 +93,8 @@ export default function Hero({ initialVerified = false }: HeroProps) {
           <h1
             className={`max-w-[860px] text-balance font-medium leading-[1.04] tracking-[-0.02em] text-white ${
               hasReturningVerifiedSession
-                ? "mt-2 text-[32px] sm:text-[44px] md:text-[52px]"
-                : "mt-7 text-[40px] sm:text-[56px] md:text-[68px]"
+                ? "mt-4 text-[32px] sm:text-[44px] md:text-[52px]"
+                : "mt-8 text-[36px] sm:text-[52px] md:text-[64px] lg:text-[72px]"
             }`}
           >
             {hasReturningVerifiedSession ? (
@@ -112,23 +111,22 @@ export default function Hero({ initialVerified = false }: HeroProps) {
           </h1>
 
           {!hasReturningVerifiedSession && (
-            <p className="mt-5 max-w-[640px] text-balance text-[15px] leading-[1.6] text-white/55 sm:text-[17px] md:text-[18px]">
+            <p className="mt-6 max-w-[680px] text-balance text-[15px] leading-[1.62] text-white/62 sm:text-[17px] md:text-[19px]">
               Spawn AI trading agents from chat. Discover, snipe, copy, track,
               and manage positions, all from one terminal built for speed.
             </p>
           )}
 
-          <div className="mt-9 flex w-full justify-center">
+          <div className="mt-10 flex w-full justify-center md:mt-11">
             <EmailCapture initialVerified={initialVerified} />
           </div>
 
           {!hasReturningVerifiedSession && (
-            <p className="mt-6 max-w-[520px] text-balance text-[12px] tracking-wide text-white/35">
+            <p className="mt-7 max-w-[520px] text-balance text-[12px] tracking-wide text-white/40">
               Early access is limited. Cryptocurrency trading carries
               substantial risk of loss.
             </p>
           )}
-          </div>
         </div>
 
         <div

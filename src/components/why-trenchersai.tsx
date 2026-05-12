@@ -180,7 +180,6 @@ export function PreviewSection() {
             width={1854}
             height={925}
             sizes="(min-width: 1280px) 1200px, 100vw"
-            quality={100}
             unoptimized
             className="h-auto w-full"
           />
