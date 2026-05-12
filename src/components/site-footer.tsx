@@ -17,7 +17,13 @@ export default function SiteFooter() {
             className="flex w-fit items-center gap-2.5 text-white transition-opacity hover:opacity-90"
           >
             <span aria-hidden className="inline-flex shrink-0">
-              <Image src={logoMark} alt="" width={28} height={25} />
+              <Image
+                src={logoMark}
+                alt=""
+                width={28}
+                height={25}
+                className="h-[25px] w-[28px]"
+              />
             </span>
             <span className="text-lg tracking-wide">TrenchersAI</span>
           </Link>

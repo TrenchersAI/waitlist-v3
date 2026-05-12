@@ -3,15 +3,17 @@
 :root {
   --background: #ffffff;
   --foreground: #0a0a0a;
-  /** Darkens the noisy bg.svg for readability (0 = none, 1 = solid black). */
+  /** Darkens the noise for readability (0 = none, 1 = solid black). */
   --bg-noise-overlay-opacity: 0.97;
   /** Terminal / trading widget panels */
   --terminal-bg: #0f1010;
   /**
-   * Black overlay on terminal `bg.svg` only (lower than --bg-noise-overlay-opacity
+   * Black overlay on terminal noise only (lower than --bg-noise-overlay-opacity
    * so the noise shows through more than on the full page body).
    */
   --terminal-noise-overlay-opacity: 0.88;
+  /** Tileable SVG noise generated inline via feTurbulence (~500 bytes). */
+  --noise-bg: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
 }
 
 @theme inline {
@@ -28,33 +30,21 @@
   }
 }
 
-html {
-  /* min-height: 100%; */
-  /* Prevent horizontal layout shift when delayed sections cause scrollbar to appear. */
-  /* scrollbar-gutter: stable; */
-}
-
 body {
   min-height: 100%;
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
   background-color: var(--background);
-  /* Semi-transparent black over noise; first layer paints on top */
   background-image:
     linear-gradient(
       rgb(0 0 0 / var(--bg-noise-overlay-opacity)),
       rgb(0 0 0 / var(--bg-noise-overlay-opacity))
     ),
-    url("/bg.svg");
-  background-size: cover, cover;
-  background-position:
-    center center,
-    center center;
-  background-repeat: no-repeat, no-repeat;
-  background-attachment: scroll, scroll;
+    var(--noise-bg);
+  background-size: auto, 200px 200px;
+  background-repeat: no-repeat, repeat;
+  background-attachment: scroll;
 }
 
-/** Terminal / trading widgets: black @ --terminal-noise-overlay-opacity over bg.svg */
 .terminal-panel-bg {
   background-color: var(--terminal-bg);
   background-image:
@@ -62,12 +52,9 @@ body {
       rgb(0 0 0 / var(--terminal-noise-overlay-opacity)),
       rgb(0 0 0 / var(--terminal-noise-overlay-opacity))
     ),
-    url("/bg.svg");
-  background-size: cover, cover;
-  background-position:
-    center center,
-    center center;
-  background-repeat: no-repeat, no-repeat;
+    var(--noise-bg);
+  background-size: auto, 200px 200px;
+  background-repeat: no-repeat, repeat;
 }
 
 @keyframes text-shimmer {
@@ -81,7 +68,6 @@ body {
 
 /**
  * No visible scrollbar — wheel / trackpad / touch / keyboard still scroll.
- * (Custom thin thumbs still let Chromium show its default overlay bar on hover.)
  */
 .scrollbar-minimal-black {
   scrollbar-width: none;
@@ -111,4 +97,15 @@ body {
   -webkit-background-clip: text;
   color: transparent;
   animation: text-shimmer 2.4s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }

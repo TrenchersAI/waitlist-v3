@@ -156,7 +156,7 @@ export default function TrenchersFeaturesGrid() {
             The Trenches Are Evolving.
           </h2>
           <p className="max-w-xl text-[15px] leading-7 text-neutral-400 md:text-base md:leading-7">
-            You are competing with automatio. TrenchersAI gives you the
+            You are competing with automation. TrenchersAI gives you the
             terminal, agents, wallets, and speed to play the game differently.
           </p>
         </motion.header>
