@@ -7,7 +7,12 @@ import { BorderBeam } from "border-beam";
 const reveal = {
   initial: { opacity: 0, y: 24 } as const,
   whileInView: { opacity: 1, y: 0 } as const,
-  viewport: { once: true, amount: 0.35 } as const,
+  /** Start reveal a bit before full entry + lower threshold = less "wait then pop" on scroll. */
+  viewport: {
+    once: true,
+    amount: 0.12,
+    margin: "0px 0px 18% 0px",
+  } as const,
   transition: { duration: 0.45, ease: "easeOut" as const },
 };
 
