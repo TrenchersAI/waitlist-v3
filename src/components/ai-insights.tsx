@@ -18,7 +18,7 @@ export default function AIInsights() {
       duration={2.4}
       strength={0.72}
       borderRadius={12}
-      className="relative flex h-[180px] w-[420px] min-w-0 shrink-0 flex-col transform-[rotate(180deg)]"
+      className="relative flex h-[180px] w-full max-w-[420px] min-w-0 shrink-0 flex-col transform-[rotate(180deg)]"
     >
       <div className="flex min-h-0 flex-1 rounded-xl bg-linear-to-tl from-white/6 via-white/1 to-transparent p-px transform-[rotate(180deg)]">
         <div className="flex min-h-0 flex-1 rounded-[12px] bg-linear-to-br from-white/13 via-white/8 to-transparent p-px">
@@ -47,8 +47,8 @@ export default function AIInsights() {
                 {insightsTab === "Market Intel" ? (
                   <>
                     <p className="text-sm leading-relaxed text-white/82">
-                      Your AI agent sees cooling momentum and mixed follow-through
-                      in recent fills.
+                      Your AI agent sees cooling momentum and mixed
+                      follow-through in recent fills.
                     </p>
                     {/* <p className="text-sm leading-relaxed text-white/70">
                       Suggested action: keep current size until a cleaner

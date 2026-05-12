@@ -143,26 +143,26 @@ const FEATURES: Feature[] = [
 
 export default function TrenchersFeaturesGrid() {
   return (
-    <section className="relative w-full border-t border-neutral-900/80 bg-black py-20 md:py-28">
-      <div className="mx-auto max-w-6xl px-5 sm:px-6 lg:px-8">
+    <section className="site-canvas-bg relative w-full border-t border-neutral-900/80 py-20 md:py-28">
+      <div className="mx-auto w-full min-w-0 max-w-6xl px-4 md:px-6 lg:px-8">
         <motion.header
-          className="mx-auto flex max-w-2xl flex-col items-center gap-4 text-center"
+          className="mx-auto flex w-full min-w-0 max-w-2xl flex-col items-center gap-4 text-center"
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.35 }}
           transition={{ duration: 0.6, ease: "easeOut" }}
         >
-          <h2 className="text-3xl font-semibold tracking-tight text-white md:text-4xl">
+          <h2 className="w-full min-w-0 text-3xl font-semibold tracking-tight text-white md:text-4xl">
             The Trenches Are Evolving.
           </h2>
-          <p className="max-w-xl text-[15px] leading-7 text-neutral-400 md:text-base md:leading-7">
+          <p className="w-full min-w-0 max-w-xl text-[15px] leading-7 text-neutral-400 md:text-base md:leading-7">
             You are competing with automation. TrenchersAI gives you the
             terminal, agents, wallets, and speed to play the game differently.
           </p>
         </motion.header>
 
         <motion.div
-          className="mt-14 grid grid-cols-1 gap-px bg-neutral-800 sm:grid-cols-2 lg:mt-20 lg:grid-cols-3"
+          className="mt-6 grid w-full min-w-0 grid-cols-1 gap-px bg-neutral-800 sm:grid-cols-2 lg:mt-20 lg:grid-cols-3"
           initial={{ opacity: 0, y: 24 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.2 }}
@@ -171,7 +171,7 @@ export default function TrenchersFeaturesGrid() {
           {FEATURES.map((item) => (
             <div
               key={item.title}
-              className="flex flex-col items-start gap-3 bg-black px-5 py-8 sm:px-6 sm:py-10"
+              className="site-canvas-bg flex w-full min-w-0 flex-col items-start gap-3 px-4 py-8 sm:py-10 md:px-6 lg:px-6"
             >
               {item.icon}
               <h3 className="text-base font-semibold leading-snug text-white md:text-[17px]">
