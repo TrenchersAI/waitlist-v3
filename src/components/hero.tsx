@@ -84,7 +84,7 @@ export default function Hero({ initialVerified = false }: HeroProps) {
                 {/* Items duplicated 4x so the track always spans wider than
                    any viewport. Keyframes translate -50% (i.e. 2 of the 4
                    sets), so the second half lands exactly where the first
-                   half started — seamless infinite loop. */}
+                   half started - seamless infinite loop. */}
                 {Array.from({ length: 4 })
                   .flatMap(() => FEATURE_STRIP_ITEMS)
                   .map((feature, index) => (
@@ -102,11 +102,9 @@ export default function Hero({ initialVerified = false }: HeroProps) {
 
           <h1
             className={`text-balance font-medium leading-[1.04] tracking-[-0.02em] text-white ${
-              showVerifiedWelcomeHeadline
-                ? "mt-2 max-w-[860px] text-[32px] sm:text-[44px] md:text-[52px]"
-                : hasReturningVerifiedSession
-                  ? "mt-2 max-w-[860px] text-[28px] text-white/90 sm:text-[36px] md:text-[40px]"
-                  : "mt-10 max-w-[min(1120px,100%)] text-[40px] sm:mt-11 sm:text-[56px] md:mt-12 md:text-[68px]"
+              hasReturningVerifiedSession
+                ? "mt-6 text-[34px] sm:text-[44px] md:text-[52px]"
+                : "mt-7 max-w-[min(1120px,100%)] text-[40px] sm:text-[56px] md:text-[68px]"
             }`}
           >
             {showVerifiedWelcomeHeadline ? (
@@ -141,21 +139,19 @@ export default function Hero({ initialVerified = false }: HeroProps) {
           </div>
 
           {!hasReturningVerifiedSession && (
-            <p className="mt-2 max-w-[520px] text-balance text-[12px] tracking-wide text-white/35">
-              Early access is limited. Cryptocurrency trading carries
-              substantial risk of loss.
+            <p className="max-w-[520px] text-balance text-[12px] tracking-wide text-white/35">
+              Early access is limited. Cryptocurrency trading carries substantial
+              risk of loss.
             </p>
           )}
         </div>
       </section>
 
-      {!hasReturningVerifiedSession && (
-        <>
-          <ProblemSection />
-          <SolutionSection />
-          <PreviewSection />
-        </>
-      )}
+      <>
+        <ProblemSection />
+        <SolutionSection />
+        <PreviewSection />
+      </>
     </>
   );
 }
