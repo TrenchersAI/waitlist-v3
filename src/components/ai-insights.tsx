@@ -18,7 +18,7 @@ export default function AIInsights() {
       duration={2.4}
       strength={0.72}
       borderRadius={12}
-      className="relative flex h-[180px] w-full max-w-[420px] min-w-0 shrink-0 flex-col transform-[rotate(180deg)]"
+      className="relative flex h-[160px] w-full max-w-[420px] min-w-0 shrink-0 flex-col transform-[rotate(180deg)]"
     >
       <div className="flex min-h-0 flex-1 rounded-xl bg-linear-to-tl from-white/6 via-white/1 to-transparent p-px transform-[rotate(180deg)]">
         <div className="flex min-h-0 flex-1 rounded-[12px] bg-linear-to-br from-white/13 via-white/8 to-transparent p-px">
@@ -92,7 +92,7 @@ export default function AIInsights() {
               </div>
             </div>
           </section>
-          <div className="pointer-events-none absolute inset-x-0 z-50 h-36 -bottom-1 bg-linear-to-t from-[#000000] to-transparent" />
+          <div className="pointer-events-none absolute inset-x-0 z-50 h-36 -bottom-1 bg-linear-to-t from-[#080808] to-transparent" />
         </div>
       </div>
       {/* <div className="mt-3 flex w-full flex-wrap items-center gap-1.5 overflow-hidden px-1"> */}
