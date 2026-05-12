@@ -170,37 +170,20 @@ export function PreviewSection() {
         </motion.header>
 
         <motion.div
-          className="mt-10 overflow-hidden rounded-[24px] border border-white/10 bg-[#0a0a0c] shadow-[0_30px_120px_-20px_rgba(94,104,255,0.28)] md:mt-14"
+          className="mt-10 mx-auto w-full max-w-[1200px] overflow-hidden rounded-[24px] border border-white/10 bg-[#0a0a0c] shadow-[0_30px_120px_-20px_rgba(94,104,255,0.28)] md:mt-14"
           {...reveal}
           transition={{ ...reveal.transition, delay: 0.05 }}
         >
-          {/* Window chrome */}
-          <div className="flex items-center justify-between border-b border-white/6 bg-white/2 px-4 py-3">
-            <div className="flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-full bg-white/15" />
-              <span className="h-2.5 w-2.5 rounded-full bg-white/15" />
-              <span className="h-2.5 w-2.5 rounded-full bg-white/15" />
-            </div>
-            <div className="font-mono text-[10.5px] tracking-[0.18em] text-white/30 uppercase">
-              trenchers.ai / terminal
-            </div>
-            <span aria-hidden className="h-2.5 w-12" />
-          </div>
-
-          {/* Scrollable preview. Keeps the full UI legible on small viewports
-             while desktop sees the whole frame at once. */}
-          <div className="relative w-full overflow-x-auto scrollbar-minimal-black">
-            <div className="min-w-[860px] md:min-w-[960px]">
-              <Image
-                src="/showcase/terminal-left.png"
-                alt="TrenchersAI terminal preview"
-                width={1920}
-                height={1080}
-                sizes="(min-width: 1180px) 1100px, 100vw"
-                className="h-auto w-full"
-              />
-            </div>
-          </div>
+          <Image
+            src="/image.png"
+            alt="TrenchersAI terminal preview"
+            width={1854}
+            height={925}
+            sizes="(min-width: 1280px) 1200px, 100vw"
+            quality={100}
+            unoptimized
+            className="h-auto w-full"
+          />
         </motion.div>
       </div>
     </section>
