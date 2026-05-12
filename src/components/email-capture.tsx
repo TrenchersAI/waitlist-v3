@@ -595,7 +595,7 @@ join the trenches:`;
 
         <div className="mt-4 rounded-[10px] border border-neutral-800 bg-white/[0.03] py-[5px] pr-[5px] pl-[14px]">
           <div className="flex min-h-[52px] items-center gap-3 rounded-[8px] px-2 py-1">
-            <p className="min-h-[2.5rem] min-w-0 flex-1 break-all font-mono text-[12px] font-medium leading-snug text-[#fafafa] sm:text-[13px]">
+            <p className="min-w-0 flex-1 break-all font-mono text-[12px] font-medium leading-snug text-[#fafafa] sm:text-[13px]">
               {referralUrl}
             </p>
             <button
