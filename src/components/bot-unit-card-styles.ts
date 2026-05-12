@@ -3,16 +3,16 @@ export const BOT_UNIT_CARD_SURFACE_CLASSES =
   "bg-[#0f0f0f] shadow-[0px_1px_0px_0px_#FFFFFF1A_inset,0px_0px_0px_1px_#FFFFFF05_inset]";
 
 /** Base delay (ms) before the first sparkline stroke begins drawing. */
-export const BOT_UNIT_CARD_SPARKLINE_BASE_DELAY_MS = 120;
+export const BOT_UNIT_CARD_SPARKLINE_BASE_DELAY_MS = 72;
 
 /**
  * Horizontal stagger between agent cards in {@link Morphing} (motion delay).
  * Sparklines use {@link BOT_UNIT_CARD_SPARKLINE_STAGGER_MS} so paths can be paced slower than layout.
  */
-export const BOT_UNIT_CARD_ENTRANCE_STAGGER_MS = 120;
+export const BOT_UNIT_CARD_ENTRANCE_STAGGER_MS = 72;
 
 /** Extra spacing between each sparkline stroke draw (ms per card index). */
-export const BOT_UNIT_CARD_SPARKLINE_STAGGER_MS = 280;
+export const BOT_UNIT_CARD_SPARKLINE_STAGGER_MS = 180;
 
 /**
  * Locks carousel empty-state shimmer ↔ revealed card to one height (no CLS on reveal).
