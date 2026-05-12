@@ -1,14 +1,14 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #0a0a0a;
+  --background: #0a0a0a;
+  --foreground: #ededed;
 
   /**
    * Full-page background (`body`, `.site-canvas-bg`): base color + optional
    * top-weighted radial wash. Independent from `--terminal-*`.
    */
-  --site-base-color: #ffffff;
+  --site-base-color: #0a0a0a;
   /**
    * Extra top-weighted radial darken (edges stay transparent). 0 disables this layer.
    * Does not affect `.terminal-panel-bg`.
@@ -24,20 +24,6 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-    --site-base-color: #0a0a0a;
-  }
-}
-
-@media (prefers-color-scheme: light) {
-  :root {
-    --site-radial-overlay-opacity: 0;
-  }
 }
 
 /**
