@@ -544,7 +544,7 @@ join the trenches:`;
 
     return (
       <motion.div
-        className="mx-auto w-full min-h-[360px] min-w-0 max-w-[480px] shrink-0 rounded-[20px] border border-white/10 bg-gradient-to-br from-black/55 via-black/40 to-black/30 p-6 text-left text-[#fafafa] shadow-[inset_0_1px_0_rgba(255,255,255,0.28),inset_0_-1px_0_rgba(255,255,255,0.06),0_24px_70px_rgba(0,0,0,0.58)] backdrop-blur-sm [-webkit-backdrop-filter:blur(4px)] max-[420px]:p-4 sm:min-h-[440px]"
+        className="mx-auto w-full min-h-[360px] min-w-0 max-w-[480px] shrink-0 rounded-[20px] border border-white/10 bg-linear-to-br from-black/55 via-black/40 to-black/30 p-6 text-left text-[#fafafa] shadow-[inset_0_1px_0_rgba(255,255,255,0.28),inset_0_-1px_0_rgba(255,255,255,0.06),0_24px_70px_rgba(0,0,0,0.58)] backdrop-blur-sm [-webkit-backdrop-filter:blur(4px)] max-[420px]:p-4 sm:min-h-[440px]"
         variants={fadeUpVariants}
         initial="hidden"
         animate="visible"
@@ -556,7 +556,7 @@ join the trenches:`;
             <h2 className="text-[22px] leading-[1.2] font-medium tracking-[-0.01em] text-[#fafafa]">
               You&apos;re in the trenches.
             </h2>
-            <p className="mt-3 text-[13px] leading-[1.5] text-neutral-400">
+            <p className="mt-3 text-[13px] leading-normal text-neutral-400">
               Share your referral link to onboard more trenchers.
             </p>
 
@@ -587,13 +587,13 @@ join the trenches:`;
                   style={{ width: `${tierProgressPercent}%` }}
                 />
               </div>
-              <div className="mt-2 flex min-h-[2.75rem] items-center justify-between text-[10.5px] font-medium tracking-[0.12em] text-[#fafafa]">
+              <div className="mt-2 flex min-h-11 items-center justify-between text-[10.5px] font-medium tracking-[0.12em] text-[#fafafa]">
                 <span>{`${referralsNeededForNextTier} MORE → ${nextTierLabel}`}</span>
                 <span className="font-mono">{`${Math.min(referralCount, nextTierThreshold)} / ${nextTierThreshold}`}</span>
               </div>
             </div>
 
-            <div className="mt-4 overflow-hidden rounded-[10px] border border-neutral-800 bg-white/[0.03] py-[5px] pr-[5px] pl-[14px]">
+            <div className="mt-4 overflow-hidden rounded-[10px] border border-neutral-800 bg-white/3 py-[5px] pr-[5px] pl-[14px]">
               <div className="flex min-h-[48px] items-center gap-3 rounded-[8px] px-2 py-1 sm:min-h-[52px]">
                 <p className="min-w-0 flex-1 font-mono text-[12px] font-medium leading-snug text-[#fafafa] max-sm:overflow-hidden max-sm:text-ellipsis max-sm:whitespace-nowrap sm:break-all sm:text-[13px] sm:whitespace-normal">
                   {referralUrl}
@@ -659,7 +659,7 @@ join the trenches:`;
       <form
         className={
           otpStep === "verify"
-            ? "flex w-full flex-col items-center gap-2 rounded-3xl border border-white/10 bg-gradient-to-br from-black/55 via-black/40 to-black/30 px-4 py-4 shadow-[0_12px_30px_rgba(0,0,0,0.3)] sm:p-5"
+            ? "flex w-full flex-col items-center gap-2 rounded-3xl border border-white/10 bg-linear-to-br from-black/55 via-black/40 to-black/30 px-4 py-4 shadow-[0_12px_30px_rgba(0,0,0,0.3)] sm:p-5"
             : "w-full"
         }
         onSubmit={handleWaitlistSubmit}
@@ -675,7 +675,7 @@ join the trenches:`;
             active={!prefersReducedMotion}
             className="w-full"
           >
-            <div className="flex w-full flex-col items-center gap-2 rounded-xl border border-white/10 bg-gradient-to-br from-black/55 via-black/40 to-black/30 p-2 shadow-[0_12px_30px_rgba(0,0,0,0.3)] max-sm:gap-2 max-sm:rounded-xl max-sm:border-white/12 max-sm:p-2 max-sm:shadow-[0_8px_28px_rgba(0,0,0,0.45)] sm:flex-row sm:gap-2 sm:overflow-hidden sm:rounded-xl sm:border-white/10 sm:p-2 sm:shadow-[0_12px_30px_rgba(0,0,0,0.3)]">
+            <div className="flex w-full flex-col items-center gap-2 rounded-xl border border-white/10 bg-linear-to-br from-black/55 via-black/40 to-black/30 p-2 shadow-[0_12px_30px_rgba(0,0,0,0.3)] max-sm:gap-2 max-sm:rounded-xl max-sm:border-white/12 max-sm:p-2 max-sm:shadow-[0_8px_28px_rgba(0,0,0,0.45)] sm:flex-row sm:gap-2 sm:overflow-hidden sm:rounded-xl sm:border-white/10 sm:p-2 sm:shadow-[0_12px_30px_rgba(0,0,0,0.3)]">
               <div className="relative flex h-10 w-full min-w-0 items-center justify-center sm:flex-1 sm:justify-start">
                 <input
                   type="email"
@@ -737,7 +737,7 @@ join the trenches:`;
               <div className="mt-1 flex w-full flex-col items-center gap-4">
                 <button
                   type="submit"
-                  className="enabled:cursor-pointer inline-flex h-10 w-[15rem] max-w-full items-center justify-center rounded-full border bg-zinc-950 px-5 text-[13px] font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-70 sm:px-8 sm:text-sm"
+                  className="enabled:cursor-pointer inline-flex h-10 w-60 max-w-full items-center justify-center rounded-full border bg-zinc-950 px-5 text-[13px] font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-70 sm:px-8 sm:text-sm"
                   disabled={submitState.loading}
                 >
                   {submitState.loading ? "Verifying Code..." : "Verify & Join"}
