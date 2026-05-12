@@ -89,12 +89,17 @@ export default function Hero() {
           </div>
 
           <div className="relative order-1 flex min-h-0 w-full flex-1 flex-col items-center gap-5 border-neutral-900 px-0 pb-10 pt-24 text-center lg:order-2 lg:min-h-dvh lg:w-[36%] lg:flex-none lg:border-x lg:border-dashed lg:px-2 lg:pt-24">
+            {/* Flat wash behind center column so section radial/grain does not read through */}
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-0 z-0 bg-[#0a0a0a]/36"
+            />
             {/* <Morphing /> */}
             {/* <Graph /> */}
             {/* <MultiStepComponent /> */}
             {/* <Logo /> */}
             {/* First “page” inside this column: fills viewport so cards stay below until you scroll */}
-            <div className="flex w-full min-h-[calc(100dvh-9rem)] shrink-0 flex-col items-center justify-center gap-8 px-0 pb-4 pt-2 lg:min-h-[calc(100dvh-10rem)] lg:px-1">
+            <div className="relative z-10 flex w-full min-h-[calc(100dvh-9rem)] shrink-0 flex-col items-center justify-center gap-8 px-0 pb-4 pt-2 lg:min-h-[calc(100dvh-10rem)] lg:px-1">
               <div
                 className={`transition-all duration-700 ${
                   showAnimatedSections
@@ -133,9 +138,12 @@ export default function Hero() {
             </div>
 
             {/* Space before cards — only appears as you scroll */}
-            <div className="w-full shrink-0 min-h-12 lg:min-h-20" aria-hidden />
+            <div
+              className="relative z-10 w-full shrink-0 min-h-12 lg:min-h-20"
+              aria-hidden
+            />
 
-            <div className="flex w-full flex-col items-center px-0 pb-12 pt-2 lg:px-1">
+            <div className="relative z-10 flex w-full flex-col items-center px-0 pb-12 pt-2 lg:px-1">
               <div className="w-full origin-top scale-100 sm:scale-[0.95]">
                 <WhyTrenchersAICards embedded />
               </div>
