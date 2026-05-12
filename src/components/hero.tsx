@@ -43,7 +43,7 @@ export default function Hero() {
   useEffect(() => {
     const id = window.setTimeout(() => {
       setShowAnimatedSections(true);
-    }, 900);
+    }, 320);
     return () => window.clearTimeout(id);
   }, []);
 
@@ -91,7 +91,7 @@ export default function Hero() {
         </div>
         <div className="flex min-h-0 flex-1 flex-col items-stretch lg:flex-row">
           <div
-            className={`order-2 hidden w-full flex-col items-center justify-center gap-4 py-12 transition-all duration-700 lg:order-1 lg:flex lg:sticky lg:top-0 lg:min-h-0 lg:h-dvh lg:w-[32%] lg:shrink-0 lg:pr-8 ${
+            className={`order-2 hidden w-full flex-col items-center justify-center gap-4 py-12 transition-all duration-500 lg:order-1 lg:flex lg:sticky lg:top-0 lg:min-h-0 lg:h-dvh lg:w-[32%] lg:shrink-0 lg:pr-8 ${
               showAnimatedSections
                 ? "translate-y-0 opacity-100"
                 : "pointer-events-none translate-y-2 opacity-0"
@@ -115,7 +115,7 @@ export default function Hero() {
             {/* First “page” inside this column: fills viewport so cards stay below until you scroll */}
             <div className="relative z-10 flex w-full min-h-[calc(100dvh-9rem)] shrink-0 flex-col items-center justify-center gap-8 px-0 pb-4 pt-2 lg:min-h-[calc(100dvh-10rem)] lg:px-1">
               <div
-                className={`transition-all duration-700 ${
+                className={`transition-all duration-500 ${
                   showAnimatedSections
                     ? "translate-y-0 opacity-100"
                     : "pointer-events-none -translate-y-2 opacity-0"
@@ -123,7 +123,7 @@ export default function Hero() {
               ></div>
               <div className="flex w-full flex-col items-center lg:gap-8">
                 <div
-                  className={`transition-all duration-700 ${
+                  className={`transition-all duration-500 ${
                     showAnimatedSections
                       ? "translate-y-0 opacity-100"
                       : "pointer-events-none -translate-y-2 opacity-0"
@@ -166,7 +166,7 @@ export default function Hero() {
           </div>
 
           <div
-            className={`order-3 flex w-full flex-col items-center justify-center py-12 transition-all duration-700 lg:order-3 lg:sticky lg:top-0 lg:min-h-0 lg:h-dvh lg:w-[32%] lg:shrink-0 lg:pl-8 ${
+            className={`order-3 flex w-full flex-col items-center justify-center py-12 transition-all duration-500 lg:order-3 lg:sticky lg:top-0 lg:min-h-0 lg:h-dvh lg:w-[32%] lg:shrink-0 lg:pl-8 ${
               showAnimatedSections
                 ? "translate-y-0 opacity-100"
                 : "pointer-events-none translate-y-2 opacity-0 max-lg:pointer-events-auto max-lg:translate-y-0 max-lg:opacity-100"

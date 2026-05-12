@@ -8,7 +8,7 @@ const reveal = {
   initial: { opacity: 0, y: 24 } as const,
   whileInView: { opacity: 1, y: 0 } as const,
   viewport: { once: true, amount: 0.35 } as const,
-  transition: { duration: 0.65, ease: "easeOut" as const },
+  transition: { duration: 0.45, ease: "easeOut" as const },
 };
 
 type CardsProps = {
@@ -91,7 +91,7 @@ export function WhyTrenchersAICards({ embedded = false }: CardsProps) {
               : "gap-4 px-6 pt-6 pb-16 md:gap-5 md:pb-12",
           )}
           {...reveal}
-          transition={{ ...reveal.transition, delay: 0.06 }}
+          transition={{ ...reveal.transition, delay: 0.02 }}
         >
           <h2
             className={clsx(

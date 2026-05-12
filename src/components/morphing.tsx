@@ -119,9 +119,9 @@ const DEMO_AGENT_UNITS = [
   },
 ] as const;
 
-const CARDS_VISIBLE_MS = 8000;
+const CARDS_VISIBLE_MS = 5500;
 /** How long the input + shimmer intro runs before morphing. */
-const INTRO_DURATION_MS = 4800;
+const INTRO_DURATION_MS = 2800;
 
 type DemoPhase = "intro" | "morph" | "cards";
 
@@ -288,7 +288,7 @@ function MorphingSequence({ onComplete }: { onComplete: () => void }) {
                             type: "spring",
                             stiffness: 350,
                             damping: 55,
-                            delay: index * 0.015,
+                            delay: index * 0.008,
                           },
                         }}
                         exit={{
