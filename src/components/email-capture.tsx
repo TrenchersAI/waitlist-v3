@@ -613,8 +613,8 @@ join the trenches:`;
                 rel="noopener noreferrer"
                 className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-neutral-700 bg-neutral-950 px-4 py-3 text-sm font-semibold text-white transition-colors hover:border-neutral-600 hover:bg-black"
               >
+                Follow on
                 <XIcon />
-                Follow on X
               </a>
               <button
                 type="button"
