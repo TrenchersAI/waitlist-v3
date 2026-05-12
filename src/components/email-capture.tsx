@@ -544,7 +544,7 @@ join the trenches:`;
 
     return (
       <motion.div
-        className="mx-auto w-full min-h-[440px] min-w-0 max-w-[480px] shrink-0 rounded-[20px] border border-white/10 bg-gradient-to-br from-black/55 via-black/40 to-black/30 p-6 text-left text-[#fafafa] shadow-[inset_0_1px_0_rgba(255,255,255,0.28),inset_0_-1px_0_rgba(255,255,255,0.06),0_24px_70px_rgba(0,0,0,0.58)] backdrop-blur-2xl [-webkit-backdrop-filter:blur(36px)] max-[420px]:p-4"
+        className="mx-auto w-full min-h-[440px] min-w-0 max-w-[480px] shrink-0 rounded-[20px] border border-white/10 bg-gradient-to-br from-black/55 via-black/40 to-black/30 p-6 text-left text-[#fafafa] shadow-[inset_0_1px_0_rgba(255,255,255,0.28),inset_0_-1px_0_rgba(255,255,255,0.06),0_24px_70px_rgba(0,0,0,0.58)] backdrop-blur-sm [-webkit-backdrop-filter:blur(4px)] max-[420px]:p-4"
         variants={fadeUpVariants}
         initial="hidden"
         animate="visible"

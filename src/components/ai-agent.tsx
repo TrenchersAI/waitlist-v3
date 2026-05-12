@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { AnimatePresence, motion } from "motion/react";
+import React, { useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion, useInView } from "motion/react";
 import useMeasure from "react-use-measure";
 import DepositIcon from "@/src/ui/deposit-icon";
 import SolanaIcon from "@/src/ui/solana-icon";
@@ -116,9 +116,15 @@ const TerminalTradingForm = React.forwardRef<
   >("migration");
   const [pauseAutoTabs, setPauseAutoTabs] = useState(false);
   const [measureRef, bounds] = useMeasure();
+  /** Pause the 4 s auto-cycle when the widget is scrolled out of view —
+     it lives in the desktop right column and otherwise re-renders the
+     surrounding tree forever as the user scrolls down the page. The 200 px
+     margin keeps the demo lively the moment it scrolls back into view. */
+  const formRef = useRef<HTMLFormElement>(null);
+  const inView = useInView(formRef, { margin: "200px" });
 
   useEffect(() => {
-    if (orderType === "advanced" || pauseAutoTabs) return;
+    if (!inView || orderType === "advanced" || pauseAutoTabs) return;
     const id = window.setInterval(() => {
       setSide((s) => {
         const next = s === "buy" ? "sell" : "buy";
@@ -127,7 +133,7 @@ const TerminalTradingForm = React.forwardRef<
       });
     }, AUTO_TAB_CYCLE_MS);
     return () => window.clearInterval(id);
-  }, [orderType, pauseAutoTabs]);
+  }, [inView, orderType, pauseAutoTabs]);
 
   function selectBuy() {
     setSide("buy");
@@ -158,6 +164,7 @@ const TerminalTradingForm = React.forwardRef<
 
   return (
     <form
+      ref={formRef}
       className="relative"
       style={{
         width: FEEDBACK_WIDTH,
