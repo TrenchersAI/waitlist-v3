@@ -255,7 +255,9 @@ export default function EmailCapture({
         setReferralCount(data.referralCount);
       }
       if (otpStep === "request") {
-        if (data.verified) {
+        if (data.requiresOtp) {
+          setOtpStep("verify");
+        } else if (data.verified) {
           setIsVerified(true);
           setFollowOnXGateOpen(true);
           onVerifiedFollowGateOpen?.();
@@ -264,8 +266,6 @@ export default function EmailCapture({
           if (normalizedEmail) {
             setVerifiedSession(normalizedEmail);
           }
-        } else if (data.requiresOtp) {
-          setOtpStep("verify");
         }
       } else {
         setIsVerified(true);
