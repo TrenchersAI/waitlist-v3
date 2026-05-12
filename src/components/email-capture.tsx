@@ -684,7 +684,8 @@ join the trenches:`;
                   placeholder="Please Enter Your Email ID"
                   autoComplete="email"
                   inputMode="email"
-                  className="h-10 w-full min-w-0 border-0 bg-transparent px-2.5 text-center text-base leading-tight text-white outline-none placeholder:text-neutral-500 max-sm:placeholder:text-neutral-500 sm:px-3 sm:text-left sm:text-sm"
+                  name="email"
+                  className="hero-waitlist-email h-10 w-full min-w-0 border-0 bg-transparent px-2.5 text-center text-base leading-tight text-white outline-none placeholder:text-neutral-500 max-sm:placeholder:text-neutral-500 sm:px-3 sm:text-left sm:text-sm"
                   required
                 />
               </div>

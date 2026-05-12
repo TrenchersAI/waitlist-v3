@@ -48,6 +48,34 @@ body {
 }
 
 /**
+ * WebKit autofill paints an opaque background on email fields, which overrides
+ * `bg-transparent` and shows as a grey/blue block. Inset shadow + long
+ * background transition keeps the waitlist input visually transparent over
+ * the glass card. See `hero-waitlist-email` on the hero email `<input>`.
+ */
+input.hero-waitlist-email:-webkit-autofill,
+input.hero-waitlist-email:-webkit-autofill:hover,
+input.hero-waitlist-email:-webkit-autofill:focus,
+input.hero-waitlist-email:-webkit-autofill:active {
+  transition: background-color 99999s ease-out;
+  background-color: transparent !important;
+  -webkit-text-fill-color: #fafafa;
+  caret-color: #fafafa;
+  -webkit-box-shadow: 0 0 0 1000px transparent inset !important;
+  box-shadow: 0 0 0 1000px transparent inset !important;
+}
+
+input.hero-waitlist-email:autofill,
+input.hero-waitlist-email:autofill:hover,
+input.hero-waitlist-email:autofill:focus {
+  transition: background-color 99999s ease-out;
+  background-color: transparent !important;
+  -webkit-text-fill-color: #fafafa;
+  caret-color: #fafafa;
+  box-shadow: 0 0 0 1000px transparent inset !important;
+}
+
+/**
  * Terminal surfaces (e.g. ai-agent MorphSurface): solid panel fill.
  */
 .terminal-panel-bg {
