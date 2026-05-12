@@ -1,7 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useInView } from "motion/react";
 import clsx from "clsx";
 import DevHoldingIcon from "./icons/dev-holding-icon";
 import HoldersIcon from "./icons/holders-icon";
@@ -48,8 +49,12 @@ interface TokenListProps {
 
 export default function TokenList({ className }: TokenListProps) {
   const [toasts, setToasts] = useState<typeof NFTData>([]);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const inView = useInView(containerRef);
 
   useEffect(() => {
+    if (!inView) return;
+
     setToasts([NFTData[0]]);
 
     const id = setInterval(() => {
@@ -60,10 +65,11 @@ export default function TokenList({ className }: TokenListProps) {
     }, 1600);
 
     return () => clearInterval(id);
-  }, []);
+  }, [inView]);
 
   return (
     <div
+      ref={containerRef}
       className={clsx(
         "w-full flex items-center justify-center h-full",
         className,
