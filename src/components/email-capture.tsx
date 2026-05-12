@@ -13,6 +13,7 @@ import {
 import { motion, useReducedMotion } from "motion/react";
 import XIcon from "../icons/x-icon";
 import TelegramIcon from "../icons/telegram-icon";
+import TrenchesDashboardLoader from "./trenches-dashboard-loader";
 import {
   dispatchWaitlistSessionChanged,
   readStoredVerifiedEmail,
@@ -23,6 +24,9 @@ import { useHydrated } from "@/src/hooks/use-hydrated";
 
 const LAUNCH_TWEET_URL =
   "https://x.com/TrenchersAI/status/2048148307650998392";
+
+/** Max wait before showing the dashboard with email fallback (no referral code yet). */
+const TRENCHES_DECK_LOAD_MS = 14_000;
 
 /** Safari Private Browsing throws on localStorage access — guard every call. */
 const safeStorage = {
@@ -110,6 +114,7 @@ export default function EmailCapture() {
   const [copiedReferral, setCopiedReferral] = useState(false);
   const [referralCode, setReferralCode] = useState("");
   const [referralCount, setReferralCount] = useState(0);
+  const [trenchesLoadTimedOut, setTrenchesLoadTimedOut] = useState(false);
   const [incomingRefCode] = useState(initialRefCode);
   const [submitState, setSubmitState] = useState<{
     loading: boolean;
@@ -483,6 +488,18 @@ export default function EmailCapture() {
     };
   }, [isVerified, normalizedEmail]);
 
+  useEffect(() => {
+    if (!isVerified || !hydrated) {
+      setTrenchesLoadTimedOut(false);
+      return;
+    }
+    if (referralCode.length > 0) return;
+    const id = window.setTimeout(() => {
+      setTrenchesLoadTimedOut(true);
+    }, TRENCHES_DECK_LOAD_MS);
+    return () => window.clearTimeout(id);
+  }, [isVerified, hydrated, referralCode]);
+
   const handleCopyReferral = async () => {
     /** navigator.clipboard requires a secure context and is unavailable in
        some embedded webviews. Surface a "Copy failed" state so users on
@@ -527,13 +544,20 @@ join the trenches:`;
   };
 
   if (isVerified && hydrated) {
+    const trenchesDeckReady =
+      referralCode.length > 0 || trenchesLoadTimedOut;
+
     return (
       <motion.div
-        className="w-full max-w-[480px] rounded-[20px] border border-white/10 bg-gradient-to-br from-black/55 via-black/40 to-black/30 p-6 text-left text-[#fafafa] shadow-[inset_0_1px_0_rgba(255,255,255,0.28),inset_0_-1px_0_rgba(255,255,255,0.06),0_24px_70px_rgba(0,0,0,0.58)] backdrop-blur-2xl [-webkit-backdrop-filter:blur(36px)] max-[420px]:p-4"
+        className="mx-auto w-full min-h-[440px] min-w-0 max-w-[480px] shrink-0 rounded-[20px] border border-white/10 bg-gradient-to-br from-black/55 via-black/40 to-black/30 p-6 text-left text-[#fafafa] shadow-[inset_0_1px_0_rgba(255,255,255,0.28),inset_0_-1px_0_rgba(255,255,255,0.06),0_24px_70px_rgba(0,0,0,0.58)] backdrop-blur-2xl [-webkit-backdrop-filter:blur(36px)] max-[420px]:p-4"
         variants={fadeUpVariants}
         initial="hidden"
         animate="visible"
       >
+        {!trenchesDeckReady ? (
+          <TrenchesDashboardLoader />
+        ) : (
+          <>
         <h2 className="text-[22px] leading-[1.2] font-medium tracking-[-0.01em] text-[#fafafa]">
           You&apos;re in the trenches.
         </h2>
@@ -542,7 +566,7 @@ join the trenches:`;
         </p>
 
         <div
-          className={`mt-5 rounded-[12px] border p-[1.1rem] ${onboardedTierClass}`}
+          className={`mt-5 min-h-[148px] rounded-[12px] border p-[1.1rem] ${onboardedTierClass}`}
         >
           <div className="flex items-end justify-between gap-3">
             <div>
@@ -568,15 +592,15 @@ join the trenches:`;
               style={{ width: `${tierProgressPercent}%` }}
             />
           </div>
-          <div className="mt-2 flex items-center justify-between text-[10.5px] font-medium tracking-[0.12em] text-[#fafafa]">
+          <div className="mt-2 flex min-h-[2.75rem] items-center justify-between text-[10.5px] font-medium tracking-[0.12em] text-[#fafafa]">
             <span>{`${referralsNeededForNextTier} MORE → ${nextTierLabel}`}</span>
             <span className="font-mono">{`${Math.min(referralCount, nextTierThreshold)} / ${nextTierThreshold}`}</span>
           </div>
         </div>
 
         <div className="mt-4 rounded-[10px] border border-neutral-800 bg-white/[0.03] py-[5px] pr-[5px] pl-[14px]">
-          <div className="flex items-center gap-3 rounded-[8px] px-2 py-1">
-            <p className="min-w-0 flex-1 truncate font-medium text-[13px] text-[#fafafa]">
+          <div className="flex min-h-[52px] items-center gap-3 rounded-[8px] px-2 py-1">
+            <p className="min-h-[2.5rem] min-w-0 flex-1 break-all font-mono text-[12px] font-medium leading-snug text-[#fafafa] sm:text-[13px]">
               {referralUrl}
             </p>
             <button
@@ -624,6 +648,8 @@ join the trenches:`;
             </div>
           </div>
         </div>
+          </>
+        )}
       </motion.div>
     );
   }
