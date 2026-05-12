@@ -1,37 +1,25 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import Image from "next/image";
-import { motion } from "motion/react";
-import Badge from "./badge";
-import PnlGrowth from "./pnl-growth";
-import InputFeint from "./input-feint";
 import TokenList from "./tokens";
 import EmailCapture from "./email-capture";
 import Morphing from "./morphing";
 import AIAgent from "./ai-agent";
-import Graph from "./graph";
-import MultiStepComponent from "./multi-step-component";
 import logoMark from "./icons/logo-mark.svg";
-import Logo from "./logo";
 import AIInsights from "./ai-insights";
 import { WhyTrenchersAICards } from "./why-trenchersai";
+import {
+  readStoredVerifiedEmail,
+  subscribeWaitlistSession,
+} from "@/src/lib/waitlist-session-client";
 
 export default function Hero() {
-  const [showAnimatedSections, setShowAnimatedSections] = useState(false);
-  const revealAnimation = {
-    initial: { opacity: 0, y: 28, filter: "blur(8px)" },
-    whileInView: { opacity: 1, y: 0, filter: "blur(0px)" },
-    viewport: { once: true, amount: 0.45 } as const,
-    transition: { duration: 0.65, ease: "easeOut" as const },
-  };
-
-  useEffect(() => {
-    const id = window.setTimeout(() => {
-      setShowAnimatedSections(true);
-    }, 900);
-    return () => window.clearTimeout(id);
-  }, []);
+  const hasReturningVerifiedSession = useSyncExternalStore(
+    subscribeWaitlistSession,
+    () => readStoredVerifiedEmail().length > 0,
+    () => false,
+  );
 
   return (
     <section
@@ -44,9 +32,10 @@ export default function Hero() {
             <div className="flex items-center gap-2.5">
               <Image
                 src={logoMark}
-                alt="Trenchersai logo"
+                alt="TrenchersAI logo"
                 width={28}
                 height={25}
+                className="h-[25px] w-[28px]"
                 priority
               />
               <span className="text-lg tracking-wide text-white">
@@ -55,82 +44,39 @@ export default function Hero() {
             </div>
             <div className="flex items-center gap-4 text-sm text-white/70">
               <a
-                href="#hero"
+                href="#waitlist"
                 className="text-xs font-medium tracking-wide text-white/90 transition-colors hover:text-white md:text-sm"
               >
                 Join Early Access
               </a>
-            {/* <Link
-              href="/about-us"
-              className="transition-colors hover:text-white"
-            >
-              Why TrenchersAI ?
-            </Link> */}
-            {/* <Link
-              href="/about-us"
-              className="transition-colors hover:text-white"
-            >
-              Why TrenchersAI ?
-            </Link> */}
             </div>
           </nav>
         </div>
         <div className="flex min-h-0 flex-1 flex-col items-stretch lg:flex-row">
-          <div
-            className={`order-2 flex w-full flex-col items-center justify-center gap-4 py-12 transition-all duration-700 lg:order-1 lg:sticky lg:top-0 lg:min-h-0 lg:h-dvh lg:w-[32%] lg:shrink-0 lg:pr-8 ${
-              showAnimatedSections
-                ? "translate-y-0 opacity-100"
-                : "pointer-events-none translate-y-2 opacity-0"
-            }`}
-          >
-            {/* <InputFeint />
-            <PnlGrowth /> */}
+          <div className="order-2 flex w-full flex-col items-center justify-center gap-4 py-12 lg:order-1 lg:sticky lg:top-0 lg:h-dvh lg:w-[32%] lg:shrink-0 lg:self-start lg:pr-8">
             <Morphing />
           </div>
 
-          <div className="scrollbar-minimal-black relative order-1 flex min-h-0 w-full flex-1 flex-col items-center gap-5 overflow-y-auto border-neutral-900 px-2 pb-10 pt-24 text-center max-h-dvh lg:order-2 lg:h-dvh lg:max-h-none lg:w-[36%] lg:flex-none lg:border-x lg:border-dashed lg:pt-24">
-            {/* <Morphing /> */}
-            {/* <Graph /> */}
-            {/* <MultiStepComponent /> */}
-            {/* <Logo /> */}
-            {/* First “page” inside this column: fills viewport so cards stay below until you scroll */}
-            <div className="flex w-full min-h-[calc(100dvh-9rem)] shrink-0 flex-col items-center justify-center gap-8 px-1 pb-4 pt-2 lg:min-h-[calc(100dvh-10rem)]">
-              <div
-                className={`transition-all duration-700 ${
-                  showAnimatedSections
-                    ? "translate-y-0 opacity-100"
-                    : "pointer-events-none -translate-y-2 opacity-0"
-                }`}
-              ></div>
-              <div
-                className={`transition-all duration-700 ${
-                  showAnimatedSections
-                    ? "translate-y-0 opacity-100"
-                    : "pointer-events-none -translate-y-2 opacity-0"
-                }`}
-              >
-                <AIInsights />
-              </div>
-              <div className="flex flex-col items-center gap-2">
-                <div className="flex flex-col items-center gap-6">
-                  <h1 className="w-[min(100%,450px)] text-4xl font-medium text-white md:text-4xl">
-                    AI Native Trading Terminal For The Trenches
-                  </h1>
-                  {/* <p className="max-w-[480px] text-sm leading-6 text-neutral-400 md:text-[16px]">
-                      AI-native platform for automated trading. Built for vibe
-                      trenching. Snipe launches, copy whales, and automate
-                      trades instantly.
-                    </p> */}
-                  <EmailCapture />
-                  <p className="max-w-[520px] text-[12px] leading-5 text-neutral-500">
-                    Early access is limited. Cryptocurrency trading carries
-                    substantial risk of loss.
-                  </p>
-                </div>
+          <div className="relative order-1 flex w-full flex-1 flex-col items-center gap-5 border-neutral-900 px-2 pb-10 pt-24 text-center lg:order-2 lg:w-[36%] lg:flex-none lg:border-x lg:border-dashed lg:pt-24">
+            <div
+              id="waitlist"
+              className="flex w-full min-h-[calc(100dvh-9rem)] shrink-0 flex-col items-center justify-center gap-8 px-1 pb-4 pt-2 lg:min-h-[calc(100dvh-10rem)]"
+            >
+              {!hasReturningVerifiedSession && <AIInsights />}
+              <div className="flex flex-col items-center gap-6">
+                <h1 className="w-[min(100%,450px)] text-4xl font-medium text-white md:text-4xl">
+                  {hasReturningVerifiedSession
+                    ? "Welcome to TrenchersAI"
+                    : "AI Native Trading Terminal For The Trenches"}
+                </h1>
+                <EmailCapture />
+                <p className="max-w-[520px] text-[12px] leading-5 text-neutral-400">
+                  Early access is limited. Cryptocurrency trading carries
+                  substantial risk of loss.
+                </p>
               </div>
             </div>
 
-            {/* Space before cards — only appears as you scroll */}
             <div
               className="w-full shrink-0 min-h-12 lg:min-h-20"
               aria-hidden
@@ -138,19 +84,12 @@ export default function Hero() {
 
             <div className="flex w-full flex-col items-center px-1 pb-12 pt-2">
               <div className="w-full origin-top scale-[0.93] sm:scale-[0.95]">
-                <WhyTrenchersAICards embedded />
+                <WhyTrenchersAICards />
               </div>
             </div>
-            {/* <Graph /> */}
           </div>
 
-          <div
-            className={`order-3 flex w-full flex-col items-center justify-center py-12 transition-all duration-700 lg:order-3 lg:sticky lg:top-0 lg:min-h-0 lg:h-dvh lg:w-[32%] lg:shrink-0 lg:pl-8 ${
-              showAnimatedSections
-                ? "translate-y-0 opacity-100"
-                : "pointer-events-none translate-y-2 opacity-0"
-            }`}
-          >
+          <div className="order-3 flex w-full flex-col items-center justify-center py-12 lg:order-3 lg:sticky lg:top-0 lg:h-dvh lg:w-[32%] lg:shrink-0 lg:self-start lg:pl-8">
             <div className="mx-auto flex w-full max-w-[420px] flex-col items-center gap-6">
               <AIAgent />
               <TokenList className="w-full" />
