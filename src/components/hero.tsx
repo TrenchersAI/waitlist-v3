@@ -13,13 +13,16 @@ import {
   readStoredVerifiedEmail,
   subscribeWaitlistSession,
 } from "@/src/lib/waitlist-session-client";
+import { useHydrated } from "@/src/hooks/use-hydrated";
 
 export default function Hero() {
-  const hasReturningVerifiedSession = useSyncExternalStore(
+  const hydrated = useHydrated();
+  const storedSession = useSyncExternalStore(
     subscribeWaitlistSession,
     () => readStoredVerifiedEmail().length > 0,
     () => false,
   );
+  const hasReturningVerifiedSession = hydrated && storedSession;
 
   return (
     <section

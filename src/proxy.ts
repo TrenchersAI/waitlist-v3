@@ -18,7 +18,7 @@ const RESERVED_SEGMENTS = new Set([
    /aboutus or /dashboard typos from being misinterpreted as ref codes. */
 const REF_CODE_PATTERN = /^[a-z0-9]{6,12}$/;
 
-export function middleware(req: NextRequest) {
+export function proxy(req: NextRequest) {
   const pathname = req.nextUrl.pathname;
   const segment = pathname.slice(1).split("/")[0];
 
@@ -33,6 +33,6 @@ export function middleware(req: NextRequest) {
 
 export const config = {
   /** Skip Next internals, API routes, and any path with a file extension
-     (images, fonts, etc.) so the middleware only inspects "page-shaped" URLs. */
+     (images, fonts, etc.) so the proxy only inspects "page-shaped" URLs. */
   matcher: ["/((?!api|_next|.*\\..*).*)"],
 };

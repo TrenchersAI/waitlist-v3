@@ -8,6 +8,7 @@ import {
   useEffect,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import XIcon from "../icons/x-icon";
@@ -15,8 +16,10 @@ import TelegramIcon from "../icons/telegram-icon";
 import {
   dispatchWaitlistSessionChanged,
   readStoredVerifiedEmail,
+  subscribeWaitlistSession,
   TRENCHER_VERIFIED_EMAIL_KEY,
 } from "@/src/lib/waitlist-session-client";
+import { useHydrated } from "@/src/hooks/use-hydrated";
 
 const LAUNCH_TWEET_URL =
   "https://x.com/TrenchersAI/status/2048148307650998392";
@@ -49,7 +52,7 @@ const safeStorage = {
   },
 };
 
-/** Match the middleware's ref-code regex so legacy `?ref=` query links AND
+/** Match the proxy's ref-code regex so legacy `?ref=` query links AND
    the new `/CODE` path links both populate the referrer field. */
 const PATH_REF_CODE_PATTERN = /^[a-z0-9]{6,12}$/;
 
@@ -82,15 +85,28 @@ const reducedFadeUp = {
 };
 
 export default function EmailCapture() {
-  const initialVerifiedEmail = readStoredVerifiedEmail();
+  /** Belt-and-suspenders against hydration mismatch:
+     - `useSyncExternalStore` already returns "" on the server / during the
+       hydration commit, then swaps to the real snapshot post-hydration.
+     - `useHydrated` flips to true *after* the first client `useLayoutEffect`,
+       guaranteeing the first paint mirrors the SSR HTML even if any other
+       browser-only data sneaks into the render path. */
+  const hydrated = useHydrated();
+  const storedSnapshot = useSyncExternalStore(
+    subscribeWaitlistSession,
+    () => readStoredVerifiedEmail(),
+    () => "",
+  );
+  const storedVerifiedEmail = hydrated ? storedSnapshot : "";
   const initialRefCode = getReferralCodeFromUrl();
-  const [email, setEmail] = useState(initialVerifiedEmail);
+  const [email, setEmail] = useState("");
   const [otpDigits, setOtpDigits] = useState<string[]>(Array(6).fill(""));
   const [otpStep, setOtpStep] = useState<"request" | "verify">("request");
-  /** Optimistically trust localStorage on first render so returning users
-     don't see the form flash before the API confirmation lands. The
-     useEffect below revokes this if the flag is stale. */
-  const [isVerified, setIsVerified] = useState(!!initialVerifiedEmail);
+  /** Defaults to false so SSR and first hydration agree. The seed effect
+     below promotes this to true once the post-hydration snapshot reveals
+     a stored verified email; the API confirmation effect can still revoke
+     it if the server says the flag is stale. */
+  const [isVerified, setIsVerified] = useState(false);
   const [copiedReferral, setCopiedReferral] = useState(false);
   const [referralCode, setReferralCode] = useState("");
   const [referralCount, setReferralCount] = useState(0);
@@ -371,14 +387,28 @@ export default function EmailCapture() {
     }
   }, [otpStep]);
 
+  /** Promote the post-hydration store snapshot into local form state. Runs
+     once after hydration if storage holds a verified email — and stays a
+     no-op when the user is mid-typing or has already been seeded so we
+     never clobber in-flight input. The lint rule below flags any setState
+     inside an effect; this is the documented exception for syncing a
+     browser-only store snapshot into local React state after hydration. */
   useEffect(() => {
-    if (!initialVerifiedEmail) return;
+    if (!storedVerifiedEmail) return;
+    if (email) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- documented exception: post-hydration sync of a browser-only store snapshot into local state
+    setEmail(storedVerifiedEmail);
+    setIsVerified(true);
+  }, [storedVerifiedEmail, email]);
+
+  useEffect(() => {
+    if (!storedVerifiedEmail) return;
     let cancelled = false;
 
     const restoreVerifiedState = async () => {
       try {
         const response = await fetch(
-          `/api/waitlist?email=${encodeURIComponent(initialVerifiedEmail)}`,
+          `/api/waitlist?email=${encodeURIComponent(storedVerifiedEmail)}`,
         );
         if (!response.ok) {
           safeStorage.remove(TRENCHER_VERIFIED_EMAIL_KEY);
@@ -419,7 +449,7 @@ export default function EmailCapture() {
     return () => {
       cancelled = true;
     };
-  }, [initialVerifiedEmail]);
+  }, [storedVerifiedEmail]);
 
   useEffect(() => {
     if (!isVerified || !normalizedEmail) return;
@@ -496,7 +526,7 @@ join the trenches:`;
     window.open(intentUrl, "_blank", "noopener,noreferrer");
   };
 
-  if (isVerified) {
+  if (isVerified && hydrated) {
     return (
       <motion.div
         className="w-full max-w-[480px] rounded-[20px] border border-white/10 bg-gradient-to-br from-black/55 via-black/40 to-black/30 p-6 text-left text-[#fafafa] shadow-[inset_0_1px_0_rgba(255,255,255,0.28),inset_0_-1px_0_rgba(255,255,255,0.06),0_24px_70px_rgba(0,0,0,0.58)] backdrop-blur-2xl [-webkit-backdrop-filter:blur(36px)] max-[420px]:p-4"
