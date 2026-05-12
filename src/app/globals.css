@@ -1,17 +1,17 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #0a0a0a;
+/** Force `dark:` utilities to follow `.dark` on `<html>`, not OS preference. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {  /** Locked dark palette: site ignores OS light/dark preference. */
+  --background: #0a0a0a;
+  --foreground: #ededed;
 
   /**
-   * Full-page background (`body`). Same idea as `.terminal-panel-bg` / `ai-agent`:
-   * base color → noise grain → uniform darken → optional radial wash. Tune each
-   * independently from `--terminal-*` (widgets keep their own stack).
+   * Full-page background (`body`, `.site-canvas-bg`): base color + optional
+   * top-weighted radial wash. Independent from `--terminal-*`.
    */
-  --site-base-color: #ffffff;
-  /** Uniform black layer over grain (0 = grain only, 1 = solid black). */
-  --site-noise-overlay-opacity: 0.95;
+  --site-base-color: #0a0a0a;
   /**
    * Extra top-weighted radial darken (edges stay transparent). 0 disables this layer.
    * Does not affect `.terminal-panel-bg`.
@@ -20,10 +20,6 @@
 
   /** Terminal / trading widget panels (`terminal-panel-bg`, e.g. ai-agent shell) */
   --terminal-bg: #0f1010;
-  /** Uniform darken over grain inside terminal surfaces only. */
-  --terminal-noise-overlay-opacity: 0.88;
-  /** Tileable SVG noise generated inline via feTurbulence (~500 bytes). */
-  --noise-bg: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
 }
 
 @theme inline {
@@ -32,56 +28,21 @@
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-    --site-base-color: #0a0a0a;
-  }
-}
-
-@media (prefers-color-scheme: light) {
-  :root {
-    --site-radial-overlay-opacity: 0;
-    /* Keep `--site-noise-overlay-opacity` from `:root` so one control tints grain site-wide. */
-  }
-}
-
 /**
- * Same stack as `body`. Use on full-bleed sections instead of `bg-black`, which hides
- * the grain entirely. `fixed` keeps one viewport-locked texture across adjacent panels.
+ * Same stack as `body`. Use on full-bleed sections instead of ad-hoc `bg-black`
+ * so section boundaries stay visually continuous.
  */
 body,
 .site-canvas-bg {
   background-color: var(--site-base-color);
-  /**
-   * Top-to-bottom stack (first list item = painted on top):
-   * 1) radial wash   2) uniform overlay on grain   3) inline noise SVG
-   * Mirrors `.terminal-panel-bg` but with `--site-*` + extra radial.
-   * `background-attachment: fixed` was deliberately removed from
-   * `.site-canvas-bg` (perf/load-and-scroll): on iOS Safari and integrated
-   * GPUs, three fixed-attachment layers across stacked elements force per-
-   * frame repaints during scroll. Default `scroll` attachment is fine since
-   * the noise tile is uniform.
-   */
-  background-image:
-    radial-gradient(
-      ellipse 130% 85% at 50% -15%,
-      rgb(0 0 0 / var(--site-radial-overlay-opacity)) 0%,
-      transparent 58%
-    ),
-    linear-gradient(
-      rgb(0 0 0 / var(--site-noise-overlay-opacity)),
-      rgb(0 0 0 / var(--site-noise-overlay-opacity))
-    ),
-    var(--noise-bg);
-  background-size: cover, cover, 200px 200px;
-  background-position:
-    center top,
-    center center,
-    center center;
-  background-repeat: no-repeat, no-repeat, repeat;
+  background-image: radial-gradient(
+    ellipse 130% 85% at 50% -15%,
+    rgb(0 0 0 / var(--site-radial-overlay-opacity)) 0%,
+    transparent 58%
+  );
+  background-size: cover;
+  background-position: center top;
+  background-repeat: no-repeat;
 }
 
 body {
@@ -90,19 +51,10 @@ body {
 }
 
 /**
- * Terminal surfaces (e.g. ai-agent MorphSurface): base → uniform overlay → grain.
- * Controlled only by `--terminal-bg` and `--terminal-noise-overlay-opacity`.
+ * Terminal surfaces (e.g. ai-agent MorphSurface): solid panel fill.
  */
 .terminal-panel-bg {
   background-color: var(--terminal-bg);
-  background-image:
-    linear-gradient(
-      rgb(0 0 0 / var(--terminal-noise-overlay-opacity)),
-      rgb(0 0 0 / var(--terminal-noise-overlay-opacity))
-    ),
-    var(--noise-bg);
-  background-size: auto, 200px 200px;
-  background-repeat: no-repeat, repeat;
 }
 
 @keyframes text-shimmer {

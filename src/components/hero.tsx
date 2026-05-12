@@ -2,8 +2,9 @@
 
 import { useSyncExternalStore } from "react";
 import Image from "next/image";
-import EmailCapture from "./email-capture";
-import logoMark from "./icons/logo-mark.svg";
+import { BorderBeam } from "border-beam";
+import { useReducedMotion } from "motion/react";
+import EmailCapture from "./email-capture";import logoMark from "./icons/logo-mark.svg";
 import {
   PreviewSection,
   ProblemSection,
@@ -56,7 +57,10 @@ export default function Hero({ initialVerified = false }: HeroProps) {
     <>
       <SiteNav />
 
-      <section id="hero" className="site-canvas-bg relative w-full overflow-hidden">
+      <section
+        id="hero"
+        className="site-canvas-bg relative w-full overflow-hidden"
+      >
         {/* Soft top accent glow - single subtle indigo wash so the eye lands
            on the headline. Sized in viewport units so it scales with display. */}
         <div
@@ -91,10 +95,10 @@ export default function Hero({ initialVerified = false }: HeroProps) {
           )}
 
           <h1
-            className={`max-w-[860px] text-balance font-medium leading-[1.04] tracking-[-0.02em] text-white ${
+            className={`text-balance font-medium leading-[1.04] tracking-[-0.02em] text-white ${
               hasReturningVerifiedSession
-                ? "mt-2 text-[32px] sm:text-[44px] md:text-[52px]"
-                : "mt-7 text-[40px] sm:text-[56px] md:text-[68px]"
+                ? "mt-2 max-w-[860px] text-[32px] sm:text-[44px] md:text-[52px]"
+                : "mt-7 max-w-[min(1120px,100%)] text-[40px] sm:text-[56px] md:text-[68px]"
             }`}
           >
             {hasReturningVerifiedSession ? (
@@ -102,10 +106,7 @@ export default function Hero({ initialVerified = false }: HeroProps) {
             ) : (
               <>
                 An AI-native trading terminal,
-                <span className="text-white/55">
-                  {" "}
-                  made for the trenches.
-                </span>
+                <span className="text-white/55"> made for the trenches.</span>
               </>
             )}
           </h1>
@@ -122,7 +123,7 @@ export default function Hero({ initialVerified = false }: HeroProps) {
           </div>
 
           {!hasReturningVerifiedSession && (
-            <p className="mt-6 max-w-[520px] text-balance text-[12px] tracking-wide text-white/35">
+            <p className="max-w-[520px] text-balance text-[12px] tracking-wide text-white/35">
               Early access is limited. Cryptocurrency trading carries
               substantial risk of loss.
             </p>
@@ -146,6 +147,8 @@ export default function Hero({ initialVerified = false }: HeroProps) {
 /* ----------------------------------------------------------------------- */
 
 function SiteNav() {
+  const prefersReducedMotion = useReducedMotion();
+
   return (
     <header className="fixed inset-x-0 top-0 z-50 border-b border-white/6 bg-black/55 backdrop-blur-md">
       <nav className="mx-auto flex w-full max-w-7xl items-center justify-between px-5 py-3.5 md:px-8">
@@ -173,12 +176,23 @@ function SiteNav() {
           >
             About
           </a>
-          <a
-            href="#waitlist"
-            className="inline-flex items-center rounded-full bg-white px-3.5 py-1.5 text-[12.5px] font-semibold text-black transition-colors hover:bg-white/90"
+          <BorderBeam
+            size="line"
+            theme="dark"
+            colorVariant="ocean"
+            duration={2.4}
+            strength={0.62}
+            borderRadius={9999}
+            active={!prefersReducedMotion}
+            className="shrink-0"
           >
-            Join Early Access
-          </a>
+            <a
+              href="#waitlist"
+              className="inline-flex items-center rounded-full border border-white/15 bg-black px-3.5 py-1.5 text-[12.5px] font-semibold text-white outline-none transition-colors hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-white/35"
+            >
+              Join Early Access
+            </a>
+          </BorderBeam>
         </div>
       </nav>
     </header>
