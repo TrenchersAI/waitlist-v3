@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import SiteFooter from "../components/site-footer";
+import FinalCtaSection from "../components/final-cta-section";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -63,10 +64,11 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} dark h-full antialiased`}
     >
       <body className="flex min-h-dvh min-w-0 flex-col">
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">{children}</div>
+        <FinalCtaSection />
         <SiteFooter />
       </body>
     </html>

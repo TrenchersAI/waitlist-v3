@@ -25,7 +25,6 @@
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
-
 /**
  * Same stack as `body`. Use on full-bleed sections instead of ad-hoc `bg-black`
  * so section boundaries stay visually continuous.
