@@ -9,6 +9,7 @@ import InputFeint from "./input-feint";
 import TokenList from "./tokens";
 import EmailCapture from "./email-capture";
 import Morphing from "./morphing";
+import { BotUnitCard, type BotUnit } from "./agent-unit-card";
 import AIAgent from "./ai-agent";
 import Graph from "./graph";
 import MultiStepComponent from "./multi-step-component";
@@ -17,8 +18,21 @@ import Logo from "./logo";
 import AIInsights from "./ai-insights";
 import { WhyTrenchersAICards } from "./why-trenchersai";
 
+/** Demo unit for mobile hero (replaces AIAgent + tokens below `lg`). */
+const MOBILE_HERO_DEMO_BOT: BotUnit = {
+  id: "mobile-hero-unit",
+  name: "Sniper bot",
+  pid: "7xh…9kp",
+  balance: "$2.40k",
+  delta: "+12.4%",
+  trend: "#2FE0A4",
+  dateLabel: "Today",
+  trades: "0",
+};
+
 export default function Hero() {
   const [showAnimatedSections, setShowAnimatedSections] = useState(false);
+  const [mobileHeroBotSelected, setMobileHeroBotSelected] = useState(true);
   const revealAnimation = {
     initial: { opacity: 0, y: 28, filter: "blur(8px)" },
     whileInView: { opacity: 1, y: 0, filter: "blur(0px)" },
@@ -77,7 +91,7 @@ export default function Hero() {
         </div>
         <div className="flex min-h-0 flex-1 flex-col items-stretch lg:flex-row">
           <div
-            className={`order-2 flex w-full flex-col items-center justify-center gap-4 py-12 transition-all duration-700 lg:order-1 lg:sticky lg:top-0 lg:min-h-0 lg:h-dvh lg:w-[32%] lg:shrink-0 lg:pr-8 ${
+            className={`order-2 hidden w-full flex-col items-center justify-center gap-4 py-12 transition-all duration-700 lg:order-1 lg:flex lg:sticky lg:top-0 lg:min-h-0 lg:h-dvh lg:w-[32%] lg:shrink-0 lg:pr-8 ${
               showAnimatedSections
                 ? "translate-y-0 opacity-100"
                 : "pointer-events-none translate-y-2 opacity-0"
@@ -155,12 +169,25 @@ export default function Hero() {
             className={`order-3 flex w-full flex-col items-center justify-center py-12 transition-all duration-700 lg:order-3 lg:sticky lg:top-0 lg:min-h-0 lg:h-dvh lg:w-[32%] lg:shrink-0 lg:pl-8 ${
               showAnimatedSections
                 ? "translate-y-0 opacity-100"
-                : "pointer-events-none translate-y-2 opacity-0"
+                : "pointer-events-none translate-y-2 opacity-0 max-lg:pointer-events-auto max-lg:translate-y-0 max-lg:opacity-100"
             }`}
           >
             <div className="mx-auto flex w-full max-w-[420px] flex-col items-center gap-6">
-              <AIAgent />
-              <TokenList className="w-full" />
+              <div className="flex w-full flex-col gap-6 lg:hidden">
+                <InputFeint className="w-full" />
+                <BotUnitCard
+                  bot={MOBILE_HERO_DEMO_BOT}
+                  isSelected={mobileHeroBotSelected}
+                  onSelect={() =>
+                    setMobileHeroBotSelected((prev) => !prev)
+                  }
+                  sparklineEntranceIndex={0}
+                />
+              </div>
+              <div className="hidden w-full flex-col items-center gap-6 lg:flex">
+                <AIAgent />
+                <TokenList className="w-full" />
+              </div>
             </div>
           </div>
         </div>
