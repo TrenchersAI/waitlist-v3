@@ -59,6 +59,11 @@ body,
    * Top-to-bottom stack (first list item = painted on top):
    * 1) radial wash   2) uniform overlay on grain   3) inline noise SVG
    * Mirrors `.terminal-panel-bg` but with `--site-*` + extra radial.
+   * `background-attachment: fixed` was deliberately removed from
+   * `.site-canvas-bg` (perf/load-and-scroll): on iOS Safari and integrated
+   * GPUs, three fixed-attachment layers across stacked elements force per-
+   * frame repaints during scroll. Default `scroll` attachment is fine since
+   * the noise tile is uniform.
    */
   background-image:
     radial-gradient(
@@ -82,11 +87,6 @@ body,
 body {
   min-height: 100%;
   color: var(--foreground);
-  background-attachment: scroll, scroll, scroll;
-}
-
-.site-canvas-bg {
-  background-attachment: fixed, fixed, fixed;
 }
 
 /**

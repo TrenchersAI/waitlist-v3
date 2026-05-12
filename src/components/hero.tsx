@@ -58,7 +58,7 @@ export default function Hero({ initialVerified = false }: HeroProps) {
       className="site-canvas-bg relative flex min-h-dvh w-full flex-col border-b border-neutral-900"
     >
       <div className="mx-auto flex min-h-dvh w-full min-w-0 max-w-[1550px] flex-1 flex-col px-4 md:px-6 lg:px-8">
-        <div className="site-canvas-bg fixed top-0 left-0 right-0 z-50 w-full border-b border-white/10">
+        <div className="site-canvas-bg fixed top-0 left-0 right-0 z-50 w-full border-b border-neutral-900 bg-black">
           <nav className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-5 md:px-6 lg:px-8">
             <div className="flex items-center gap-2.5">
               <Image
@@ -141,9 +141,7 @@ export default function Hero({ initialVerified = false }: HeroProps) {
                 <BotUnitCard
                   bot={MOBILE_HERO_DEMO_BOT}
                   isSelected={mobileHeroBotSelected}
-                  onSelect={() =>
-                    setMobileHeroBotSelected((prev) => !prev)
-                  }
+                  onSelect={() => setMobileHeroBotSelected((prev) => !prev)}
                   sparklineEntranceIndex={0}
                 />
               </div>
