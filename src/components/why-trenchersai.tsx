@@ -4,6 +4,8 @@ import type { ReactNode } from "react";
 import Image from "next/image";
 import { motion } from "motion/react";
 
+import logoMark from "./icons/logo-mark.svg";
+
 /** Shared scroll-reveal preset used by every section block below. Lower
    threshold + bottom margin so each section fades in just before it enters
    the viewport. Keeps the page feeling continuous instead of "wait,
@@ -37,6 +39,80 @@ function Eyebrow({ children }: { children: ReactNode }) {
   );
 }
 
+const ADV_CARD_ICON_CLASS =
+  "size-5 shrink-0 stroke-[1.5] text-white/88 [&_circle]:stroke-[1.5]";
+
+function IconProStack() {
+  return (
+    <svg
+      className={ADV_CARD_ICON_CLASS}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      aria-hidden
+    >
+      <path d="M13 2 3 14h9l-1 8 10-12h-9l1-8Z" />
+    </svg>
+  );
+}
+
+function IconFragmentedUi() {
+  return (
+    <svg
+      className={ADV_CARD_ICON_CLASS}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      aria-hidden
+    >
+      <rect x="3" y="3" width="7" height="9" rx="1" />
+      <rect x="14" y="3" width="7" height="5" rx="1" />
+      <rect x="14" y="11" width="7" height="10" rx="1" />
+      <rect x="3" y="15" width="7" height="6" rx="1" />
+    </svg>
+  );
+}
+
+function IconOnboardingGap() {
+  return (
+    <svg
+      className={ADV_CARD_ICON_CLASS}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      aria-hidden
+    >
+      <circle cx="12" cy="12" r="10" />
+      <path d="M12 8v4" />
+      <path d="M12 16h.01" />
+    </svg>
+  );
+}
+
+const ADVANCED_TRADING_CARDS = [
+  {
+    title: "Automation and infra",
+    lines: [
+      "The best traders have automation, fast execution, private infra, and custom bots, all wired together.",
+    ],
+    icon: <IconProStack />,
+  },
+  {
+    title: "Fragmented workflows",
+    lines: [
+      "Most trenchers juggle tabs, wallet popups, Telegram commands, messy dashboards, and a brutal learning curve.",
+    ],
+    icon: <IconFragmentedUi />,
+  },
+  {
+    title: "The truth",
+    lines: [
+      "The edge is there. The hard part is reaching it while the window is still open. The onboarding is broken.",
+    ],
+    icon: <IconOnboardingGap />,
+  },
+] as const;
+
 /* ----------------------------------------------------------------------- */
 /* Section 1: Problem                                                       */
 /* ----------------------------------------------------------------------- */
@@ -46,51 +122,77 @@ export function ProblemSection() {
     <section className="site-canvas-bg relative w-full border-t border-white/6">
       <div className="mx-auto w-full max-w-[1200px] px-4 py-20 sm:px-6 md:px-8 md:py-28">
         <motion.div
-          className="grid gap-10 md:gap-12 lg:grid-cols-12 lg:gap-16"
+          className="terminal-panel-bg flex flex-col gap-10 rounded-2xl border border-white/8 px-6 py-8 shadow-[0_24px_80px_-40px_rgba(0,0,0,0.75)] md:gap-12 md:px-8 md:py-10 lg:flex-row lg:items-stretch lg:gap-0 lg:px-10 lg:py-11"
           {...reveal}
         >
-          <div className="flex flex-col items-start gap-6 text-left lg:col-span-5">
-            <Eyebrow>The problem</Eyebrow>
-            <h2 className="text-balance text-[30px] font-medium leading-[1.08] tracking-[-0.02em] text-white md:text-[40px] lg:text-[44px]">
+          <div className="flex min-w-0 flex-1 flex-col items-start gap-5 text-left md:gap-6 lg:pr-10">
+            <h2 className="text-balance text-[26px] font-medium leading-[1.08] tracking-[-0.02em] text-white sm:text-[32px] md:text-[36px] lg:text-[40px]">
               The trenches are already automated
             </h2>
-            <p className="max-w-[60ch] text-balance text-[15px] leading-[1.72] text-white/65 md:text-[17px]">
+            <p className="max-w-[800px] text-balance text-[14px] leading-[1.72] text-white/55 md:text-[16px]">
               You are not just competing with other traders anymore. You are
               competing with bots, private infra, faster execution, and wallets
-              that react before CT even notices.
+              that react before CT even notices.Advanced trading is still too
+              hard to use
             </p>
           </div>
 
-          <div className="flex flex-col gap-6 lg:col-span-7">
-            <motion.div
-              className="rounded-2xl border border-white/8 bg-white/3 p-6 md:p-8"
-              {...reveal}
-              transition={{ ...reveal.transition, delay: 0.05 }}
-            >
-              <h3 className="text-balance text-[24px] font-medium leading-[1.14] tracking-[-0.015em] text-white md:text-[32px]">
-                Advanced trading is still too hard to use
-              </h3>
+          <div
+            aria-hidden
+            className="hidden w-px shrink-0 bg-white/10 lg:block"
+          />
 
-              <div className="mt-5 flex max-w-[60ch] flex-col gap-4 text-[15px] leading-[1.7] text-white/65 md:text-[17px]">
-                <p>
-                  The best traders have automation, fast execution, private
-                  infra, and custom bots.
-                </p>
-                <p>
-                  Most trenchers have tabs, wallet popups, Telegram commands,
-                  confusing dashboards, and a brutal learning curve.
-                </p>
-                <p>The edge is there.</p>
-                <p>The onboarding is broken.</p>
+          <div className="flex shrink-0 flex-col justify-center border-t border-white/10 pt-8 lg:w-[min(220px,28%)] lg:border-l lg:border-t-0 lg:pl-10 lg:pt-0">
+            <p className="text-[40px] font-semibold leading-none tracking-[-0.03em] text-white sm:text-[48px] md:text-[52px]">
+              <span className="inline-flex items-baseline gap-1.5 whitespace-nowrap">
+                <span>{"<"}</span>
+                <span>1ms</span>
+              </span>
+            </p>
+            <p className="mt-3 max-w-[16ch] text-[13px] leading-snug text-white/55 md:text-[14px]">
+              Built for speed when milliseconds matter.
+            </p>
+          </div>
+        </motion.div>
+
+        <motion.div
+          className="mt-10 flex flex-col gap-10 md:mt-12 md:gap-12"
+          {...reveal}
+          transition={{ ...reveal.transition, delay: 0.06 }}
+        >
+          <div className="flex flex-col gap-6">
+            <div>
+              <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
+                {ADVANCED_TRADING_CARDS.map((card) => (
+                  <div
+                    key={card.title}
+                    className="flex min-h-full min-w-0 flex-col gap-4 px-6 py-7 md:gap-5 md:px-7 md:py-8"
+                  >
+                    <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/4">
+                      {card.icon}
+                    </div>
+                    <h4 className="text-[17px] font-medium leading-snug tracking-[-0.01em] text-white md:text-[18px]">
+                      {card.title}
+                    </h4>
+                    <div className="flex flex-col gap-3 text-[14px] leading-[1.6] text-white/55 md:text-[15px]">
+                      {card.lines.map((line, i) => (
+                        <p key={`${card.title}-${i}`} className="text-pretty">
+                          {line}
+                        </p>
+                      ))}
+                    </div>
+                  </div>
+                ))}
               </div>
-            </motion.div>
+            </div>
 
             <motion.p
-              className="rounded-xl border border-[#8C95FF]/35 bg-[#8C95FF]/10 px-5 py-4 text-balance text-[16px] font-semibold leading-[1.45] tracking-[-0.01em] text-white md:px-6 md:py-5 md:text-[19px]"
+              className="mt-4 max-w-[62ch] text-balance text-[16px] italic leading-[1.45] tracking-[-0.01em] text-white/70 md:mt-15 md:text-[44px] text-center"
               {...reveal}
               transition={{ ...reveal.transition, delay: 0.1 }}
             >
-              TrenchersAI makes pro-level trading tools feel simple.
+              {"\u201C"}TrenchersAI makes pro-level trading tools feel simple.
+              {"\u201D"}
             </motion.p>
           </div>
         </motion.div>
@@ -106,45 +208,52 @@ export function ProblemSection() {
 export function SolutionSection() {
   return (
     <section className="site-canvas-bg relative w-full border-t border-white/6">
-      <div className="mx-auto w-full max-w-[1480px] px-5 py-24 text-center md:px-8 md:py-32">
-        <motion.div className="flex flex-col items-center gap-6" {...reveal}>
-          <Eyebrow>What changes with TrenchersAI</Eyebrow>
-          <h2 className="text-balance text-[30px] font-medium leading-[1.1] tracking-[-0.02em] text-white md:text-[42px]">
-            One terminal. Spawnable AI agents. Full control.
-          </h2>
-          <p className="max-w-[60ch] text-balance text-[15px] leading-[1.7] text-white/65 md:text-[17px]">
-            TrenchersAI gives traders one place to discover, snipe, copy, track,
-            and manage positions with AI agents built directly into the
-            terminal.
-          </p>
+      <div className="mx-auto w-full max-w-[1200px] px-5 py-24 md:px-8 md:py-32">
+        <motion.div
+          className="mx-auto flex w-full max-w-[1200px] flex-col gap-8 rounded-2xl border border-white/8 bg-white/4 px-6 py-8 shadow-[0_20px_60px_-40px_rgba(0,0,0,0.85)] sm:px-7 sm:py-9 md:gap-10 md:px-8 md:py-10 lg:flex-row lg:items-stretch lg:gap-0 lg:px-8 lg:py-10"
+          {...reveal}
+        >
+          <div className="flex min-w-0 flex-1 flex-col items-start gap-5 text-left md:gap-6 lg:pr-5">
+            <h2 className="text-balance text-[26px] font-medium leading-[1.08] tracking-[-0.02em] text-white sm:text-[32px] md:text-[36px] lg:text-[40px]">
+              One terminal. Spawnable AI agents. Full control.
+            </h2>
+            <p className="max-w-full text-balance text-[14px] leading-[1.72] text-white/55 md:text-[16px]">
+              TrenchersAI gives traders one place to discover, snipe, copy,
+              track, and manage positions with AI agents built directly into the
+              terminal.
+            </p>
+          </div>
         </motion.div>
 
         <motion.div
-          className="mt-16 flex w-full flex-col items-center md:mt-20"
+          className="mt-3 w-full"
           {...reveal}
           transition={{ ...reveal.transition, delay: 0.05 }}
         >
-          <p className="font-mono text-[12px] tracking-[0.16em] text-white/35 uppercase">
-            The loop
-          </p>
-          <div className="mt-6 mx-auto grid w-max max-w-full grid-cols-1 justify-items-center gap-12 lg:grid-cols-3 lg:gap-x-6 lg:gap-y-10">
-            {LOOP_STEPS.map((step) => (
+          <div className="mt-0 mx-auto grid w-full max-w-[1200px] grid-cols-1 gap-2 sm:gap-3 lg:grid-cols-2">
+            {LOOP_STEPS.map((step, index) => (
               <div
                 key={step.src}
-                className="flex min-w-0 flex-col items-center gap-4 text-center"
+                className={index === 2 ? "min-w-0 lg:col-span-2" : "min-w-0"}
               >
-                <div className="relative mx-auto h-[360px] w-[360px] shrink-0 lg:h-[440px] lg:w-[440px]">
-                  <Image
-                    src={step.src}
-                    alt=""
-                    fill
-                    className="object-contain border border-neutral-800 rounded-lg"
-                    sizes="(min-width: 1024px) 440px, 360px"
-                  />
+                <div className="flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border border-white/8 bg-white/4 p-3 shadow-[0_20px_60px_-40px_rgba(0,0,0,0.85)] sm:p-4">
+                  <div className="relative aspect-16/10 w-full min-h-[320px] min-w-0 overflow-hidden rounded-xl bg-black/35 ring-1 ring-inset ring-white/6 sm:min-h-[400px] lg:min-h-[480px]">
+                    <Image
+                      src={step.src}
+                      alt={step.label}
+                      fill
+                      className="object-contain p-2 sm:p-3"
+                      sizes={
+                        index === 2
+                          ? "(min-width: 1024px) 1100px, 100vw"
+                          : "(min-width: 1024px) 520px, 100vw"
+                      }
+                    />
+                  </div>
+                  <p className="mt-3 px-1 text-left text-[14px] font-medium leading-snug tracking-[-0.01em] text-white sm:text-[15px] md:mt-4 md:text-[16px]">
+                    {step.label}
+                  </p>
                 </div>
-                <p className="max-w-[28ch] text-balance text-[15px] font-medium leading-[1.45] tracking-[-0.01em] text-white md:text-[16px]">
-                  {step.label}
-                </p>
               </div>
             ))}
           </div>
@@ -202,16 +311,27 @@ export function PreviewSection() {
 
           <div className="mt-1 flex flex-col gap-2 rounded-xl bg-white/4 p-4 text-[15px] font-medium leading-[1.55] text-white/92 md:p-5 md:text-[17px]">
             <p className="flex items-start gap-2.5">
-              <span aria-hidden className="mt-2 h-1.5 w-1.5 rounded-full bg-white/65" />
+              <span
+                aria-hidden
+                className="mt-2 h-1.5 w-1.5 rounded-full bg-white/65"
+              />
               <span>Manual when you want control</span>
             </p>
             <p className="flex items-start gap-2.5">
-              <span aria-hidden className="mt-2 h-1.5 w-1.5 rounded-full bg-white/65" />
+              <span
+                aria-hidden
+                className="mt-2 h-1.5 w-1.5 rounded-full bg-white/65"
+              />
               <span>AI-assisted when you want speed.</span>
             </p>
             <p className="flex items-start gap-2.5">
-              <span aria-hidden className="mt-2 h-1.5 w-1.5 rounded-full bg-white/65" />
-              <span>Delegated when you want the agent to handle the setup.</span>
+              <span
+                aria-hidden
+                className="mt-2 h-1.5 w-1.5 rounded-full bg-white/65"
+              />
+              <span>
+                Delegated when you want the agent to handle the setup.
+              </span>
             </p>
           </div>
         </motion.div>

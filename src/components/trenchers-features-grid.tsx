@@ -135,7 +135,8 @@ const FEATURES: Feature[] = [
   },
   {
     title: "Trader rewards",
-    description: "Active traders earn back instead of just paying fees forever.",
+    description:
+      "Active traders earn back instead of just paying fees forever.",
     icon: <IconGift />,
   },
 ];
@@ -166,7 +167,7 @@ export default function TrenchersFeaturesGrid() {
             href="#waitlist"
             className="mt-2 inline-flex items-center rounded-full bg-white px-4 py-2 text-[12px] font-semibold text-black transition-colors hover:bg-white/90 sm:text-[12.5px]"
           >
-            Join Early Access
+            Get Early Access
           </a>
         </motion.header>
 
