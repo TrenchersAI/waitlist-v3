@@ -660,7 +660,7 @@ join the trenches:`;
         className={`flex w-full flex-col items-center gap-2 sm:gap-2 ${
           otpStep === "verify"
             ? "rounded-3xl border border-white/10 bg-gradient-to-br from-black/55 via-black/40 to-black/30 px-4 py-4 shadow-[0_12px_30px_rgba(0,0,0,0.3)] sm:p-5"
-            : "sm:flex-row sm:overflow-hidden sm:rounded-full sm:border sm:border-white/10 sm:bg-gradient-to-br sm:from-black/55 sm:via-black/40 sm:to-black/30 sm:p-1.5 sm:shadow-[0_12px_30px_rgba(0,0,0,0.3)]"
+            : "sm:flex-row sm:overflow-hidden sm:rounded-xl sm:border sm:border-white/10 sm:bg-gradient-to-br sm:from-black/55 sm:via-black/40 sm:to-black/30 sm:p-2 sm:shadow-[0_12px_30px_rgba(0,0,0,0.3)]"
         }`}
         onSubmit={handleWaitlistSubmit}
       >
@@ -674,7 +674,7 @@ join the trenches:`;
               autoComplete="email"
               inputMode="email"
               /* text-base (16px) on mobile prevents iOS Safari from zooming on focus */
-              className="h-10 w-full min-w-0 rounded-full border border-white/10 bg-black/40 px-4 text-center text-base text-white outline-none placeholder:text-neutral-500 sm:flex-1 sm:border-0 sm:bg-transparent sm:px-4 sm:text-left sm:text-sm"
+              className="h-10 w-full min-w-0 rounded-lg border border-white/10 bg-black/40 px-4 text-center text-base text-white outline-none placeholder:text-neutral-500 sm:flex-1 sm:border-0 sm:bg-transparent sm:px-3 sm:text-left sm:text-sm"
               required
             />
           </div>
@@ -758,7 +758,7 @@ join the trenches:`;
             <div className="flex w-full justify-end sm:w-auto">
               <button
                 type="submit"
-                className="enabled:cursor-pointer inline-flex h-10 w-full max-w-md shrink-0 items-center justify-center whitespace-nowrap rounded-full border border-white/15 bg-zinc-950 px-5 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto sm:max-w-none sm:border-none sm:px-8"
+                className="enabled:cursor-pointer inline-flex h-10 w-full max-w-md shrink-0 items-center justify-center whitespace-nowrap rounded-lg border border-white/15 bg-zinc-950 px-5 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto sm:max-w-none sm:border-none sm:px-4"
                 disabled={submitState.loading}
               >
                 {submitState.loading ? "Sending code..." : "Join Now"}
