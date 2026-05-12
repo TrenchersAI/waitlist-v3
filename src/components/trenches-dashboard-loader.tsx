@@ -1,6 +1,8 @@
 "use client";
 
+import Image from "next/image";
 import { motion, useReducedMotion } from "motion/react";
+import logoMark from "./icons/logo-mark.svg";
 
 export default function TrenchesDashboardLoader() {
   const reduceMotion = useReducedMotion();
@@ -21,8 +23,15 @@ export default function TrenchesDashboardLoader() {
               transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
             />
           ) : null}
-          <span className="relative flex size-full items-center justify-center text-lg font-semibold tracking-tight text-white/90">
-            T
+          <span className="relative flex size-full items-center justify-center">
+            <Image
+              src={logoMark}
+              alt=""
+              width={26}
+              height={23}
+              className="h-[23px] w-[26px]"
+              aria-hidden
+            />
           </span>
         </div>
 
