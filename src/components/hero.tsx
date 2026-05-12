@@ -2,10 +2,9 @@
 
 import { useSyncExternalStore } from "react";
 import Image from "next/image";
-import TokenList from "./tokens";
+import dynamic from "next/dynamic";
 import EmailCapture from "./email-capture";
-import Morphing from "./morphing";
-import AIAgent from "./ai-agent";
+import LazyOnVisible from "./lazy-on-visible";
 import logoMark from "./icons/logo-mark.svg";
 import AIInsights from "./ai-insights";
 import { WhyTrenchersAICards } from "./why-trenchersai";
@@ -18,6 +17,29 @@ import {
   subscribeWaitlistSession,
 } from "@/src/lib/waitlist-session-client";
 import { useHydrated } from "@/src/hooks/use-hydrated";
+
+/**
+ * Heavy desktop-origin components are loaded via `next/dynamic` so they
+ * split into their own chunks and do not block the hero's initial paint.
+ * On phones each one is gated again behind `LazyOnVisible` so the chunk
+ * is fetched and the component is mounted only as the user scrolls near.
+ *
+ * Pause-when-off-screen behavior already lives inside each component via
+ * `useInView` (intervals + RAF are gated), so once they unmount we are
+ * relying on `content-visibility: auto` to also skip layout / paint.
+ */
+const Morphing = dynamic(() => import("./morphing"), {
+  ssr: false,
+  loading: () => <div aria-hidden className="h-full w-full" />,
+});
+const AIAgent = dynamic(() => import("./ai-agent"), {
+  ssr: false,
+  loading: () => <div aria-hidden className="h-full w-full" />,
+});
+const TokenList = dynamic(() => import("./tokens"), {
+  ssr: false,
+  loading: () => <div aria-hidden className="h-[240px] w-full" />,
+});
 
 /** Feature strip items shown above AIInsights — gives the page a one-line
    summary of what the product does. Source SVGs are drawn in black, so the
@@ -82,8 +104,23 @@ export default function Hero({ initialVerified = false }: HeroProps) {
           </nav>
         </div>
         <div className="flex w-full flex-1 flex-col items-stretch lg:min-h-0 lg:flex-row">
+          {/* Left lane: Morphing is desktop-only for now (kept hidden on phones
+             to keep the mobile critical path slim). `next/dynamic` still splits
+             the chunk so it's pulled off the initial bundle on desktop too. */}
           <div className="order-2 hidden w-full flex-col items-center justify-center gap-4 py-12 lg:order-1 lg:flex lg:sticky lg:top-0 lg:h-dvh lg:w-[32%] lg:shrink-0 lg:self-start lg:pr-8">
-            <Morphing />
+            <LazyOnVisible
+              className="lazy-mount-shell flex w-full items-center justify-center"
+              rootMargin="320px 0px"
+              minHeight={420}
+              fallback={
+                <div
+                  aria-hidden
+                  className="h-[420px] w-full max-w-[420px] rounded-xl border border-white/4 bg-black/30"
+                />
+              }
+            >
+              <Morphing />
+            </LazyOnVisible>
           </div>
 
           <div className="relative order-1 flex w-full flex-col border-neutral-900 px-0 pt-20 text-center lg:order-2 lg:w-[36%] lg:flex-none lg:border-x lg:border-dashed lg:px-2 lg:pt-24">
@@ -142,11 +179,37 @@ export default function Hero({ initialVerified = false }: HeroProps) {
             </div>
           </div>
 
-          {/* Right column: desktop-only sticky lane (AI agent + token list). */}
-          <div className="order-3 hidden w-full flex-col items-center justify-center py-12 lg:order-3 lg:flex lg:sticky lg:top-0 lg:h-dvh lg:w-[32%] lg:shrink-0 lg:self-start lg:pl-8">
+          {/* Right lane: AIAgent (Buy/Sell trading widget) renders on every
+             breakpoint — code-split + mount-on-visible so phones only pay the
+             cost once it scrolls near. TokenList stays desktop-only for now. */}
+          <div className="order-3 flex w-full flex-col items-center justify-center py-10 lg:order-3 lg:py-12 lg:sticky lg:top-0 lg:h-dvh lg:w-[32%] lg:shrink-0 lg:self-start lg:pl-8">
             <div className="mx-auto flex w-full max-w-[420px] flex-col items-center gap-6">
-              <AIAgent />
-              <TokenList className="w-full" />
+              <LazyOnVisible
+                className="lazy-mount-shell w-full"
+                rootMargin="320px 0px"
+                minHeight={520}
+                fallback={
+                  <div
+                    aria-hidden
+                    className="h-[520px] w-full rounded-xl border border-white/4 bg-black/30"
+                  />
+                }
+              >
+                <AIAgent />
+              </LazyOnVisible>
+              <LazyOnVisible
+                className="lazy-mount-shell hidden w-full lg:block"
+                rootMargin="320px 0px"
+                minHeight={240}
+                fallback={
+                  <div
+                    aria-hidden
+                    className="h-[240px] w-full rounded-xl border border-white/4 bg-black/30"
+                  />
+                }
+              >
+                <TokenList className="w-full" />
+              </LazyOnVisible>
             </div>
           </div>
         </div>

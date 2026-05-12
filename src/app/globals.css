@@ -227,3 +227,17 @@ body {
     scroll-behavior: auto !important;
   }
 }
+
+/**
+ * Heavy off-screen subtrees (Morphing / AIAgent / TokenList on mobile).
+ * `content-visibility: auto` lets the browser skip style, layout, and paint
+ * for the subtree while it is off-screen. Pair with `LazyOnVisible` so React
+ * also skips the mount until the slot is near the viewport.
+ *
+ * Use `contain-intrinsic-size` to reserve a sensible size estimate so the
+ * scrollbar / layout does not jump as elements enter/leave the rendered set.
+ */
+.lazy-mount-shell {
+  content-visibility: auto;
+  contain-intrinsic-size: 600px;
+}

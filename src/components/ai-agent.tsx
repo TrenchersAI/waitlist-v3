@@ -53,9 +53,9 @@ export function MorphSurface() {
   return (
     <div
       // TODO move out
-      className="flex items-end justify-center z-20"
+      className="z-20 flex w-full items-end justify-center"
       style={{
-        width: FEEDBACK_WIDTH,
+        maxWidth: FEEDBACK_WIDTH,
         minHeight: FEEDBACK_HEIGHT,
         height: "auto",
       }}
@@ -64,10 +64,10 @@ export function MorphSurface() {
         data-footer
         ref={rootRef}
         className={
-          "terminal-panel-bg shadow-[0_0_0_1px_rgba(255,255,255,0.06),0_10px_15px_-3px_rgba(0,0,0,0.45),0_4px_6px_-4px_rgba(0,0,0,0.35)] relative flex flex-col items-center bottom-8 max-sm:bottom-5 z-3 shadow-menu overflow-hidden"
+          "terminal-panel-bg shadow-[0_0_0_1px_rgba(255,255,255,0.06),0_10px_15px_-3px_rgba(0,0,0,0.45),0_4px_6px_-4px_rgba(0,0,0,0.35)] relative bottom-8 z-3 flex w-full flex-col items-center overflow-hidden shadow-menu max-sm:bottom-5"
         }
         style={{
-          width: FEEDBACK_WIDTH,
+          maxWidth: FEEDBACK_WIDTH,
           minHeight: FEEDBACK_HEIGHT,
           height: "auto",
           borderRadius: 14,
@@ -165,9 +165,9 @@ const TerminalTradingForm = React.forwardRef<
   return (
     <form
       ref={formRef}
-      className="relative"
+      className="relative w-full"
       style={{
-        width: FEEDBACK_WIDTH,
+        maxWidth: FEEDBACK_WIDTH,
         pointerEvents: "all",
       }}
       onSubmit={(e) => e.preventDefault()}
@@ -175,8 +175,7 @@ const TerminalTradingForm = React.forwardRef<
       onMouseLeave={() => setPauseAutoTabs(false)}
     >
       <motion.div
-        className="overflow-hidden bg-transparent"
-        style={{ width: FEEDBACK_WIDTH }}
+        className="w-full overflow-hidden bg-transparent"
         animate={{ height: shellHeight }}
         transition={{
           type: "spring",
@@ -187,8 +186,7 @@ const TerminalTradingForm = React.forwardRef<
       >
         <div
           ref={measureRef}
-          style={{ width: FEEDBACK_WIDTH }}
-          className={`relative space-y-2 rounded-none p-3 pb-3.5 ${className}`}
+          className={`relative w-full space-y-2 rounded-none p-3 pb-3.5 max-sm:p-2.5 ${className}`}
         >
             <div className="grid grid-cols-2 gap-1 rounded-md border border-white/8 bg-black/25 p-1">
               <button
@@ -215,8 +213,8 @@ const TerminalTradingForm = React.forwardRef<
               </button>
             </div>
 
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-5 text-xs">
+            <div className="flex flex-wrap items-center justify-between gap-y-1">
+              <div className="flex items-center gap-4 text-xs sm:gap-5">
                 <button
                   type="button"
                   onClick={selectMarket}
