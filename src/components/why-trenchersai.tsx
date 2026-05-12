@@ -19,6 +19,15 @@ const reveal = {
   transition: { duration: 0.5, ease: "easeOut" as const },
 };
 
+const LOOP_STEPS = [
+  { src: "/feature_1.svg", label: "Describe what you want" },
+  { src: "/feature_3.svg", label: "Fund the bot" },
+  {
+    src: "/feature_2.svg",
+    label: "Let it run while you are asleep",
+  },
+] as const;
+
 function Eyebrow({ children }: { children: ReactNode }) {
   return (
     <span className="inline-flex items-center gap-3 text-[11px] font-semibold tracking-[0.18em] text-white/45 uppercase">
@@ -90,31 +99,48 @@ export function ProblemSection() {
 export function SolutionSection() {
   return (
     <section className="site-canvas-bg relative w-full border-t border-white/6">
-      <div className="mx-auto w-full max-w-[860px] px-5 py-24 text-center md:px-8 md:py-32">
+      <div className="mx-auto w-full max-w-[1480px] px-5 py-24 text-center md:px-8 md:py-32">
         <motion.div className="flex flex-col items-center gap-6" {...reveal}>
           <Eyebrow>What changes with TrenchersAI</Eyebrow>
           <h2 className="text-balance text-[30px] font-medium leading-[1.1] tracking-[-0.02em] text-white md:text-[42px]">
             One terminal. Spawnable AI agents. Full control.
           </h2>
           <p className="max-w-[60ch] text-balance text-[15px] leading-[1.7] text-white/65 md:text-[17px]">
-            TrenchersAI gives traders one place to discover, snipe, copy,
-            track, and manage positions with AI agents built directly into the
+            TrenchersAI gives traders one place to discover, snipe, copy, track,
+            and manage positions with AI agents built directly into the
             terminal.
           </p>
         </motion.div>
 
         <motion.div
-          className="mt-16 inline-flex flex-col items-center gap-1 self-center md:mt-20"
+          className="mt-16 flex w-full flex-col items-center md:mt-20"
           {...reveal}
           transition={{ ...reveal.transition, delay: 0.05 }}
         >
           <p className="font-mono text-[12px] tracking-[0.16em] text-white/35 uppercase">
             The loop
           </p>
-          <p className="text-balance text-[16px] font-medium leading-[1.55] tracking-[-0.01em] text-white md:text-[19px]">
-            Describe what you want &rsaquo; Fund the bot &rsaquo; Let it run
-            while you are asleep
-          </p>
+          <div className="mt-6 mx-auto grid w-max max-w-full grid-cols-1 justify-items-center gap-12 lg:grid-cols-3 lg:gap-x-6 lg:gap-y-10">
+            {LOOP_STEPS.map((step) => (
+              <div
+                key={step.src}
+                className="flex min-w-0 flex-col items-center gap-4 text-center"
+              >
+                <div className="relative mx-auto h-[360px] w-[360px] shrink-0 lg:h-[440px] lg:w-[440px]">
+                  <Image
+                    src={step.src}
+                    alt=""
+                    fill
+                    className="object-contain border border-neutral-800 rounded-lg"
+                    sizes="(min-width: 1024px) 440px, 360px"
+                  />
+                </div>
+                <p className="max-w-[28ch] text-balance text-[15px] font-medium leading-[1.45] tracking-[-0.01em] text-white md:text-[16px]">
+                  {step.label}
+                </p>
+              </div>
+            ))}
+          </div>
         </motion.div>
       </div>
     </section>
