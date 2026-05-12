@@ -1,9 +1,6 @@
 @import "tailwindcss";
 
-/** Force `dark:` utilities to follow `.dark` on `<html>`, not OS preference. */
-@custom-variant dark (&:where(.dark, .dark *));
-
-:root {  /** Locked dark palette: site ignores OS light/dark preference. */
+:root {
   --background: #0a0a0a;
   --foreground: #ededed;
 

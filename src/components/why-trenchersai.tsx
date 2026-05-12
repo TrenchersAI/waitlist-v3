@@ -44,49 +44,56 @@ function Eyebrow({ children }: { children: ReactNode }) {
 export function ProblemSection() {
   return (
     <section className="site-canvas-bg relative w-full border-t border-white/6">
-      <div className="mx-auto w-full max-w-[760px] px-5 py-24 text-center md:px-8 md:py-32">
-        <motion.div className="flex flex-col items-center gap-6" {...reveal}>
-          <Eyebrow>The problem</Eyebrow>
-          <h2 className="text-balance text-[30px] font-medium leading-[1.1] tracking-[-0.02em] text-white md:text-[42px]">
-            The trenches are already automated
-          </h2>
-          <p className="max-w-[60ch] text-balance text-[15px] leading-[1.7] text-white/65 md:text-[17px]">
-            You are not just competing with other traders anymore. You are
-            competing with bots, private infra, faster execution, and wallets
-            that react before CT even notices.
-          </p>
-        </motion.div>
-
+      <div className="mx-auto w-full max-w-[1200px] px-4 py-20 sm:px-6 md:px-8 md:py-28">
         <motion.div
-          className="mt-20 flex flex-col items-center gap-6 md:mt-24"
+          className="grid gap-10 md:gap-12 lg:grid-cols-12 lg:gap-16"
           {...reveal}
-          transition={{ ...reveal.transition, delay: 0.05 }}
         >
-          <h3 className="text-balance text-[24px] font-medium leading-[1.15] tracking-[-0.015em] text-white md:text-[32px]">
-            Advanced trading is still too hard to use
-          </h3>
+          <div className="flex flex-col items-start gap-6 text-left lg:col-span-5">
+            <Eyebrow>The problem</Eyebrow>
+            <h2 className="text-balance text-[30px] font-medium leading-[1.08] tracking-[-0.02em] text-white md:text-[40px] lg:text-[44px]">
+              The trenches are already automated
+            </h2>
+            <p className="max-w-[60ch] text-balance text-[15px] leading-[1.72] text-white/65 md:text-[17px]">
+              You are not just competing with other traders anymore. You are
+              competing with bots, private infra, faster execution, and wallets
+              that react before CT even notices.
+            </p>
+          </div>
 
-          <div className="flex max-w-[60ch] flex-col gap-4 text-[15px] leading-[1.7] text-white/65 md:text-[17px]">
-            <p>
-              The best traders have automation, fast execution, private infra,
-              and custom bots.
-            </p>
-            <p>
-              Most trenchers have tabs, wallet popups, Telegram commands,
-              confusing dashboards, and a brutal learning curve.
-            </p>
-            <p>The edge is there.</p>
-            <p>The onboarding is broken.</p>
+          <div className="flex flex-col gap-6 lg:col-span-7">
+            <motion.div
+              className="rounded-2xl border border-white/8 bg-white/3 p-6 md:p-8"
+              {...reveal}
+              transition={{ ...reveal.transition, delay: 0.05 }}
+            >
+              <h3 className="text-balance text-[24px] font-medium leading-[1.14] tracking-[-0.015em] text-white md:text-[32px]">
+                Advanced trading is still too hard to use
+              </h3>
+
+              <div className="mt-5 flex max-w-[60ch] flex-col gap-4 text-[15px] leading-[1.7] text-white/65 md:text-[17px]">
+                <p>
+                  The best traders have automation, fast execution, private
+                  infra, and custom bots.
+                </p>
+                <p>
+                  Most trenchers have tabs, wallet popups, Telegram commands,
+                  confusing dashboards, and a brutal learning curve.
+                </p>
+                <p>The edge is there.</p>
+                <p>The onboarding is broken.</p>
+              </div>
+            </motion.div>
+
+            <motion.p
+              className="rounded-xl border border-[#8C95FF]/35 bg-[#8C95FF]/10 px-5 py-4 text-balance text-[16px] font-semibold leading-[1.45] tracking-[-0.01em] text-white md:px-6 md:py-5 md:text-[19px]"
+              {...reveal}
+              transition={{ ...reveal.transition, delay: 0.1 }}
+            >
+              TrenchersAI makes pro-level trading tools feel simple.
+            </motion.p>
           </div>
         </motion.div>
-
-        <motion.p
-          className="mt-20 text-balance text-[16px] font-semibold leading-[1.4] tracking-[-0.01em] text-white md:mt-24 md:text-[19px]"
-          {...reveal}
-          transition={{ ...reveal.transition, delay: 0.1 }}
-        >
-          TrenchersAI makes pro-level trading tools feel simple.
-        </motion.p>
       </div>
     </section>
   );
@@ -154,20 +161,34 @@ export function SolutionSection() {
 export function PreviewSection() {
   return (
     <section className="site-canvas-bg relative w-full border-t border-white/6">
-      <div className="mx-auto w-full max-w-[1180px] px-5 py-24 md:px-8 md:py-32">
-        <motion.header
-          className="mx-auto flex max-w-[760px] flex-col items-center gap-5 text-center"
+      <div className="mx-auto w-full max-w-[1200px] px-4 py-20 sm:px-6 md:px-8 md:py-28">
+        <motion.div
+          className="relative flex flex-col gap-6 overflow-hidden rounded-[24px] bg-[linear-gradient(160deg,rgba(255,255,255,0.12)_0%,rgba(255,255,255,0.05)_58%,rgba(140,149,255,0.1)_100%)] px-6 py-8 text-left shadow-[0_18px_50px_-35px_rgba(0,0,0,0.7)] md:px-8 md:py-9 lg:px-9"
           {...reveal}
         >
-          <Eyebrow>Inside the terminal</Eyebrow>
-          <h2 className="text-balance text-[30px] font-medium leading-[1.08] tracking-[-0.02em] text-white md:text-[42px]">
+          <div
+            aria-hidden
+            className="pointer-events-none absolute -right-20 -top-20 h-52 w-52 rounded-full bg-[#8C95FF]/12 blur-3xl"
+          />
+          <div className="-mx-6 -mt-8 mb-1 flex items-center justify-between bg-black/10 px-6 py-3 md:-mx-8 md:-mt-9 md:px-8 lg:-mx-9 lg:px-9">
+            <div className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-full bg-white/20" />
+              <span className="h-2.5 w-2.5 rounded-full bg-white/20" />
+              <span className="h-2.5 w-2.5 rounded-full bg-white/20" />
+            </div>
+            <span className="text-[10.5px] font-semibold tracking-[0.18em] text-white/45 uppercase">
+              Inside the terminal
+            </span>
+            <span aria-hidden className="h-2.5 w-10" />
+          </div>
+          <h2 className="max-w-[18ch] text-balance text-[32px] font-medium leading-[1.08] tracking-tight text-white md:text-[44px]">
             The pro terminal traders know.
           </h2>
-          <h3 className="text-balance text-[22px] font-medium leading-[1.1] tracking-[-0.015em] text-white/85 md:text-[30px]">
+          <h3 className="text-balance text-[24px] font-medium leading-[1.12] tracking-tight text-[#C5CBFF] md:text-[32px]">
             But with AI.
           </h3>
 
-          <div className="mt-2 flex max-w-[62ch] flex-col gap-4 text-[15px] leading-[1.7] text-white/65 md:text-[17px]">
+          <div className="mt-1 flex max-w-[64ch] flex-col gap-4 text-[15px] leading-[1.72] text-white/72 md:text-[17px]">
             <p>
               TrenchersAI brings the tools traders already use across the
               trenches into one terminal: sniping, copy trading, whale tracking,
@@ -179,42 +200,41 @@ export function PreviewSection() {
             </p>
           </div>
 
-          <div className="mt-4 flex flex-col gap-1 text-[15px] font-medium leading-[1.55] text-white md:text-[17px]">
-            <p>Manual when you want control</p>
-            <p>AI-assisted when you want speed.</p>
-            <p>Delegated when you want the agent to handle the setup.</p>
+          <div className="mt-1 flex flex-col gap-2 rounded-xl bg-white/4 p-4 text-[15px] font-medium leading-[1.55] text-white/92 md:p-5 md:text-[17px]">
+            <p className="flex items-start gap-2.5">
+              <span aria-hidden className="mt-2 h-1.5 w-1.5 rounded-full bg-white/65" />
+              <span>Manual when you want control</span>
+            </p>
+            <p className="flex items-start gap-2.5">
+              <span aria-hidden className="mt-2 h-1.5 w-1.5 rounded-full bg-white/65" />
+              <span>AI-assisted when you want speed.</span>
+            </p>
+            <p className="flex items-start gap-2.5">
+              <span aria-hidden className="mt-2 h-1.5 w-1.5 rounded-full bg-white/65" />
+              <span>Delegated when you want the agent to handle the setup.</span>
+            </p>
           </div>
-        </motion.header>
+        </motion.div>
 
         <motion.div
-          className="mt-14 overflow-hidden rounded-2xl border border-white/8 bg-[#0a0a0c] shadow-[0_30px_120px_-20px_rgba(94,104,255,0.22)] md:mt-20"
+          className="group relative mt-8 overflow-hidden rounded-[24px] border border-white/12 bg-[#07080a] p-2 shadow-[0_30px_120px_-20px_rgba(94,104,255,0.32)] ring-1 ring-inset ring-white/5 md:mt-10"
           {...reveal}
           transition={{ ...reveal.transition, delay: 0.05 }}
         >
-          {/* Window chrome */}
-          <div className="flex items-center justify-between border-b border-white/6 bg-white/2 px-4 py-3">
-            <div className="flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-full bg-white/15" />
-              <span className="h-2.5 w-2.5 rounded-full bg-white/15" />
-              <span className="h-2.5 w-2.5 rounded-full bg-white/15" />
-            </div>
-            <div className="font-mono text-[10.5px] tracking-[0.18em] text-white/30 uppercase">
-              trenchers.ai / terminal
-            </div>
-            <span aria-hidden className="h-2.5 w-12" />
-          </div>
-
-          {/* Scrollable preview. Keeps the full UI legible on small viewports
-             while desktop sees the whole frame at once. */}
-          <div className="relative w-full overflow-x-auto scrollbar-minimal-black">
-            <div className="min-w-[960px]">
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 bg-[radial-gradient(80%_70%_at_50%_100%,rgba(94,104,255,0.22),transparent_72%)]"
+          />
+          <div className="relative overflow-hidden rounded-[18px] border border-white/8 bg-black/30">
+            <div className="aspect-21/9 w-full">
               <Image
-                src="/showcase/terminal-left.png"
+                src="/image.png"
                 alt="TrenchersAI terminal preview"
-                width={1920}
-                height={1080}
-                sizes="(min-width: 1180px) 1100px, 100vw"
-                className="h-auto w-full"
+                width={1854}
+                height={925}
+                sizes="(min-width: 1280px) 1100px, 100vw"
+                unoptimized
+                className="h-full w-full object-cover object-top transition-transform duration-500 group-hover:scale-[1.03]"
               />
             </div>
           </div>

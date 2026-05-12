@@ -143,9 +143,9 @@ const FEATURES: Feature[] = [
 export default function TrenchersFeaturesGrid() {
   return (
     <section className="site-canvas-bg relative w-full border-t border-white/6">
-      <div className="mx-auto w-full min-w-0 max-w-[1100px] px-5 py-24 md:px-8 md:py-32">
+      <div className="mx-auto w-full min-w-0 max-w-[1200px] px-4 py-20 sm:px-6 md:px-8 md:py-28">
         <motion.header
-          className="mx-auto flex w-full min-w-0 max-w-[720px] flex-col items-center gap-4 text-center"
+          className="mx-auto flex w-full min-w-0 max-w-[980px] flex-col items-start gap-4 text-left"
           initial={{ opacity: 0, y: 18 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.3 }}
@@ -155,17 +155,23 @@ export default function TrenchersFeaturesGrid() {
             <span aria-hidden className="h-px w-6 bg-white/15" />
             What you get
           </span>
-          <h2 className="text-balance text-[34px] font-medium leading-[1.06] tracking-[-0.02em] text-white md:text-[46px]">
+          <h2 className="text-balance text-[32px] font-medium leading-[1.06] tracking-[-0.02em] text-white md:text-[46px]">
             The trenches are evolving.
           </h2>
-          <p className="max-w-[560px] text-balance text-[15px] leading-[1.6] text-white/55 md:text-[17px]">
+          <p className="max-w-[680px] text-balance text-[15px] leading-[1.6] text-white/55 md:text-[17px]">
             You&rsquo;re competing with automation. TrenchersAI gives you the
             terminal, agents, wallets, and speed to play the game differently.
           </p>
+          <a
+            href="#waitlist"
+            className="mt-2 inline-flex items-center rounded-full bg-white px-4 py-2 text-[12px] font-semibold text-black transition-colors hover:bg-white/90 sm:text-[12.5px]"
+          >
+            Join Early Access
+          </a>
         </motion.header>
 
         <motion.div
-          className="mt-14 grid gap-px overflow-hidden rounded-2xl border border-white/6 bg-white/4 sm:grid-cols-2 md:mt-20 lg:grid-cols-3"
+          className="mt-10 grid gap-3 md:mt-12 md:gap-4 sm:grid-cols-2 lg:grid-cols-3"
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.15 }}
@@ -174,9 +180,9 @@ export default function TrenchersFeaturesGrid() {
           {FEATURES.map((item) => (
             <div
               key={item.title}
-              className="site-canvas-bg flex w-full min-w-0 flex-col gap-3 px-6 py-8 md:px-7 md:py-10"
+              className="site-canvas-bg flex w-full min-w-0 flex-col gap-3 rounded-2xl border border-white/8 bg-white/3 px-6 py-7 transition-transform duration-300 hover:-translate-y-1 hover:border-white/15 md:px-7 md:py-9"
             >
-              <div className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/8 bg-white/3">
+              <div className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/8 bg-white/4">
                 {item.icon}
               </div>
               <h3 className="text-[17px] font-medium leading-tight text-white md:text-[18px]">

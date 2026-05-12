@@ -21,7 +21,7 @@ import {
 import { useHydrated } from "@/src/hooks/use-hydrated";
 
 /** Items shown in the horizontal marquee above the headline. Source SVGs are
-   drawn in black, so the wrapper's `[&_svg]:invert` flips them to white on
+   drawn in black, so the wrapper's ⁠ [&_svg]:invert ⁠ flips them to white on
    the dark canvas. */
 const FEATURE_STRIP_ITEMS = [
   { label: "Snipe New Launches", icon: <SnipeIcon /> },
@@ -31,7 +31,7 @@ const FEATURE_STRIP_ITEMS = [
 ];
 
 type HeroProps = {
-  /** Server-rendered hint from the `trencher_verified` cookie. Lets the SSR
+  /** Server-rendered hint from the ⁠ trencher_verified ⁠ cookie. Lets the SSR
      HTML render the verified shell ("Welcome to TrenchersAI" + EmailCapture's
      verified dashboard) so returning users don't see the unverified shell
      flash on refresh. The post-hydration localStorage snapshot can still
