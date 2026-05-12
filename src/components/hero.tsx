@@ -1,20 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Image from "next/image";
-import { motion } from "motion/react";
-import Badge from "./badge";
-import PnlGrowth from "./pnl-growth";
 import InputFeint from "./input-feint";
 import TokenList from "./tokens";
 import EmailCapture from "./email-capture";
 import Morphing from "./morphing";
 import { BotUnitCard, type BotUnit } from "./agent-unit-card";
 import AIAgent from "./ai-agent";
-import Graph from "./graph";
-import MultiStepComponent from "./multi-step-component";
 import logoMark from "./icons/logo-mark.svg";
-import Logo from "./logo";
 import AIInsights from "./ai-insights";
 import { WhyTrenchersAICards } from "./why-trenchersai";
 
@@ -31,21 +25,7 @@ const MOBILE_HERO_DEMO_BOT: BotUnit = {
 };
 
 export default function Hero() {
-  const [showAnimatedSections, setShowAnimatedSections] = useState(false);
   const [mobileHeroBotSelected, setMobileHeroBotSelected] = useState(true);
-  const revealAnimation = {
-    initial: { opacity: 0, y: 28, filter: "blur(8px)" },
-    whileInView: { opacity: 1, y: 0, filter: "blur(0px)" },
-    viewport: { once: true, amount: 0.45 } as const,
-    transition: { duration: 0.65, ease: "easeOut" as const },
-  };
-
-  useEffect(() => {
-    const id = window.setTimeout(() => {
-      setShowAnimatedSections(true);
-    }, 900);
-    return () => window.clearTimeout(id);
-  }, []);
 
   return (
     <section
@@ -91,11 +71,7 @@ export default function Hero() {
         </div>
         <div className="flex min-h-0 flex-1 flex-col items-stretch lg:flex-row">
           <div
-            className={`order-2 hidden w-full flex-col items-center justify-center gap-4 py-12 transition-all duration-700 lg:order-1 lg:flex lg:sticky lg:top-0 lg:min-h-0 lg:h-dvh lg:w-[32%] lg:shrink-0 lg:pr-8 ${
-              showAnimatedSections
-                ? "translate-y-0 opacity-100"
-                : "pointer-events-none translate-y-2 opacity-0"
-            }`}
+            className="order-2 hidden w-full flex-col items-center justify-center gap-4 py-12 lg:order-1 lg:flex lg:sticky lg:top-0 lg:min-h-0 lg:h-dvh lg:w-[32%] lg:shrink-0 lg:pr-8"
           >
             {/* <InputFeint />
             <PnlGrowth /> */}
@@ -114,21 +90,8 @@ export default function Hero() {
             {/* <Logo /> */}
             {/* First “page” inside this column: fills viewport so cards stay below until you scroll */}
             <div className="relative z-10 flex w-full min-h-[calc(100dvh-9rem)] shrink-0 flex-col items-center justify-center gap-8 px-0 pb-4 pt-2 lg:min-h-[calc(100dvh-10rem)] lg:px-1">
-              <div
-                className={`transition-all duration-700 ${
-                  showAnimatedSections
-                    ? "translate-y-0 opacity-100"
-                    : "pointer-events-none -translate-y-2 opacity-0"
-                }`}
-              ></div>
               <div className="flex w-full flex-col items-center lg:gap-8">
-                <div
-                  className={`transition-all duration-700 ${
-                    showAnimatedSections
-                      ? "translate-y-0 opacity-100"
-                      : "pointer-events-none -translate-y-2 opacity-0"
-                  }`}
-                >
+                <div>
                   <AIInsights />
                 </div>
                 <div className="flex w-full flex-col items-center gap-2 -mt-6 md:-mt-0 z-30">
@@ -166,11 +129,7 @@ export default function Hero() {
           </div>
 
           <div
-            className={`order-3 flex w-full flex-col items-center justify-center py-12 transition-all duration-700 lg:order-3 lg:sticky lg:top-0 lg:min-h-0 lg:h-dvh lg:w-[32%] lg:shrink-0 lg:pl-8 ${
-              showAnimatedSections
-                ? "translate-y-0 opacity-100"
-                : "pointer-events-none translate-y-2 opacity-0 max-lg:pointer-events-auto max-lg:translate-y-0 max-lg:opacity-100"
-            }`}
+            className="order-3 flex w-full flex-col items-center justify-center py-12 lg:order-3 lg:sticky lg:top-0 lg:min-h-0 lg:h-dvh lg:w-[32%] lg:shrink-0 lg:pl-8"
           >
             <div className="mx-auto flex w-full max-w-[420px] flex-col items-center gap-6">
               <div className="flex w-full flex-col gap-6 lg:hidden">
