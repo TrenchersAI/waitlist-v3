@@ -94,7 +94,7 @@ export async function sendWaitlistOtpEmail(params: {
   otp: string;
 }) {
   const appName = process.env.WAITLIST_APP_NAME ?? "Trenchers";
-  const subject = `${appName} verification code`;
+  const subject = `${appName} Follow on X`;
   let html: string;
 
   try {
