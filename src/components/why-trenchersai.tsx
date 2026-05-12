@@ -54,7 +54,7 @@ const SOLUTIONS = [
 
 export function WhyTrenchersAICards() {
   return (
-    <div className="mx-auto flex w-full max-w-88 flex-col gap-5 rounded-xl text-left sm:max-w-96 md:max-w-104 md:gap-6">
+    <div className="mx-auto flex w-full min-w-0 max-w-none flex-col gap-5 rounded-xl text-left sm:max-w-96 md:max-w-104 md:gap-6">
       <Card title="Challenges" items={CHALLENGES} delay={0} />
       <Card title="What changes with TrenchersAI" items={SOLUTIONS} delay={0.06} />
     </div>
