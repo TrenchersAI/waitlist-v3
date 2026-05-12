@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
+import useMeasure from "react-use-measure";
 import DepositIcon from "@/src/ui/deposit-icon";
 import SolanaIcon from "@/src/ui/solana-icon";
 
@@ -14,6 +15,9 @@ export default function AIAgent() {
 }
 
 const SPEED = 1.4;
+
+/** Auto-cycle Buy/Market ↔ Sell/Limit in the terminal demo (time between flips). */
+const AUTO_TAB_CYCLE_MS = Math.round(4000 / SPEED);
 
 interface FooterContext {
   showFeedback: boolean;
@@ -29,28 +33,12 @@ export function MorphSurface() {
   const rootRef = React.useRef<HTMLDivElement>(null);
 
   const feedbackRef = React.useRef<HTMLInputElement | null>(null);
-  const [showFeedback, setShowFeedback, mouse] = useLoop();
-  const [success, setSuccess] = React.useState(false);
+  const showFeedback = true;
+  const success = false;
 
-  function closeFeedback() {
-    setShowFeedback(false);
-    feedbackRef.current?.blur();
-  }
+  function closeFeedback() {}
 
-  function openFeedback() {
-    setShowFeedback(true);
-    setTimeout(() => {
-      feedbackRef.current?.focus();
-    });
-  }
-
-  function onFeedbackSuccess() {
-    closeFeedback();
-    setSuccess(true);
-    setTimeout(() => {
-      setSuccess(false);
-    }, 1500);
-  }
+  function openFeedback() {}
 
   const context = React.useMemo(
     () => ({
@@ -59,8 +47,7 @@ export function MorphSurface() {
       openFeedback,
       closeFeedback,
     }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [showFeedback, success],
+    [],
   );
 
   return (
@@ -69,95 +56,32 @@ export function MorphSurface() {
       className="flex items-end justify-center z-20"
       style={{
         width: FEEDBACK_WIDTH,
-        height: FEEDBACK_HEIGHT,
+        minHeight: FEEDBACK_HEIGHT,
+        height: "auto",
       }}
-      {...mouse}
     >
-      <motion.div
+      <div
         data-footer
         ref={rootRef}
         className={
-          "bg-[#0F1010] shadow-[0_0_0_1px_rgba(255,255,255,0.06),0_10px_15px_-3px_rgba(0,0,0,0.45),0_4px_6px_-4px_rgba(0,0,0,0.35)] relative flex flex-col items-center bottom-8 max-sm:bottom-5 z-3 shadow-menu overflow-hidden"
+          "terminal-panel-bg shadow-[0_0_0_1px_rgba(255,255,255,0.06),0_10px_15px_-3px_rgba(0,0,0,0.45),0_4px_6px_-4px_rgba(0,0,0,0.35)] relative flex flex-col items-center bottom-8 max-sm:bottom-5 z-3 shadow-menu overflow-hidden"
         }
-        initial={false}
-        animate={{
-          width: showFeedback ? FEEDBACK_WIDTH : "auto",
-          height: showFeedback ? FEEDBACK_HEIGHT : 44,
-          borderRadius: showFeedback ? 14 : 20,
-        }}
-        transition={{
-          type: "spring",
-          stiffness: 550 / SPEED,
-          damping: 45,
-          mass: 0.7,
-          delay: showFeedback ? 0 : 0.08,
+        style={{
+          width: FEEDBACK_WIDTH,
+          minHeight: FEEDBACK_HEIGHT,
+          height: "auto",
+          borderRadius: 14,
         }}
       >
         <FooterContext value={context}>
-          <Dock />
-          <TerminalTradingForm
-            ref={feedbackRef}
-            onSuccess={onFeedbackSuccess}
-          />
+          <TerminalTradingForm ref={feedbackRef} />
         </FooterContext>
-      </motion.div>
+      </div>
     </div>
   );
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
-
-function Dock() {
-  const { success, showFeedback, openFeedback } = useFooter();
-  return (
-    <footer className="flex items-center justify-center select-none whitespace-nowrap mt-auto h-11">
-      <div className="flex items-center justify-center gap-6 px-3 max-sm:h-10 max-sm:px-2">
-        <div className="flex items-center gap-2 w-fit">
-          {showFeedback ? (
-            <div className="w-5 h-5" style={{ opacity: 0 }} />
-          ) : (
-            <motion.div
-              className="w-3 h-3 bg-[#455EFF] rounded-full"
-              layoutId="morph-surface-dot"
-              transition={LOGO_SPRING}
-            >
-              <AnimatePresence>
-                {success && (
-                  <motion.div
-                    key="check"
-                    exit={{ opacity: 0, scale: 0.5 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    initial={{ opacity: 0, scale: 0.5 }}
-                    transition={{
-                      type: "spring",
-                      stiffness: 500 / SPEED,
-                      damping: 22,
-                      delay: success ? 0.3 : 0,
-                    }}
-                    className="m-0.5"
-                  >
-                    <IconCheck />
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </motion.div>
-          )}
-          <div className="text-xs text-neutral-300">Trading terminal</div>
-        </div>
-
-        {/* <button
-          className="button -m-2 flex justify-end rounded-full p-2 flex-1 gap-1 -outline-offset-2"
-          data-variant="ghost"
-          onClick={openFeedback}
-        >
-          <span className="ml-1 max-w-[24ch] truncate text-xs text-neutral-300">
-            Buy · sell · market & limit
-          </span>
-        </button> */}
-      </div>
-    </footer>
-  );
-}
 
 type TerminalTradingFormProps = {
   /** Optional wrapper classes (e.g. max width on a standalone page). */
@@ -175,11 +99,7 @@ type TerminalTradingFormProps = {
 const TerminalTradingForm = React.forwardRef<
   HTMLInputElement,
   TerminalTradingFormProps
->(function TerminalTradingForm(
-  { className = "", tokenSymbol = "ORBITX", onSuccess },
-  ref,
-) {
-  const { showFeedback } = useFooter();
+>(function TerminalTradingForm({ className = "" }: TerminalTradingFormProps, ref) {
   const [side, setSide] = useState<"buy" | "sell">("buy");
   const [orderType, setOrderType] = useState<"market" | "limit" | "advanced">(
     "market",
@@ -194,35 +114,79 @@ const TerminalTradingForm = React.forwardRef<
   const [advancedTab, setAdvancedTab] = useState<
     "migration" | "dev-sell" | "dca"
   >("migration");
+  const [pauseAutoTabs, setPauseAutoTabs] = useState(false);
+  const [measureRef, bounds] = useMeasure();
+
+  useEffect(() => {
+    if (orderType === "advanced" || pauseAutoTabs) return;
+    const id = window.setInterval(() => {
+      setSide((s) => {
+        const next = s === "buy" ? "sell" : "buy";
+        setOrderType(next === "buy" ? "market" : "limit");
+        return next;
+      });
+    }, AUTO_TAB_CYCLE_MS);
+    return () => window.clearInterval(id);
+  }, [orderType, pauseAutoTabs]);
+
+  function selectBuy() {
+    setSide("buy");
+    setOrderType("market");
+  }
+
+  function selectSell() {
+    setSide("sell");
+    setOrderType("limit");
+  }
+
+  function selectMarket() {
+    setOrderType("market");
+    setSide("buy");
+  }
+
+  function selectLimit() {
+    setOrderType("limit");
+    setSide("sell");
+  }
+
+  function selectAdvanced() {
+    setOrderType("advanced");
+  }
+
+  const shellHeight =
+    bounds.height > 0 ? bounds.height : FEEDBACK_HEIGHT;
 
   return (
     <form
-      className="absolute bottom-0"
+      className="relative"
       style={{
         width: FEEDBACK_WIDTH,
-        height: FEEDBACK_HEIGHT,
-        pointerEvents: showFeedback ? "all" : "none",
+        pointerEvents: "all",
       }}
       onSubmit={(e) => e.preventDefault()}
+      onMouseEnter={() => setPauseAutoTabs(true)}
+      onMouseLeave={() => setPauseAutoTabs(false)}
     >
-      <AnimatePresence>
-        {showFeedback && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{
-              type: "spring",
-              stiffness: 550 / SPEED,
-              damping: 45,
-              mass: 0.7,
-            }}
-            className={`terminal-panel-bg relative space-y-2 rounded-none p-3 ${className}`}
-          >
-            <div className="grid grid-cols-2 gap-1 rounded-md bg-(--terminal-bg) p-1">
+      <motion.div
+        className="overflow-hidden bg-transparent"
+        style={{ width: FEEDBACK_WIDTH }}
+        animate={{ height: shellHeight }}
+        transition={{
+          type: "spring",
+          bounce: 0.28,
+          stiffness: 260,
+          damping: 26,
+        }}
+      >
+        <div
+          ref={measureRef}
+          style={{ width: FEEDBACK_WIDTH }}
+          className={`relative space-y-2 rounded-none p-3 pb-3.5 ${className}`}
+        >
+            <div className="grid grid-cols-2 gap-1 rounded-md border border-white/8 bg-black/25 p-1">
               <button
                 type="button"
-                onClick={() => setSide("buy")}
+                onClick={selectBuy}
                 className={`rounded py-1.5 text-sm font-medium transition-colors ${
                   side === "buy"
                     ? "bg-[#2FE0E3] text-black"
@@ -233,7 +197,7 @@ const TerminalTradingForm = React.forwardRef<
               </button>
               <button
                 type="button"
-                onClick={() => setSide("sell")}
+                onClick={selectSell}
                 className={`rounded py-1.5 text-sm font-medium transition-colors ${
                   side === "sell"
                     ? "bg-[#D73540] text-white"
@@ -245,30 +209,39 @@ const TerminalTradingForm = React.forwardRef<
             </div>
 
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4 text-xs">
+              <div className="flex items-center gap-5 text-xs">
                 <button
                   type="button"
-                  onClick={() => setOrderType("market")}
-                  className={`pb-1 ${
-                    orderType === "market" ? "text-white" : "text-white/70"
+                  onClick={selectMarket}
+                  aria-pressed={orderType === "market"}
+                  className={`py-0.5 transition-colors ${
+                    orderType === "market"
+                      ? "font-semibold text-white"
+                      : "font-medium text-neutral-500 hover:text-white/65"
                   }`}
                 >
                   Market
                 </button>
                 <button
                   type="button"
-                  onClick={() => setOrderType("limit")}
-                  className={`pb-1 ${
-                    orderType === "limit" ? "text-white" : "text-white/70"
+                  onClick={selectLimit}
+                  aria-pressed={orderType === "limit"}
+                  className={`py-0.5 transition-colors ${
+                    orderType === "limit"
+                      ? "font-semibold text-white"
+                      : "font-medium text-neutral-500 hover:text-white/65"
                   }`}
                 >
                   Limit
                 </button>
                 <button
                   type="button"
-                  onClick={() => setOrderType("advanced")}
-                  className={`pb-1 ${
-                    orderType === "advanced" ? "text-white" : "text-white/70"
+                  onClick={selectAdvanced}
+                  aria-pressed={orderType === "advanced"}
+                  className={`py-0.5 transition-colors ${
+                    orderType === "advanced"
+                      ? "font-semibold text-white"
+                      : "font-medium text-neutral-500 hover:text-white/65"
                   }`}
                 >
                   Adv.
@@ -326,7 +299,7 @@ const TerminalTradingForm = React.forwardRef<
               </div>
             ) : null}
 
-            <div className="overflow-hidden rounded-md border border-white/6 bg-(--terminal-bg)">
+            <div className="overflow-hidden rounded-md border border-white/6 bg-black/25">
               <div className="flex items-center justify-between border-b border-white/6 px-3 py-2 text-xs focus-within:rounded-md focus-within:shadow-[inset_0_0_0_1px_#4D68FF]">
                 <span className="text-white/45">AMOUNT</span>
                 <input
@@ -482,7 +455,7 @@ const TerminalTradingForm = React.forwardRef<
 
                 {advancedStrategyEnabled ? (
                   <div className="relative">
-                    <div className="flex items-center justify-between rounded-md border border-white/6 bg-(--terminal-bg) px-3 py-2 text-[#4D68FF]">
+                    <div className="flex items-center justify-between rounded-md border border-white/6 bg-black/25 px-3 py-2 text-[#4D68FF]">
                       <button
                         type="button"
                         onClick={() => setShowAdvancedMenu((open) => !open)}
@@ -525,24 +498,8 @@ const TerminalTradingForm = React.forwardRef<
               </>
             ) : null}
 
-            <button
-              type="button"
-              onClick={() => onSuccess?.()}
-              className={`mt-8 w-full rounded-lg py-2 text-sm font-semibold ${
-                side === "buy"
-                  ? "bg-[#2FE0E3] text-black"
-                  : "bg-[#D73540] text-white"
-              }`}
-            >
-              {side === "buy" ? "Buy" : "Sell"} {tokenSymbol}{" "}
-              <span className="inline-flex h-3.5 w-3.5 align-middle">
-                <SolanaIcon className="size-full" />
-              </span>{" "}
-              {amount || "0"}
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
+        </div>
+      </motion.div>
     </form>
   );
 });
@@ -669,79 +626,6 @@ function Feedback({
   );
 }
 ///////////////////////////////////////////////////////////////////////////////////////
-
-const LOGO_SPRING = {
-  type: "spring",
-  stiffness: 350 / SPEED,
-  damping: 35,
-} as const;
-
-function useLoop(): [
-  boolean,
-  React.Dispatch<React.SetStateAction<boolean>>,
-  {
-    onMouseEnter: () => void;
-    onMouseLeave: () => void;
-  },
-] {
-  const [show, setShow] = React.useState(false);
-  const id = React.useRef<number | null>(null);
-
-  function loop() {
-    id.current = window.setInterval(() => {
-      setShow((prev) => !prev);
-    }, 1500);
-  }
-
-  React.useEffect(() => {
-    loop();
-    return () => {
-      if (id.current) {
-        window.clearInterval(id.current);
-      }
-    };
-  }, []);
-
-  function onMouseEnter() {
-    if (id.current) {
-      window.clearInterval(id.current);
-    }
-  }
-
-  function onMouseLeave() {
-    loop();
-  }
-
-  return [
-    show,
-    setShow,
-    {
-      onMouseEnter,
-      onMouseLeave,
-    },
-  ];
-}
-
-function IconCheck() {
-  return (
-    <svg
-      width="16px"
-      height="16px"
-      viewBox="0 0 24 24"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      color="white"
-    >
-      <path
-        d="M5 13L9 17L19 7"
-        stroke="white"
-        strokeWidth="2px"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
 
 function FlashIcon() {
   return (
