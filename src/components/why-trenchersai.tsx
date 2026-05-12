@@ -5,8 +5,8 @@ import { motion } from "motion/react";
 import { BorderBeam } from "border-beam";
 
 const reveal = {
-  initial: { opacity: 0, y: 24, filter: "blur(10px)" } as const,
-  whileInView: { opacity: 1, y: 0, filter: "blur(0px)" } as const,
+  initial: { opacity: 0, y: 24 } as const,
+  whileInView: { opacity: 1, y: 0 } as const,
   viewport: { once: true, amount: 0.35 } as const,
   transition: { duration: 0.65, ease: "easeOut" as const },
 };
@@ -47,7 +47,9 @@ export function WhyTrenchersAICards({ embedded = false }: CardsProps) {
           <h2
             className={clsx(
               "font-semibold text-white",
-              embedded ? "text-[14px] md:text-[15px]" : "text-[16px] md:text-xl",
+              embedded
+                ? "text-[14px] md:text-[15px]"
+                : "text-[16px] md:text-xl",
             )}
           >
             Challenges
@@ -68,7 +70,7 @@ export function WhyTrenchersAICards({ embedded = false }: CardsProps) {
             wallet popups, telegram commands, confusing dashboards, and a brutal
             learning curve. The edge is there. The onboarding is broken.
           </p>
-          <div className="absolute bottom-0 left-0 right-0 h-22 bg-linear-to-t from-black to-transparent" />
+          <div className="absolute bottom-0 left-0 right-0 h-22 bg-linear-to-t from-[#080808] to-transparent" />
         </motion.section>
       </BorderBeam>
 
@@ -94,7 +96,9 @@ export function WhyTrenchersAICards({ embedded = false }: CardsProps) {
           <h2
             className={clsx(
               "font-semibold text-white",
-              embedded ? "text-[14px] md:text-[15px]" : "text-[16px] md:text-xl",
+              embedded
+                ? "text-[14px] md:text-[15px]"
+                : "text-[16px] md:text-xl",
             )}
           >
             What changes with TrenchersAI
@@ -113,7 +117,7 @@ export function WhyTrenchersAICards({ embedded = false }: CardsProps) {
             what you want {">"} Fund the bot {">"} Let it run while you are
             asleep.
           </p>
-          <div className="absolute bottom-0 left-0 right-0 h-22 bg-linear-to-t from-black to-transparent" />
+          <div className="absolute bottom-0 left-0 right-0 h-22 bg-linear-to-t from-[#080808] to-transparent" />
         </motion.section>
       </BorderBeam>
     </div>
@@ -125,7 +129,9 @@ type WhyTrenchersAIProps = {
 };
 
 /** Full-viewport section (e.g. dedicated route) */
-export default function WhyTrenchersAI({ embedded = false }: WhyTrenchersAIProps) {
+export default function WhyTrenchersAI({
+  embedded = false,
+}: WhyTrenchersAIProps) {
   return (
     <section
       className={clsx(
