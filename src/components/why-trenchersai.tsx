@@ -35,49 +35,56 @@ function Eyebrow({ children }: { children: ReactNode }) {
 export function ProblemSection() {
   return (
     <section className="site-canvas-bg relative w-full border-t border-white/6">
-      <div className="mx-auto w-full max-w-[760px] px-5 py-24 text-center md:px-8 md:py-32">
-        <motion.div className="flex flex-col items-center gap-6" {...reveal}>
-          <Eyebrow>The problem</Eyebrow>
-          <h2 className="text-balance text-[30px] font-medium leading-[1.1] tracking-[-0.02em] text-white md:text-[42px]">
-            The trenches are already automated
-          </h2>
-          <p className="max-w-[60ch] text-balance text-[15px] leading-[1.7] text-white/65 md:text-[17px]">
-            You are not just competing with other traders anymore. You are
-            competing with bots, private infra, faster execution, and wallets
-            that react before CT even notices.
-          </p>
-        </motion.div>
-
+      <div className="mx-auto w-full max-w-[1200px] px-4 py-20 sm:px-6 md:px-8 md:py-28">
         <motion.div
-          className="mt-20 flex flex-col items-center gap-6 md:mt-24"
+          className="grid gap-10 md:gap-12 lg:grid-cols-12 lg:gap-16"
           {...reveal}
-          transition={{ ...reveal.transition, delay: 0.05 }}
         >
-          <h3 className="text-balance text-[24px] font-medium leading-[1.15] tracking-[-0.015em] text-white md:text-[32px]">
-            Advanced trading is still too hard to use
-          </h3>
+          <div className="flex flex-col items-start gap-6 text-left lg:col-span-5">
+            <Eyebrow>The problem</Eyebrow>
+            <h2 className="text-balance text-[30px] font-medium leading-[1.08] tracking-[-0.02em] text-white md:text-[40px] lg:text-[44px]">
+              The trenches are already automated
+            </h2>
+            <p className="max-w-[60ch] text-balance text-[15px] leading-[1.72] text-white/65 md:text-[17px]">
+              You are not just competing with other traders anymore. You are
+              competing with bots, private infra, faster execution, and wallets
+              that react before CT even notices.
+            </p>
+          </div>
 
-          <div className="flex max-w-[60ch] flex-col gap-4 text-[15px] leading-[1.7] text-white/65 md:text-[17px]">
-            <p>
-              The best traders have automation, fast execution, private infra,
-              and custom bots.
-            </p>
-            <p>
-              Most trenchers have tabs, wallet popups, Telegram commands,
-              confusing dashboards, and a brutal learning curve.
-            </p>
-            <p>The edge is there.</p>
-            <p>The onboarding is broken.</p>
+          <div className="flex flex-col gap-6 lg:col-span-7">
+            <motion.div
+              className="rounded-2xl border border-white/8 bg-white/3 p-6 md:p-8"
+              {...reveal}
+              transition={{ ...reveal.transition, delay: 0.05 }}
+            >
+              <h3 className="text-balance text-[24px] font-medium leading-[1.14] tracking-[-0.015em] text-white md:text-[32px]">
+                Advanced trading is still too hard to use
+              </h3>
+
+              <div className="mt-5 flex max-w-[60ch] flex-col gap-4 text-[15px] leading-[1.7] text-white/65 md:text-[17px]">
+                <p>
+                  The best traders have automation, fast execution, private
+                  infra, and custom bots.
+                </p>
+                <p>
+                  Most trenchers have tabs, wallet popups, Telegram commands,
+                  confusing dashboards, and a brutal learning curve.
+                </p>
+                <p>The edge is there.</p>
+                <p>The onboarding is broken.</p>
+              </div>
+            </motion.div>
+
+            <motion.p
+              className="rounded-xl border border-[#8C95FF]/35 bg-[#8C95FF]/10 px-5 py-4 text-balance text-[16px] font-semibold leading-[1.45] tracking-[-0.01em] text-white md:px-6 md:py-5 md:text-[19px]"
+              {...reveal}
+              transition={{ ...reveal.transition, delay: 0.1 }}
+            >
+              TrenchersAI makes pro-level trading tools feel simple.
+            </motion.p>
           </div>
         </motion.div>
-
-        <motion.p
-          className="mt-20 text-balance text-[16px] font-semibold leading-[1.4] tracking-[-0.01em] text-white md:mt-24 md:text-[19px]"
-          {...reveal}
-          transition={{ ...reveal.transition, delay: 0.1 }}
-        >
-          TrenchersAI makes pro-level trading tools feel simple.
-        </motion.p>
       </div>
     </section>
   );
@@ -90,31 +97,33 @@ export function ProblemSection() {
 export function SolutionSection() {
   return (
     <section className="site-canvas-bg relative w-full border-t border-white/6">
-      <div className="mx-auto w-full max-w-[860px] px-5 py-24 text-center md:px-8 md:py-32">
-        <motion.div className="flex flex-col items-center gap-6" {...reveal}>
+      <div className="mx-auto w-full max-w-[1200px] px-4 py-20 sm:px-6 md:px-8 md:py-28">
+        <motion.div
+          className="mx-auto flex w-full max-w-[980px] flex-col items-center rounded-[28px] border border-white/8 bg-white/2 px-6 py-10 text-center shadow-[0_40px_120px_-52px_rgba(94,104,255,0.65)] md:px-10 md:py-14"
+          {...reveal}
+        >
           <Eyebrow>What changes with TrenchersAI</Eyebrow>
-          <h2 className="text-balance text-[30px] font-medium leading-[1.1] tracking-[-0.02em] text-white md:text-[42px]">
+          <h2 className="mt-5 text-balance text-[30px] font-medium leading-[1.08] tracking-[-0.02em] text-white md:text-[42px]">
             One terminal. Spawnable AI agents. Full control.
           </h2>
-          <p className="max-w-[60ch] text-balance text-[15px] leading-[1.7] text-white/65 md:text-[17px]">
-            TrenchersAI gives traders one place to discover, snipe, copy,
-            track, and manage positions with AI agents built directly into the
-            terminal.
+          <p className="mt-5 max-w-[60ch] text-balance text-[15px] leading-[1.7] text-white/65 md:text-[17px]">
+            TrenchersAI gives traders one place to discover, snipe, copy, track,
+            and manage positions with AI agents built directly into the terminal.
           </p>
-        </motion.div>
 
-        <motion.div
-          className="mt-16 inline-flex flex-col items-center gap-1 self-center md:mt-20"
-          {...reveal}
-          transition={{ ...reveal.transition, delay: 0.05 }}
-        >
-          <p className="font-mono text-[12px] tracking-[0.16em] text-white/35 uppercase">
-            The loop
-          </p>
-          <p className="text-balance text-[16px] font-medium leading-[1.55] tracking-[-0.01em] text-white md:text-[19px]">
-            Describe what you want &rsaquo; Fund the bot &rsaquo; Let it run
-            while you are asleep
-          </p>
+          <motion.div
+            className="mt-9 inline-flex flex-col items-center gap-2 self-center rounded-full border border-[#8C95FF]/35 bg-[#8C95FF]/10 px-5 py-3 md:mt-12 md:px-7"
+            {...reveal}
+            transition={{ ...reveal.transition, delay: 0.05 }}
+          >
+            <p className="font-mono text-[11px] tracking-[0.16em] text-white/40 uppercase">
+              The loop
+            </p>
+            <p className="text-balance text-[15px] font-medium leading-[1.55] tracking-[-0.01em] text-white md:text-[19px]">
+              Describe what you want &rsaquo; Fund the bot &rsaquo; Let it run
+              while you are asleep
+            </p>
+          </motion.div>
         </motion.div>
       </div>
     </section>
@@ -128,9 +137,9 @@ export function SolutionSection() {
 export function PreviewSection() {
   return (
     <section className="site-canvas-bg relative w-full border-t border-white/6">
-      <div className="mx-auto w-full max-w-[1180px] px-5 py-24 md:px-8 md:py-32">
+      <div className="mx-auto w-full max-w-[1200px] px-4 py-20 sm:px-6 md:px-8 md:py-28">
         <motion.header
-          className="mx-auto flex max-w-[760px] flex-col items-center gap-5 text-center"
+          className="mx-auto flex w-full max-w-[980px] flex-col items-start gap-5 rounded-[24px] border border-white/8 bg-white/2 px-6 py-8 text-left md:px-10 md:py-10"
           {...reveal}
         >
           <Eyebrow>Inside the terminal</Eyebrow>
@@ -161,7 +170,7 @@ export function PreviewSection() {
         </motion.header>
 
         <motion.div
-          className="mt-14 overflow-hidden rounded-2xl border border-white/8 bg-[#0a0a0c] shadow-[0_30px_120px_-20px_rgba(94,104,255,0.22)] md:mt-20"
+          className="mt-10 overflow-hidden rounded-[24px] border border-white/10 bg-[#0a0a0c] shadow-[0_30px_120px_-20px_rgba(94,104,255,0.28)] md:mt-14"
           {...reveal}
           transition={{ ...reveal.transition, delay: 0.05 }}
         >
@@ -181,7 +190,7 @@ export function PreviewSection() {
           {/* Scrollable preview. Keeps the full UI legible on small viewports
              while desktop sees the whole frame at once. */}
           <div className="relative w-full overflow-x-auto scrollbar-minimal-black">
-            <div className="min-w-[960px]">
+            <div className="min-w-[860px] md:min-w-[960px]">
               <Image
                 src="/showcase/terminal-left.png"
                 alt="TrenchersAI terminal preview"

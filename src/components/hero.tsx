@@ -66,8 +66,9 @@ export default function Hero({ initialVerified = false }: HeroProps) {
 
         <div
           id="waitlist"
-          className="relative mx-auto flex w-full min-w-0 max-w-[1240px] flex-col items-center px-5 pb-20 pt-32 text-center md:px-8 md:pt-40 md:pb-28"
+          className="relative mx-auto flex w-full min-w-0 max-w-[1240px] flex-col items-center px-4 pb-14 pt-28 text-center sm:px-6 md:px-8 md:pb-20 md:pt-36"
         >
+          <div className="flex w-full max-w-[1120px] flex-col items-center rounded-[28px] border border-white/8 bg-white/2 px-4 py-10 shadow-[0_40px_140px_-48px_rgba(94,104,255,0.5)] backdrop-blur-[2px] sm:px-6 sm:py-12 md:px-10 md:py-14">
           {!hasReturningVerifiedSession && (
             <div className="feature-strip-marquee w-full max-w-[640px]">
               <div className="feature-strip-track">
@@ -127,7 +128,13 @@ export default function Hero({ initialVerified = false }: HeroProps) {
               substantial risk of loss.
             </p>
           )}
+          </div>
         </div>
+
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-[linear-gradient(to_bottom,transparent,rgba(0,0,0,0.45))]"
+        />
       </section>
 
       {!hasReturningVerifiedSession && (
@@ -147,8 +154,8 @@ export default function Hero({ initialVerified = false }: HeroProps) {
 
 function SiteNav() {
   return (
-    <header className="fixed inset-x-0 top-0 z-50 border-b border-white/6 bg-black/55 backdrop-blur-md">
-      <nav className="mx-auto flex w-full max-w-7xl items-center justify-between px-5 py-3.5 md:px-8">
+    <header className="fixed inset-x-0 top-0 z-50 border-b border-white/6 bg-black/45 backdrop-blur-xl">
+      <nav className="mx-auto flex w-full max-w-[1240px] items-center justify-between px-4 py-3.5 sm:px-6 md:px-8">
         <a
           href="/"
           className="flex items-center gap-2.5 text-white outline-none focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-white/30"
@@ -166,16 +173,16 @@ function SiteNav() {
           </span>
         </a>
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-2">
           <a
             href="/about-us"
-            className="hidden rounded-full px-3 py-1.5 text-[13px] font-medium text-white/60 transition-colors hover:text-white sm:inline-flex"
+            className="hidden rounded-full border border-white/10 px-3 py-1.5 text-[12.5px] font-medium text-white/65 transition-colors hover:border-white/20 hover:text-white sm:inline-flex"
           >
             About
           </a>
           <a
             href="#waitlist"
-            className="inline-flex items-center rounded-full bg-white px-3.5 py-1.5 text-[12.5px] font-semibold text-black transition-colors hover:bg-white/90"
+            className="inline-flex items-center rounded-full bg-white px-3.5 py-1.5 text-[12px] font-semibold text-black transition-colors hover:bg-white/90 sm:text-[12.5px]"
           >
             Join Early Access
           </a>

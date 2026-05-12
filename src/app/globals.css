@@ -14,9 +14,11 @@
   --site-noise-overlay-opacity: 0.95;
   /**
    * Extra top-weighted radial darken (edges stay transparent). 0 disables this layer.
-   * Does not affect `.terminal-panel-bg`.
+   * Does not affect `.terminal-panel-bg`. Set to 0 because `.site-canvas-bg` is
+   * applied to every stacked section, and a per-section radial creates a visible
+   * darker band at the top of each section (reads as a "double border" seam).
    */
-  --site-radial-overlay-opacity: 0.2;
+  --site-radial-overlay-opacity: 0;
 
   /** Terminal / trading widget panels (`terminal-panel-bg`, e.g. ai-agent shell) */
   --terminal-bg: #0f1010;
