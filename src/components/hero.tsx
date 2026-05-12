@@ -15,14 +15,26 @@ import {
 } from "@/src/lib/waitlist-session-client";
 import { useHydrated } from "@/src/hooks/use-hydrated";
 
-export default function Hero() {
+type HeroProps = {
+  /** Server-rendered hint from the `trencher_verified` cookie. Lets the SSR
+     HTML render the verified shell (no AIInsights, "Welcome to TrenchersAI"
+     headline, EmailCapture's verified card) so returning users don't see the
+     unverified shell flash on refresh. The post-hydration localStorage
+     snapshot can still revoke this if the cookie went stale. */
+  initialVerified?: boolean;
+};
+
+export default function Hero({ initialVerified = false }: HeroProps) {
   const hydrated = useHydrated();
   const storedSession = useSyncExternalStore(
     subscribeWaitlistSession,
     () => readStoredVerifiedEmail().length > 0,
     () => false,
   );
-  const hasReturningVerifiedSession = hydrated && storedSession;
+  /** Pre-hydration (SSR + first client commit): trust the cookie hint so the
+     server-rendered HTML matches what the client will paint. Post-hydration:
+     trust localStorage so we react to the user signing out in another tab. */
+  const hasReturningVerifiedSession = hydrated ? storedSession : initialVerified;
 
   return (
     <section
@@ -83,7 +95,7 @@ export default function Hero() {
                         ? "Welcome to TrenchersAI"
                         : "AI Native Trading Terminal For The Trenches"}
                     </h1>
-                    <EmailCapture />
+                    <EmailCapture initialVerified={initialVerified} />
                     <p className="w-full min-w-0 max-w-[520px] text-balance text-[12px] leading-5 text-neutral-400">
                       Early access is limited. Cryptocurrency trading carries
                       substantial risk of loss.

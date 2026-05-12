@@ -15,10 +15,10 @@ import XIcon from "../icons/x-icon";
 import TelegramIcon from "../icons/telegram-icon";
 import TrenchesDashboardLoader from "./trenches-dashboard-loader";
 import {
-  dispatchWaitlistSessionChanged,
+  clearVerifiedSession,
   readStoredVerifiedEmail,
+  setVerifiedSession,
   subscribeWaitlistSession,
-  TRENCHER_VERIFIED_EMAIL_KEY,
 } from "@/src/lib/waitlist-session-client";
 import { useHydrated } from "@/src/hooks/use-hydrated";
 
@@ -27,34 +27,6 @@ const LAUNCH_TWEET_URL =
 
 /** Max wait before showing the dashboard with email fallback (no referral code yet). */
 const TRENCHES_DECK_LOAD_MS = 14_000;
-
-/** Safari Private Browsing throws on localStorage access — guard every call. */
-const safeStorage = {
-  get(key: string): string {
-    if (typeof window === "undefined") return "";
-    try {
-      return window.localStorage.getItem(key) ?? "";
-    } catch {
-      return "";
-    }
-  },
-  set(key: string, value: string): void {
-    if (typeof window === "undefined") return;
-    try {
-      window.localStorage.setItem(key, value);
-    } catch {
-      // private mode, quota exceeded, or storage disabled — drop silently
-    }
-  },
-  remove(key: string): void {
-    if (typeof window === "undefined") return;
-    try {
-      window.localStorage.removeItem(key);
-    } catch {
-      // ignore
-    }
-  },
-};
 
 /** Match the proxy's ref-code regex so legacy `?ref=` query links AND
    the new `/CODE` path links both populate the referrer field. */
@@ -88,7 +60,17 @@ const reducedFadeUp = {
   visible: { opacity: 1, y: 0, filter: "blur(0px)" },
 };
 
-export default function EmailCapture() {
+type EmailCaptureProps = {
+  /** Server-rendered hint from the `trencher_verified` cookie. Lets the SSR
+     HTML render the verified card directly so returning users don't see the
+     unverified shell flash on refresh. The post-hydration localStorage check
+     can still revoke this if the cookie went stale. */
+  initialVerified?: boolean;
+};
+
+export default function EmailCapture({
+  initialVerified = false,
+}: EmailCaptureProps) {
   /** Belt-and-suspenders against hydration mismatch:
      - `useSyncExternalStore` already returns "" on the server / during the
        hydration commit, then swaps to the real snapshot post-hydration.
@@ -106,11 +88,11 @@ export default function EmailCapture() {
   const [email, setEmail] = useState("");
   const [otpDigits, setOtpDigits] = useState<string[]>(Array(6).fill(""));
   const [otpStep, setOtpStep] = useState<"request" | "verify">("request");
-  /** Defaults to false so SSR and first hydration agree. The seed effect
-     below promotes this to true once the post-hydration snapshot reveals
-     a stored verified email; the API confirmation effect can still revoke
-     it if the server says the flag is stale. */
-  const [isVerified, setIsVerified] = useState(false);
+  /** Seeded from the cookie hint so SSR and first hydration agree on the
+     verified shell for returning users. The seed effect below merges in the
+     post-hydration localStorage email; the API confirmation + cookie/storage
+     divergence effects can still revoke this if the cookie was stale. */
+  const [isVerified, setIsVerified] = useState(initialVerified);
   const [copiedReferral, setCopiedReferral] = useState(false);
   const [referralCode, setReferralCode] = useState("");
   const [referralCount, setReferralCount] = useState(0);
@@ -267,8 +249,7 @@ export default function EmailCapture() {
           setOtpStep("request");
           setOtpDigits(Array(6).fill(""));
           if (normalizedEmail) {
-            safeStorage.set(TRENCHER_VERIFIED_EMAIL_KEY, normalizedEmail);
-            dispatchWaitlistSessionChanged();
+            setVerifiedSession(normalizedEmail);
           }
         } else if (data.requiresOtp) {
           setOtpStep("verify");
@@ -282,8 +263,7 @@ export default function EmailCapture() {
           error: false,
         });
         if (normalizedEmail) {
-          safeStorage.set(TRENCHER_VERIFIED_EMAIL_KEY, normalizedEmail);
-          dispatchWaitlistSessionChanged();
+          setVerifiedSession(normalizedEmail);
         }
       }
     } catch {
@@ -406,6 +386,19 @@ export default function EmailCapture() {
     setIsVerified(true);
   }, [storedVerifiedEmail, email]);
 
+  /** Cookie/localStorage divergence guard. The SSR cookie said verified, but
+     the post-hydration snapshot reveals an empty localStorage (e.g., user
+     cleared site data in another tab while the cookie lingered). Wipe both
+     stores and fall back to the form so the user can re-enter their email. */
+  useEffect(() => {
+    if (!hydrated) return;
+    if (!initialVerified) return;
+    if (storedSnapshot) return;
+    clearVerifiedSession();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- documented exception: post-hydration revocation when cookie diverges from localStorage
+    setIsVerified(false);
+  }, [hydrated, initialVerified, storedSnapshot]);
+
   useEffect(() => {
     if (!storedVerifiedEmail) return;
     let cancelled = false;
@@ -416,8 +409,7 @@ export default function EmailCapture() {
           `/api/waitlist?email=${encodeURIComponent(storedVerifiedEmail)}`,
         );
         if (!response.ok) {
-          safeStorage.remove(TRENCHER_VERIFIED_EMAIL_KEY);
-          dispatchWaitlistSessionChanged();
+          clearVerifiedSession();
           if (!cancelled) setIsVerified(false);
           return;
         }
@@ -430,8 +422,7 @@ export default function EmailCapture() {
         if (cancelled) return;
 
         if (!data.verified) {
-          safeStorage.remove(TRENCHER_VERIFIED_EMAIL_KEY);
-          dispatchWaitlistSessionChanged();
+          clearVerifiedSession();
           setIsVerified(false);
           return;
         }
@@ -444,8 +435,7 @@ export default function EmailCapture() {
           setReferralCount(data.referralCount);
         }
       } catch {
-        safeStorage.remove(TRENCHER_VERIFIED_EMAIL_KEY);
-        dispatchWaitlistSessionChanged();
+        clearVerifiedSession();
         if (!cancelled) setIsVerified(false);
       }
     };
@@ -543,9 +533,14 @@ join the trenches:`;
     window.open(intentUrl, "_blank", "noopener,noreferrer");
   };
 
-  if (isVerified && hydrated) {
+  if (isVerified) {
+    /** SSR/pre-hydration: `hydrated` is false, so we always show the loader
+       skeleton (referralCode hasn't been fetched yet). Post-hydration:
+       reveal the dashboard once the API responds with a referral code OR
+       the 14 s timeout fires. Suppressing the timeout pre-hydration avoids
+       a flash of "fallback dashboard" against an empty email on slow JS. */
     const trenchesDeckReady =
-      referralCode.length > 0 || trenchesLoadTimedOut;
+      hydrated && (referralCode.length > 0 || trenchesLoadTimedOut);
 
     return (
       <motion.div
