@@ -2,12 +2,13 @@
 
 import { useSyncExternalStore } from "react";
 import Image from "next/image";
-import dynamic from "next/dynamic";
 import EmailCapture from "./email-capture";
-import LazyOnVisible from "./lazy-on-visible";
 import logoMark from "./icons/logo-mark.svg";
-import AIInsights from "./ai-insights";
-import { WhyTrenchersAICards } from "./why-trenchersai";
+import {
+  PreviewSection,
+  ProblemSection,
+  SolutionSection,
+} from "./why-trenchersai";
 import AiIcon from "../icons/ai-icon";
 import CopyIcon from "../icons/copy-icon";
 import SnipeIcon from "../icons/snipe-icon";
@@ -18,32 +19,9 @@ import {
 } from "@/src/lib/waitlist-session-client";
 import { useHydrated } from "@/src/hooks/use-hydrated";
 
-/**
- * Heavy desktop-origin components are loaded via `next/dynamic` so they
- * split into their own chunks and do not block the hero's initial paint.
- * On phones each one is gated again behind `LazyOnVisible` so the chunk
- * is fetched and the component is mounted only as the user scrolls near.
- *
- * Pause-when-off-screen behavior already lives inside each component via
- * `useInView` (intervals + RAF are gated), so once they unmount we are
- * relying on `content-visibility: auto` to also skip layout / paint.
- */
-const Morphing = dynamic(() => import("./morphing"), {
-  ssr: false,
-  loading: () => <div aria-hidden className="h-full w-full" />,
-});
-const AIAgent = dynamic(() => import("./ai-agent"), {
-  ssr: false,
-  loading: () => <div aria-hidden className="h-full w-full" />,
-});
-const TokenList = dynamic(() => import("./tokens"), {
-  ssr: false,
-  loading: () => <div aria-hidden className="h-[240px] w-full" />,
-});
-
-/** Feature strip items shown above AIInsights — gives the page a one-line
-   summary of what the product does. Source SVGs are drawn in black, so the
-   container's `[&_svg]:invert` flips them to white on the dark surface. */
+/** Items shown in the horizontal marquee above the headline. Source SVGs are
+   drawn in black, so the wrapper's `[&_svg]:invert` flips them to white on
+   the dark canvas. */
 const FEATURE_STRIP_ITEMS = [
   { label: "Snipe New Launches", icon: <SnipeIcon /> },
   { label: "AI Trading Agents", icon: <AiIcon /> },
@@ -53,10 +31,10 @@ const FEATURE_STRIP_ITEMS = [
 
 type HeroProps = {
   /** Server-rendered hint from the `trencher_verified` cookie. Lets the SSR
-     HTML render the verified shell (no AIInsights, "Welcome to TrenchersAI"
-     headline, EmailCapture's verified card) so returning users don't see the
-     unverified shell flash on refresh. The post-hydration localStorage
-     snapshot can still revoke this if the cookie went stale. */
+     HTML render the verified shell ("Welcome to TrenchersAI" + EmailCapture's
+     verified dashboard) so returning users don't see the unverified shell
+     flash on refresh. The post-hydration localStorage snapshot can still
+     revoke this if the cookie went stale. */
   initialVerified?: boolean;
 };
 
@@ -70,150 +48,139 @@ export default function Hero({ initialVerified = false }: HeroProps) {
   /** Pre-hydration (SSR + first client commit): trust the cookie hint so the
      server-rendered HTML matches what the client will paint. Post-hydration:
      trust localStorage so we react to the user signing out in another tab. */
-  const hasReturningVerifiedSession = hydrated ? storedSession : initialVerified;
+  const hasReturningVerifiedSession = hydrated
+    ? storedSession
+    : initialVerified;
 
   return (
-    <section
-      id="hero"
-      className="site-canvas-bg relative flex min-h-dvh w-full flex-col border-b border-neutral-900"
-    >
-      <div className="mx-auto flex w-full min-w-0 max-w-[1550px] flex-1 flex-col px-4 md:px-6 lg:min-h-dvh lg:px-8">
-        <div className="site-canvas-bg fixed top-0 left-0 right-0 z-50 w-full border-b border-neutral-900 bg-black">
-          <nav className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-6 md:px-6 md:py-5 lg:px-8">
-            <div className="flex items-center gap-2.5">
-              <Image
-                src={logoMark}
-                alt="TrenchersAI logo"
-                width={28}
-                height={25}
-                className="h-[25px] w-[28px]"
-                priority
-              />
-              <span className="text-lg tracking-wide text-white">
-                TrenchersAI
-              </span>
-            </div>
-            <div className="flex items-center gap-4 text-sm text-white/70">
-              <a
-                href="#waitlist"
-                className="shimmer-text-nav text-xs font-medium tracking-wide outline-offset-4 transition-[filter] duration-200 hover:brightness-110 focus-visible:rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-white/35 md:text-sm"
-              >
-                Join Early Access
-              </a>
-            </div>
-          </nav>
-        </div>
-        <div className="flex w-full flex-1 flex-col items-stretch lg:min-h-0 lg:flex-row">
-          {/* Left lane: Morphing is desktop-only for now (kept hidden on phones
-             to keep the mobile critical path slim). `next/dynamic` still splits
-             the chunk so it's pulled off the initial bundle on desktop too. */}
-          <div className="order-2 hidden w-full flex-col items-center justify-center gap-4 py-12 lg:order-1 lg:flex lg:sticky lg:top-0 lg:h-dvh lg:w-[32%] lg:shrink-0 lg:self-start lg:pr-8">
-            <LazyOnVisible
-              className="lazy-mount-shell flex w-full items-center justify-center"
-              rootMargin="320px 0px"
-              minHeight={420}
-              fallback={
-                <div
-                  aria-hidden
-                  className="h-[420px] w-full max-w-[420px] rounded-xl border border-white/4 bg-black/30"
-                />
-              }
-            >
-              <Morphing />
-            </LazyOnVisible>
-          </div>
+    <>
+      <SiteNav />
 
-          <div className="relative order-1 flex w-full flex-col border-neutral-900 px-0 pt-20 text-center lg:order-2 lg:w-[36%] lg:flex-none lg:border-x lg:border-dashed lg:px-2 lg:pt-24">
-            {/* Flat wash behind center column so section radial/grain does not read through */}
-            <div
-              aria-hidden
-              className="pointer-events-none absolute inset-0 z-0 bg-[#0a0a0a]/36"
-            />
+      <section id="hero" className="site-canvas-bg relative w-full overflow-hidden">
+        {/* Soft top accent glow - single subtle indigo wash so the eye lands
+           on the headline. Sized in viewport units so it scales with display. */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute left-1/2 top-0 h-[460px] w-[min(900px,110vw)] -translate-x-1/2 bg-[radial-gradient(closest-side,rgba(94,104,255,0.22),transparent_72%)] blur-2xl"
+        />
 
-            {/* Center column: one normal document flow — page scroll moves
-               marquee, headline, email, insights, and cards together. */}
-            <div
-              id="waitlist"
-              className="relative z-10 flex w-full flex-col items-center gap-10 px-4 pb-10 pt-2 sm:gap-12 sm:px-0 sm:pt-2 lg:gap-12 lg:px-1"
-            >
-              {!hasReturningVerifiedSession && (
-                <div className="feature-strip-marquee w-full max-w-5xl">
-                  <div className="feature-strip-track">
-                    {[...FEATURE_STRIP_ITEMS, ...FEATURE_STRIP_ITEMS].map(
-                      (feature, index) => (
-                        <span
-                          key={`${feature.label}-${index}`}
-                          className="inline-flex shrink-0 items-center gap-2 rounded-full px-4 py-2 text-xs font-medium tracking-wide text-white/90 [&_svg]:opacity-90 [&_svg]:invert sm:text-sm"
-                        >
-                          {feature.icon}
-                          {feature.label}
-                        </span>
-                      ),
-                    )}
-                  </div>
-                </div>
-              )}
-
-              <div className="z-30 flex w-full flex-col items-center gap-6 sm:gap-7">
-                <h1 className="w-full min-w-0 max-w-[450px] text-balance text-3xl font-medium leading-[1.05] tracking-[-0.01em] text-white md:text-4xl">
-                  {hasReturningVerifiedSession
-                    ? "Welcome to TrenchersAI"
-                    : "AI Native Trading Terminal For The Trenches"}
-                </h1>
-                <EmailCapture initialVerified={initialVerified} />
-              </div>
-
-              {!hasReturningVerifiedSession && (
-                <>
-                  <div className="flex w-full flex-col items-stretch gap-3 border-t border-white/8 bg-black/35 px-4 py-5 sm:items-center sm:px-6 sm:py-6 lg:px-8">
-                    <span className="text-center font-mono text-[11px] font-medium uppercase tracking-[0.2em] text-neutral-500 sm:text-xs">
-                      Sample · Live agent output
+        <div
+          id="waitlist"
+          className="relative mx-auto flex w-full min-w-0 max-w-[1240px] flex-col items-center px-5 pb-20 pt-32 text-center md:px-8 md:pt-40 md:pb-28"
+        >
+          {!hasReturningVerifiedSession && (
+            <div className="feature-strip-marquee w-full max-w-[640px]">
+              <div className="feature-strip-track">
+                {/* Items duplicated 4x so the track always spans wider than
+                   any viewport. Keyframes translate -50% (i.e. 2 of the 4
+                   sets), so the second half lands exactly where the first
+                   half started — seamless infinite loop. */}
+                {Array.from({ length: 4 })
+                  .flatMap(() => FEATURE_STRIP_ITEMS)
+                  .map((feature, index) => (
+                    <span
+                      key={`${feature.label}-${index}`}
+                      className="inline-flex shrink-0 items-center gap-1.5 px-2.5 py-1 text-[10.5px] font-medium tracking-wide text-white/70 [&_svg]:size-3.5 [&_svg]:opacity-80 [&_svg]:invert sm:text-[11.5px]"
+                    >
+                      {feature.icon}
+                      {feature.label}
                     </span>
-                    <AIInsights className="!max-w-none sm:max-w-[min(100%,640px)] lg:max-w-[min(100%,720px)]" />
-                  </div>
-                  <div className="w-full px-4 text-left sm:px-6 lg:px-8">
-                    <WhyTrenchersAICards className="mx-auto max-w-none sm:max-w-none md:max-w-[min(100%,28rem)] lg:max-w-[min(100%,36rem)]" />
-                  </div>
-                </>
-              )}
+                  ))}
+              </div>
             </div>
+          )}
+
+          <h1
+            className={`max-w-[860px] text-balance font-medium leading-[1.04] tracking-[-0.02em] text-white ${
+              hasReturningVerifiedSession
+                ? "mt-2 text-[32px] sm:text-[44px] md:text-[52px]"
+                : "mt-7 text-[40px] sm:text-[56px] md:text-[68px]"
+            }`}
+          >
+            {hasReturningVerifiedSession ? (
+              "Welcome to TrenchersAI"
+            ) : (
+              <>
+                An AI-native trading terminal,
+                <span className="text-white/55">
+                  {" "}
+                  made for the trenches.
+                </span>
+              </>
+            )}
+          </h1>
+
+          {!hasReturningVerifiedSession && (
+            <p className="mt-5 max-w-[640px] text-balance text-[15px] leading-[1.6] text-white/55 sm:text-[17px] md:text-[18px]">
+              Spawn AI trading agents from chat. Discover, snipe, copy, track,
+              and manage positions, all from one terminal built for speed.
+            </p>
+          )}
+
+          <div className="mt-9 flex w-full justify-center">
+            <EmailCapture initialVerified={initialVerified} />
           </div>
 
-          {/* Right lane: AIAgent (Buy/Sell trading widget) renders on every
-             breakpoint — code-split + mount-on-visible so phones only pay the
-             cost once it scrolls near. TokenList stays desktop-only for now. */}
-          <div className="order-3 flex w-full flex-col items-center justify-center py-10 lg:order-3 lg:py-12 lg:sticky lg:top-0 lg:h-dvh lg:w-[32%] lg:shrink-0 lg:self-start lg:pl-8">
-            <div className="mx-auto flex w-full max-w-[420px] flex-col items-center gap-6">
-              <LazyOnVisible
-                className="lazy-mount-shell w-full"
-                rootMargin="320px 0px"
-                minHeight={520}
-                fallback={
-                  <div
-                    aria-hidden
-                    className="h-[520px] w-full rounded-xl border border-white/4 bg-black/30"
-                  />
-                }
-              >
-                <AIAgent />
-              </LazyOnVisible>
-              <LazyOnVisible
-                className="lazy-mount-shell hidden w-full lg:block"
-                rootMargin="320px 0px"
-                minHeight={240}
-                fallback={
-                  <div
-                    aria-hidden
-                    className="h-[240px] w-full rounded-xl border border-white/4 bg-black/30"
-                  />
-                }
-              >
-                <TokenList className="w-full" />
-              </LazyOnVisible>
-            </div>
-          </div>
+          {!hasReturningVerifiedSession && (
+            <p className="mt-6 max-w-[520px] text-balance text-[12px] tracking-wide text-white/35">
+              Early access is limited. Cryptocurrency trading carries
+              substantial risk of loss.
+            </p>
+          )}
         </div>
-      </div>
-    </section>
+      </section>
+
+      {!hasReturningVerifiedSession && (
+        <>
+          <ProblemSection />
+          <SolutionSection />
+          <PreviewSection />
+        </>
+      )}
+    </>
+  );
+}
+
+/* ----------------------------------------------------------------------- */
+/* Sticky glassy site navigation                                            */
+/* ----------------------------------------------------------------------- */
+
+function SiteNav() {
+  return (
+    <header className="fixed inset-x-0 top-0 z-50 border-b border-white/6 bg-black/55 backdrop-blur-md">
+      <nav className="mx-auto flex w-full max-w-7xl items-center justify-between px-5 py-3.5 md:px-8">
+        <a
+          href="/"
+          className="flex items-center gap-2.5 text-white outline-none focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-white/30"
+        >
+          <Image
+            src={logoMark}
+            alt="TrenchersAI logo"
+            width={26}
+            height={23}
+            className="h-[23px] w-[26px]"
+            priority
+          />
+          <span className="text-[15px] font-medium tracking-wide">
+            TrenchersAI
+          </span>
+        </a>
+
+        <div className="flex items-center gap-1.5">
+          <a
+            href="/about-us"
+            className="hidden rounded-full px-3 py-1.5 text-[13px] font-medium text-white/60 transition-colors hover:text-white sm:inline-flex"
+          >
+            About
+          </a>
+          <a
+            href="#waitlist"
+            className="inline-flex items-center rounded-full bg-white px-3.5 py-1.5 text-[12.5px] font-semibold text-black transition-colors hover:bg-white/90"
+          >
+            Join Early Access
+          </a>
+        </div>
+      </nav>
+    </header>
   );
 }

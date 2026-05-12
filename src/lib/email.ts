@@ -74,7 +74,7 @@ export async function sendWaitlistConfirmationEmail(params: {
     heading: html ? undefined : "You're in.",
     body: html
       ? undefined
-      : `Thanks for joining the <strong>${appName}</strong> waitlist — we’ll email you when we drop access.`,
+      : `Thanks for joining the <strong>${appName}</strong> waitlist. We’ll email you when we drop access.`,
     html,
   });
 

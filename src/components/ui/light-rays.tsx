@@ -13,8 +13,8 @@ interface LightRaysProps extends React.HTMLAttributes<HTMLDivElement> {
   speed?: number
   length?: string
   /** Left % (0-100) where every ray converges. When set, all rays start at
-     this point and fan out across {@link LightRaysProps.spread} degrees —
-     spotlight effect. When unset (default), rays scatter across 8-92%
+     this point and fan out across {@link LightRaysProps.spread} degrees,
+     creating a spotlight effect. When unset (default), rays scatter across 8-92%
      for an ambient "sunlight through clouds" feel. */
   origin?: number
   /** Total rotation range in degrees when `origin` is set. Default 56
@@ -152,7 +152,7 @@ export function LightRays({
     >
       <div className="absolute inset-0 overflow-hidden">
         {isSpotlight ? (
-          // Single radial centered on the spotlight origin — looks like the
+          // Single radial centered on the spotlight origin. Looks like the
           // light source itself glowing through the top.
           <div
             aria-hidden

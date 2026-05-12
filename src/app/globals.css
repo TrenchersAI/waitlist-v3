@@ -5,7 +5,7 @@
   --foreground: #0a0a0a;
 
   /**
-   * Full-page background (`body`) — same idea as `.terminal-panel-bg` / `ai-agent`:
+   * Full-page background (`body`). Same idea as `.terminal-panel-bg` / `ai-agent`:
    * base color → noise grain → uniform darken → optional radial wash. Tune each
    * independently from `--terminal-*` (widgets keep their own stack).
    */
@@ -49,7 +49,7 @@
 }
 
 /**
- * Same stack as `body` — use on full-bleed sections instead of `bg-black`, which hides
+ * Same stack as `body`. Use on full-bleed sections instead of `bg-black`, which hides
  * the grain entirely. `fixed` keeps one viewport-locked texture across adjacent panels.
  */
 body,
@@ -115,7 +115,7 @@ body {
 }
 
 /**
- * No visible scrollbar — wheel / trackpad / touch / keyboard still scroll.
+ * No visible scrollbar. Wheel / trackpad / touch / keyboard still scroll.
  */
 .scrollbar-minimal-black {
   scrollbar-width: none;
@@ -156,7 +156,7 @@ body {
   }
 }
 
-/** Nav link shimmer — brighter peak than body `.shimmer-text`, still slower. */
+/** Nav link shimmer: brighter peak than body `.shimmer-text`, still slower. */
 .shimmer-text-nav {
   background-image: linear-gradient(
     100deg,

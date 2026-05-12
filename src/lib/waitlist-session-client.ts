@@ -9,7 +9,7 @@ export const WAITLIST_SESSION_CHANGED_EVENT = "waitlist:session-changed";
    still comes from localStorage post-hydration; the cookie is only a hint. */
 export const VERIFIED_COOKIE_NAME = "trencher_verified";
 
-/** 30 days in seconds — long enough that returning users almost always get the
+/** 30 days in seconds. Long enough that returning users almost always get the
    verified shell, short enough that abandoned sessions don't linger forever. */
 const VERIFIED_COOKIE_MAX_AGE = 30 * 24 * 60 * 60;
 
@@ -46,7 +46,7 @@ export function setVerifiedSession(email: string): void {
   try {
     window.localStorage.setItem(TRENCHER_VERIFIED_EMAIL_KEY, email);
   } catch {
-    // private mode, quota exceeded, or storage disabled — drop silently
+    // private mode, quota exceeded, or storage disabled. Drop silently.
   }
   try {
     document.cookie = `${VERIFIED_COOKIE_NAME}=1; path=/; max-age=${VERIFIED_COOKIE_MAX_AGE}; samesite=lax`;
@@ -56,7 +56,7 @@ export function setVerifiedSession(email: string): void {
   dispatchWaitlistSessionChanged();
 }
 
-/** Inverse of `setVerifiedSession` — clear both stores and notify. Use whenever
+/** Inverse of `setVerifiedSession`. Clears both stores and notifies. Use whenever
    the API rejects the stored flag (stale OTP cleanup) so the next refresh
    doesn't re-render the verified shell against an empty localStorage. */
 export function clearVerifiedSession(): void {

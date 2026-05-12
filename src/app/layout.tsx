@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL("https://trenchers.ai"),
   title: {
-    default: "TrenchersAI — AI-native trading terminal for the trenches",
+    default: "TrenchersAI · AI-native trading terminal for the trenches",
     template: "%s · TrenchersAI",
   },
   description:
@@ -33,14 +33,14 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     siteName: "TrenchersAI",
-    title: "TrenchersAI — AI-native trading terminal for the trenches",
+    title: "TrenchersAI · AI-native trading terminal for the trenches",
     description:
       "Spawn AI trading agents from chat. One terminal to discover, snipe, copy, track, and manage positions on Solana.",
     url: "/",
   },
   twitter: {
     card: "summary_large_image",
-    title: "TrenchersAI — AI-native trading terminal for the trenches",
+    title: "TrenchersAI · AI-native trading terminal for the trenches",
     description:
       "Spawn AI trading agents from chat. One terminal to discover, snipe, copy, track, and manage positions on Solana.",
   },

@@ -116,7 +116,7 @@ const TerminalTradingForm = React.forwardRef<
   >("migration");
   const [pauseAutoTabs, setPauseAutoTabs] = useState(false);
   const [measureRef, bounds] = useMeasure();
-  /** Pause the 4 s auto-cycle when the widget is scrolled out of view —
+  /** Pause the 4 s auto-cycle when the widget is scrolled out of view.
      it lives in the desktop right column and otherwise re-renders the
      surrounding tree forever as the user scrolls down the page. The 200 px
      margin keeps the demo lively the moment it scrolls back into view. */

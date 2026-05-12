@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-/** Paths that must never be treated as referral codes — both real Next.js
+/** Paths that must never be treated as referral codes. Both real Next.js
    routes and well-known assets/endpoints. Keep this in sync as the app grows. */
 const RESERVED_SEGMENTS = new Set([
   "",

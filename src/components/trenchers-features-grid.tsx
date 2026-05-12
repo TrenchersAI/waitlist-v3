@@ -9,7 +9,7 @@ type Feature = {
   icon: ReactNode;
 };
 
-const ICON_CLASS = "size-5 shrink-0 stroke-[1.35] text-amber-200/85";
+const ICON_CLASS = "size-[18px] shrink-0 stroke-[1.4] text-[#8C95FF]";
 
 function IconChat() {
   return (
@@ -109,11 +109,11 @@ const FEATURES: Feature[] = [
   {
     title: "Spawn sniper bots from chat",
     description:
-      "No coding. No messy setup. Just describe the strategy and confirm.",
+      "No coding, no messy setup. Describe a strategy and confirm the plan.",
     icon: <IconChat />,
   },
   {
-    title: "Sub-ms signing infrastructure",
+    title: "Sub-millisecond signing",
     description: "Built for speed when milliseconds matter.",
     icon: <IconBolt />,
   },
@@ -130,54 +130,59 @@ const FEATURES: Feature[] = [
   {
     title: "Lower fees",
     description:
-      "Competitors charge around 0.9–1% per swap. TrenchersAI is built to charge less.",
+      "Competitors charge ~0.9–1% per swap. TrenchersAI is built to charge less.",
     icon: <IconPercent />,
   },
   {
     title: "Trader rewards",
-    description:
-      "Active traders get more back instead of just paying fees forever.",
+    description: "Active traders earn back instead of just paying fees forever.",
     icon: <IconGift />,
   },
 ];
 
 export default function TrenchersFeaturesGrid() {
   return (
-    <section className="site-canvas-bg relative w-full border-t border-neutral-900/80 py-20 md:py-28">
-      <div className="mx-auto w-full min-w-0 max-w-6xl px-4 md:px-6 lg:px-8">
+    <section className="site-canvas-bg relative w-full border-t border-white/6">
+      <div className="mx-auto w-full min-w-0 max-w-[1100px] px-5 py-24 md:px-8 md:py-32">
         <motion.header
-          className="mx-auto flex w-full min-w-0 max-w-2xl flex-col items-center gap-4 text-center"
-          initial={{ opacity: 0, y: 20 }}
+          className="mx-auto flex w-full min-w-0 max-w-[720px] flex-col items-center gap-4 text-center"
+          initial={{ opacity: 0, y: 18 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, amount: 0.35 }}
+          viewport={{ once: true, amount: 0.3 }}
           transition={{ duration: 0.5, ease: "easeOut" }}
         >
-          <h2 className="w-full min-w-0 text-3xl font-semibold tracking-tight text-white md:text-4xl">
-            The Trenches Are Evolving.
+          <span className="inline-flex items-center gap-3 text-[11px] font-semibold tracking-[0.18em] text-white/45 uppercase">
+            <span aria-hidden className="h-px w-6 bg-white/15" />
+            What you get
+          </span>
+          <h2 className="text-balance text-[34px] font-medium leading-[1.06] tracking-[-0.02em] text-white md:text-[46px]">
+            The trenches are evolving.
           </h2>
-          <p className="w-full min-w-0 max-w-xl text-[15px] leading-7 text-neutral-400 md:text-base md:leading-7">
-            You are competing with automation. TrenchersAI gives you the
+          <p className="max-w-[560px] text-balance text-[15px] leading-[1.6] text-white/55 md:text-[17px]">
+            You&rsquo;re competing with automation. TrenchersAI gives you the
             terminal, agents, wallets, and speed to play the game differently.
           </p>
         </motion.header>
 
         <motion.div
-          className="mt-6 grid w-full min-w-0 grid-cols-1 gap-px bg-neutral-800 sm:grid-cols-2 lg:mt-20 lg:grid-cols-3"
-          initial={{ opacity: 0, y: 24 }}
+          className="mt-14 grid gap-px overflow-hidden rounded-2xl border border-white/6 bg-white/4 sm:grid-cols-2 md:mt-20 lg:grid-cols-3"
+          initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, amount: 0.2 }}
-          transition={{ duration: 0.5, ease: "easeOut", delay: 0.02 }}
+          viewport={{ once: true, amount: 0.15 }}
+          transition={{ duration: 0.55, ease: "easeOut", delay: 0.05 }}
         >
           {FEATURES.map((item) => (
             <div
               key={item.title}
-              className="site-canvas-bg flex w-full min-w-0 flex-col items-start gap-3 px-4 py-8 sm:py-10 md:px-6 lg:px-6"
+              className="site-canvas-bg flex w-full min-w-0 flex-col gap-3 px-6 py-8 md:px-7 md:py-10"
             >
-              {item.icon}
-              <h3 className="text-base font-semibold leading-snug text-white md:text-[17px]">
+              <div className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/8 bg-white/3">
+                {item.icon}
+              </div>
+              <h3 className="text-[17px] font-medium leading-tight text-white md:text-[18px]">
                 {item.title}
               </h3>
-              <p className="text-left text-sm leading-relaxed text-neutral-400 md:text-[15px] md:leading-7">
+              <p className="text-[14px] leading-[1.55] text-white/55 md:text-[15px]">
                 {item.description}
               </p>
             </div>

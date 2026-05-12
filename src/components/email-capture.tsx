@@ -373,7 +373,7 @@ export default function EmailCapture({
   }, [otpStep]);
 
   /** Promote the post-hydration store snapshot into local form state. Runs
-     once after hydration if storage holds a verified email — and stays a
+     once after hydration if storage holds a verified email, and stays a
      no-op when the user is mid-typing or has already been seeded so we
      never clobber in-flight input. The lint rule below flags any setState
      inside an effect; this is the documented exception for syncing a
@@ -674,7 +674,7 @@ join the trenches:`;
               autoComplete="email"
               inputMode="email"
               /* text-base (16px) on mobile prevents iOS Safari from zooming on focus.
-                 No own border/bg — the parent <form> is now the dark-glass
+                 No own border/bg. The parent <form> is now the dark-glass
                  container on every breakpoint, so the input dissolves into it
                  and reads as part of one unified surface (was two stacked
                  dark cards on mobile before). */

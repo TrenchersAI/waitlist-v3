@@ -19,7 +19,7 @@ type LazyOnVisibleProps = {
  * Mounts `children` only when the wrapper is about to enter the viewport.
  * Pairs with `next/dynamic({ ssr: false })` so the chunk + React work happen
  * off the critical path. Once mounted, the gate is removed (does not unmount
- * on scroll-away — pause-when-off-screen is the component's job).
+ * on scroll-away. Pause-when-off-screen is the component's job).
  */
 export default function LazyOnVisible({
   children,
