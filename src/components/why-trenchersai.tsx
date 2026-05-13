@@ -349,7 +349,7 @@ export function PreviewSection() {
             className="pointer-events-none absolute inset-0 bg-[radial-gradient(80%_70%_at_50%_100%,rgba(94,104,255,0.22),transparent_72%)]"
           />
           <div className="relative overflow-hidden rounded-[18px] border border-white/8 bg-black/30">
-            <div className="relative aspect-21/9 w-full">
+            <div className="relative aspect-[16/9] w-full">
               <Image
                 src="/image.png"
                 alt="TrenchersAI terminal preview"
