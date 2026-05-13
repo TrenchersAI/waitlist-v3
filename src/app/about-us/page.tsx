@@ -9,7 +9,7 @@ export default function AboutUsPage() {
   return (
     <section className="site-canvas-bg relative min-h-screen w-full min-w-0">
       <nav className="fixed inset-x-0 top-0 z-30 border-b border-white/8 bg-black/45 backdrop-blur-xl">
-        <div className="mx-auto flex w-full max-w-[1200px] items-center justify-between px-4 py-4 sm:px-6 md:px-8">
+        <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-4 sm:px-6 md:px-8">
         <div className="flex items-center gap-2.5">
           <Image
             src={logoMark}
@@ -54,7 +54,7 @@ export default function AboutUsPage() {
         </div>
       </nav>
 
-      <main className="mx-auto flex min-h-screen w-full min-w-0 max-w-[1200px] flex-col justify-center gap-8 px-4 pb-16 pt-28 sm:px-6 md:gap-10 md:px-8 md:pb-20 md:pt-36">
+      <main className="mx-auto flex min-h-screen w-full min-w-0 max-w-6xl flex-col justify-center gap-8 px-4 pb-16 pt-28 sm:px-6 md:gap-10 md:px-8 md:pb-20 md:pt-36">
         <motion.section
           className="flex w-full min-w-0 flex-col gap-4 rounded-2xl border border-white/8 bg-white/2 p-6 md:p-8"
           initial={{ opacity: 0, y: 28, filter: "blur(12px)" }}

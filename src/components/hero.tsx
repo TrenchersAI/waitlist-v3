@@ -76,7 +76,7 @@ export default function Hero({ initialVerified = false }: HeroProps) {
 
         <div
           id="waitlist"
-          className="relative mx-auto flex w-full min-w-0 max-w-[1240px] flex-col items-center px-5 pb-20 pt-32 text-center md:px-8 md:pt-40 md:pb-28"
+          className="relative mx-auto flex w-full min-w-0 max-w-6xl flex-col items-center px-5 pb-20 pt-32 text-center md:px-8 md:pt-40 md:pb-28"
         >
           {!hasReturningVerifiedSession && (
             <div className="feature-strip-marquee mb-1 w-full max-w-[640px]">
@@ -165,7 +165,7 @@ function SiteNav() {
 
   return (
     <header className="fixed inset-x-0 top-0 z-50 border-b border-white/6 bg-black/55 backdrop-blur-md">
-      <nav className="mx-auto flex w-full max-w-7xl items-center justify-between px-5 py-3.5 md:px-8">
+      <nav className="mx-auto flex w-full max-w-6xl items-center justify-between px-5 py-3.5 md:px-8">
         <a
           href="/"
           className="flex items-center gap-2.5 text-white outline-none focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-white/30"

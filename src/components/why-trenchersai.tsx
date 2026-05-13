@@ -120,7 +120,7 @@ const ADVANCED_TRADING_CARDS = [
 export function ProblemSection() {
   return (
     <section className="site-canvas-bg relative w-full border-t border-white/6">
-      <div className="mx-auto w-full max-w-[1200px] px-4 py-20 sm:px-6 md:px-8 md:py-28">
+      <div className="mx-auto w-full max-w-6xl px-4 py-20 sm:px-6 md:px-8 md:py-28">
         <motion.div
           className="terminal-panel-bg flex flex-col gap-10 rounded-2xl border border-white/8 px-6 py-8 shadow-[0_24px_80px_-40px_rgba(0,0,0,0.75)] md:gap-12 md:px-8 md:py-10 lg:flex-row lg:items-stretch lg:gap-0 lg:px-10 lg:py-11"
           {...reveal}
@@ -146,7 +146,10 @@ export function ProblemSection() {
             <p className="text-[40px] font-semibold leading-none tracking-[-0.03em] text-white sm:text-[48px] md:text-[52px]">
               <span className="inline-flex items-baseline gap-1.5 whitespace-nowrap">
                 <span>{"<"}</span>
-                <span>1ms</span>
+                <span>1</span>
+                <span className="text-[16px] font-medium tracking-normal text-white/38">
+                  block
+                </span>
               </span>
             </p>
             <p className="mt-3 max-w-[16ch] text-[13px] leading-snug text-white/55 md:text-[14px]">
@@ -208,9 +211,9 @@ export function ProblemSection() {
 export function SolutionSection() {
   return (
     <section className="site-canvas-bg relative w-full border-t border-white/6">
-      <div className="mx-auto w-full max-w-[1200px] px-5 py-24 md:px-8 md:py-32">
+      <div className="mx-auto w-full max-w-6xl px-5 py-24 md:px-8 md:py-32">
         <motion.div
-          className="mx-auto flex w-full max-w-[1200px] flex-col gap-8 rounded-2xl border border-white/8 bg-white/4 px-6 py-8 shadow-[0_20px_60px_-40px_rgba(0,0,0,0.85)] sm:px-7 sm:py-9 md:gap-10 md:px-8 md:py-10 lg:flex-row lg:items-stretch lg:gap-0 lg:px-8 lg:py-10"
+          className="mx-auto flex w-full max-w-6xl flex-col gap-8 rounded-2xl border border-white/8 bg-white/4 px-6 py-8 shadow-[0_20px_60px_-40px_rgba(0,0,0,0.85)] sm:px-7 sm:py-9 md:gap-10 md:px-8 md:py-10 lg:flex-row lg:items-stretch lg:gap-0 lg:px-8 lg:py-10"
           {...reveal}
         >
           <div className="flex min-w-0 flex-1 flex-col items-start gap-5 text-left md:gap-6 lg:pr-5">
@@ -230,7 +233,7 @@ export function SolutionSection() {
           {...reveal}
           transition={{ ...reveal.transition, delay: 0.05 }}
         >
-          <div className="mt-0 mx-auto grid w-full max-w-[1200px] grid-cols-1 gap-2 sm:gap-3 lg:grid-cols-2">
+          <div className="mt-0 mx-auto grid w-full max-w-6xl grid-cols-1 gap-2 sm:gap-3 lg:grid-cols-2">
             {LOOP_STEPS.map((step, index) => (
               <div
                 key={step.src}
@@ -270,7 +273,7 @@ export function SolutionSection() {
 export function PreviewSection() {
   return (
     <section className="site-canvas-bg relative w-full border-t border-white/6">
-      <div className="mx-auto w-full max-w-[1200px] px-4 py-20 sm:px-6 md:px-8 md:py-28">
+      <div className="mx-auto w-full max-w-6xl px-4 py-20 sm:px-6 md:px-8 md:py-28">
         <motion.div
           className="relative flex flex-col gap-6 overflow-hidden rounded-[24px] bg-[linear-gradient(160deg,rgba(255,255,255,0.12)_0%,rgba(255,255,255,0.05)_58%,rgba(140,149,255,0.1)_100%)] px-6 py-8 text-left shadow-[0_18px_50px_-35px_rgba(0,0,0,0.7)] md:px-8 md:py-9 lg:px-9"
           {...reveal}
@@ -346,7 +349,7 @@ export function PreviewSection() {
             className="pointer-events-none absolute inset-0 bg-[radial-gradient(80%_70%_at_50%_100%,rgba(94,104,255,0.22),transparent_72%)]"
           />
           <div className="relative overflow-hidden rounded-[18px] border border-white/8 bg-black/30">
-            <div className="aspect-21/9 w-full">
+            <div className="relative aspect-21/9 w-full">
               <Image
                 src="/image.png"
                 alt="TrenchersAI terminal preview"
@@ -355,6 +358,10 @@ export function PreviewSection() {
                 sizes="(min-width: 1280px) 1100px, 100vw"
                 unoptimized
                 className="h-full w-full object-cover object-top transition-transform duration-500 group-hover:scale-[1.03]"
+              />
+              <div
+                aria-hidden
+                className="pointer-events-none absolute inset-x-0 bottom-0 h-[42%] bg-gradient-to-t from-[#0D0D0D] to-transparent"
               />
             </div>
           </div>

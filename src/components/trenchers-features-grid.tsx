@@ -144,16 +144,15 @@ const FEATURES: Feature[] = [
 export default function TrenchersFeaturesGrid() {
   return (
     <section className="site-canvas-bg relative w-full border-t border-white/6">
-      <div className="mx-auto w-full min-w-0 max-w-[1200px] px-4 py-20 sm:px-6 md:px-8 md:py-28">
+      <div className="mx-auto w-full min-w-0 max-w-6xl px-4 py-20 sm:px-6 md:px-8 md:py-28">
         <motion.header
-          className="mx-auto flex w-full min-w-0 max-w-[980px] flex-col items-start gap-4 text-left"
+          className="mx-auto flex w-full min-w-0 flex-col items-start gap-4 text-left"
           initial={{ opacity: 0, y: 18 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.3 }}
           transition={{ duration: 0.5, ease: "easeOut" }}
         >
           <span className="inline-flex items-center gap-3 text-[11px] font-semibold tracking-[0.18em] text-white/45 uppercase">
-            <span aria-hidden className="h-px w-6 bg-white/15" />
             What you get
           </span>
           <h2 className="text-balance text-[32px] font-medium leading-[1.06] tracking-[-0.02em] text-white md:text-[46px]">
