@@ -113,7 +113,7 @@ export default function Hero({ initialVerified = false }: HeroProps) {
               `You're in the trenches.`
             ) : (
               <>
-                An AI-native trading terminal,
+                AI-native trading terminal,
                 <span className="text-white/55"> made for the trenches.</span>
               </>
             )}
