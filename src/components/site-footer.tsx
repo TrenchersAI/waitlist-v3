@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import FooterLogo from "./footer-logo";
 import logoMark from "./icons/logo-mark.svg";
 
 const FOOTER_LINK_CLASS =
@@ -10,7 +11,7 @@ export default function SiteFooter() {
 
   return (
     <footer className="w-full min-w-0 border-t border-white/6 bg-black">
-      <div className="mx-auto w-full min-w-0 max-w-6xl px-4 py-16 sm:px-6 md:px-8 md:py-20 lg:py-32">
+      <div className="mx-auto w-full min-w-0 max-w-6xl px-4 py-16 sm:px-6 md:px-8 md:py-20 lg:pt-24 lg:pb-16">
         <div className="grid grid-cols-1 gap-12 lg:grid-cols-12 lg:gap-10 xl:gap-16">
           <div className="min-w-0 lg:col-span-7">
             <Link
@@ -101,6 +102,10 @@ export default function SiteFooter() {
             </div>
           </nav>
         </div>
+      </div>
+
+      <div className="mx-auto w-full max-w-6xl">
+        <FooterLogo />
       </div>
     </footer>
   );

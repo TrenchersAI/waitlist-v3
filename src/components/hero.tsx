@@ -113,8 +113,10 @@ export default function Hero({ initialVerified = false }: HeroProps) {
               `You're in the trenches.`
             ) : (
               <>
-                AI-native trading terminal,
-                <span className="text-white/55"> made for the trenches.</span>
+                <span className="block">AI-Native Trading Terminal,</span>
+                <span className="mt-2 block text-white/55 sm:mt-2.5 md:mt-3">
+                  Made For The Trenches.
+                </span>
               </>
             )}
           </h1>
@@ -139,9 +141,9 @@ export default function Hero({ initialVerified = false }: HeroProps) {
           </div>
 
           {!hasReturningVerifiedSession && (
-            <p className="max-w-[520px] text-balance text-[12px] tracking-wide text-white/35">
-              Early access is limited. Cryptocurrency trading carries substantial
-              risk of loss.
+            <p className="mt-4 max-w-[520px] text-balance text-[12px] tracking-wide text-white/35 sm:mt-5">
+              Early access is limited. Cryptocurrency trading carries
+              substantial risk of loss.
             </p>
           )}
         </div>
@@ -184,12 +186,6 @@ function SiteNav() {
         </a>
 
         <div className="flex items-center gap-1.5">
-          <a
-            href="/about-us"
-            className="hidden rounded-full px-3 py-1.5 text-[13px] font-medium text-white/60 transition-colors hover:text-white sm:inline-flex"
-          >
-            About
-          </a>
           <BorderBeam
             size="line"
             theme="dark"
@@ -202,7 +198,7 @@ function SiteNav() {
           >
             <a
               href="#waitlist"
-              className="inline-flex items-center rounded-full border border-white/15 bg-black px-3.5 py-1.5 text-[12.5px] font-semibold text-white outline-none transition-colors hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-white/35"
+              className="inline-flex items-center rounded-full border border-white/15 bg-black px-4 py-2.5 text-[12.5px] font-semibold text-white outline-none transition-colors hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-white/35 sm:px-5 sm:py-3"
             >
               Get Early Access
             </a>

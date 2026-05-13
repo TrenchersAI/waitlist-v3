@@ -340,16 +340,13 @@ export function PreviewSection() {
         </motion.div>
 
         <motion.div
-          className="group relative mt-8 overflow-hidden rounded-[24px] border border-white/12 bg-[#07080a] p-2 shadow-[0_30px_120px_-20px_rgba(94,104,255,0.32)] ring-1 ring-inset ring-white/5 md:mt-10"
+          className="group relative mt-8 overflow-hidden rounded-[24px] bg-[#141414] p-3 sm:p-4 md:mt-10"
           {...reveal}
           transition={{ ...reveal.transition, delay: 0.05 }}
         >
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-0 bg-[radial-gradient(80%_70%_at_50%_100%,rgba(94,104,255,0.22),transparent_72%)]"
-          />
-          <div className="relative overflow-hidden rounded-[18px] border border-white/8 bg-black/30">
-            <div className="relative aspect-[16/9] w-full">
+          <div aria-hidden className="pointer-events-none absolute inset-0" />
+          <div className="relative overflow-hidden rounded-[18px] bg-black/35 p-2 sm:p-3">
+            <div className="relative aspect-21/9 w-full min-w-0 overflow-hidden rounded-xl bg-black/35 ring-1 ring-inset ring-white/6">
               <Image
                 src="/image.png"
                 alt="TrenchersAI terminal preview"
