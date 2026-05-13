@@ -5,6 +5,7 @@ import { NextResponse, type NextRequest } from "next/server";
 const RESERVED_SEGMENTS = new Set([
   "",
   "api",
+  "analytics",
   "privacy",
   "terms",
   "_next",

@@ -1,11 +1,8 @@
 "use client";
 
 import { useState, useSyncExternalStore } from "react";
-import Image from "next/image";
-import { BorderBeam } from "border-beam";
-import { useReducedMotion } from "motion/react";
 import EmailCapture from "./email-capture";
-import logoMark from "./icons/logo-mark.svg";
+import SiteNav from "./site-nav";
 import {
   PreviewSection,
   ProblemSection,
@@ -22,7 +19,7 @@ import {
 import { useHydrated } from "@/src/hooks/use-hydrated";
 
 /** Items shown in the horizontal marquee above the headline. Source SVGs are
-   drawn in black, so the wrapper's ⁠ [&_svg]:invert ⁠ flips them to white on
+   drawn in black, so the wrapper's ⁠ [&_svg]:invert ⁠ flips them to white on
    the dark canvas. */
 const FEATURE_STRIP_ITEMS = [
   { label: "Snipe New Launches", icon: <SnipeIcon /> },
@@ -32,7 +29,7 @@ const FEATURE_STRIP_ITEMS = [
 ];
 
 type HeroProps = {
-  /** Server-rendered hint from the ⁠ trencher_verified ⁠ cookie. Lets the SSR
+  /** Server-rendered hint from the ⁠ trencher_verified ⁠ cookie. Lets the SSR
      HTML render the verified shell ("Welcome to TrenchersAI" + EmailCapture's
      verified dashboard) so returning users don't see the unverified shell
      flash on refresh. The post-hydration localStorage snapshot can still
@@ -155,56 +152,5 @@ export default function Hero({ initialVerified = false }: HeroProps) {
         <PreviewSection />
       </>
     </>
-  );
-}
-
-/* ----------------------------------------------------------------------- */
-/* Sticky glassy site navigation                                            */
-/* ----------------------------------------------------------------------- */
-
-function SiteNav() {
-  const prefersReducedMotion = useReducedMotion();
-
-  return (
-    <header className="fixed inset-x-0 top-0 z-50 border-b border-white/6 bg-black/55 backdrop-blur-md">
-      <nav className="mx-auto flex w-full max-w-6xl items-center justify-between px-5 py-3.5 md:px-8">
-        <a
-          href="/"
-          className="flex items-center gap-2.5 text-white outline-none focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-white/30"
-        >
-          <Image
-            src={logoMark}
-            alt="TrenchersAI logo"
-            width={26}
-            height={23}
-            className="h-[23px] w-[26px]"
-            priority
-          />
-          <span className="text-[15px] font-medium tracking-wide">
-            TrenchersAI
-          </span>
-        </a>
-
-        <div className="flex items-center gap-1.5">
-          <BorderBeam
-            size="line"
-            theme="dark"
-            colorVariant="ocean"
-            duration={2.4}
-            strength={0.62}
-            borderRadius={9999}
-            active={!prefersReducedMotion}
-            className="shrink-0"
-          >
-            <a
-              href="#waitlist"
-              className="inline-flex items-center rounded-full border border-white/15 bg-black px-4 py-2.5 text-[12.5px] font-semibold text-white outline-none transition-colors hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-white/35 sm:px-5 sm:py-3"
-            >
-              Get Early Access
-            </a>
-          </BorderBeam>
-        </div>
-      </nav>
-    </header>
   );
 }

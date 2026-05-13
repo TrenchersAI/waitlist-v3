@@ -149,6 +149,62 @@ export async function sendWaitlistOtpEmail(params: {
   return { ok: true as const, id: result.data?.id ?? null };
 }
 
+export async function sendInternalAnalyticsOtpEmail(params: {
+  to: string;
+  otp: string;
+}) {
+  const appName = process.env.WAITLIST_APP_NAME ?? "Trenchers";
+  const subject = `${appName} · Internal analytics sign-in code`;
+  let html: string;
+
+  try {
+    html = await buildOtpEmailHtml(params.otp);
+  } catch {
+    html = `
+      <div style="font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;">
+        <h2 style="margin: 0 0 12px;">Sign in to analytics</h2>
+        <p style="margin: 0 0 12px;">
+          Your one-time code:
+          <strong style="font-size: 20px; letter-spacing: 4px;">${params.otp}</strong>.
+          Expires in 10 minutes.
+        </p>
+      </div>
+    `;
+  }
+
+  let logoAttachment: NonNullable<
+    Parameters<typeof sendEmail>[0]["attachments"]
+  >[number] | undefined;
+  try {
+    const content = await getLogoPngBase64();
+    logoAttachment = {
+      filename: "logo.png",
+      content,
+      contentId: "logo",
+      contentType: "image/png",
+    };
+  } catch (err) {
+    console.error("Failed to load internal analytics OTP logo attachment:", err);
+  }
+
+  const result = await sendEmail({
+    to: params.to,
+    subject,
+    html,
+    attachments: logoAttachment ? [logoAttachment] : undefined,
+  });
+
+  if ("skipped" in result) {
+    return result;
+  }
+
+  if (result.error) {
+    throw new Error(`Resend send failed: ${result.error.message}`);
+  }
+
+  return { ok: true as const, id: result.data?.id ?? null };
+}
+
 async function sendEmail(params: {
   to: string;
   subject: string;
@@ -163,10 +219,22 @@ async function sendEmail(params: {
   }>;
 }) {
   const resend = getResendClient();
-  if (!resend) return { ok: false as const, skipped: true as const };
+  if (!resend) {
+    if (process.env.NODE_ENV === "development") {
+      console.warn(
+        "[email] RESEND_API_KEY is missing — emails are not sent. Set it in .env",
+      );
+    }
+    return { ok: false as const, skipped: true as const };
+  }
 
   const from = process.env.RESEND_FROM_EMAIL;
   if (!from) {
+    if (process.env.NODE_ENV === "development") {
+      console.warn(
+        "[email] RESEND_FROM_EMAIL is missing — use an address on your verified Resend domain",
+      );
+    }
     throw new Error("RESEND_FROM_EMAIL is not set.");
   }
 
