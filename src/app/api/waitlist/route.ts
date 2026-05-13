@@ -254,9 +254,27 @@ export async function POST(request: Request) {
     }
 
     try {
-      await sendWaitlistOtpEmail({ to: email, otp: otpCode });
+      const sendResult = await sendWaitlistOtpEmail({ to: email, otp: otpCode });
+      if ("skipped" in sendResult) {
+        if (process.env.NODE_ENV === "development") {
+          console.error(
+            "[POST /api/waitlist] OTP email skipped: set RESEND_API_KEY and RESEND_FROM_EMAIL in .env",
+          );
+        }
+        return Response.json(
+          {
+            message:
+              "Email delivery is not configured. Add RESEND_API_KEY and RESEND_FROM_EMAIL, then try again.",
+            requiresOtp: false,
+            verified: false,
+          },
+          { status: 503 },
+        );
+      }
     } catch (error) {
-      console.error("Failed to send waitlist OTP email:", error);
+      const detail =
+        error instanceof Error ? error.message : "Unknown error";
+      console.error("Failed to send waitlist OTP email:", detail, error);
       return Response.json(
         {
           message: "Unable to send code right now. Please try again.",

@@ -2,11 +2,17 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { BorderBeam } from "border-beam";
 import { useReducedMotion } from "motion/react";
 
 export default function FinalCtaSection() {
+  const pathname = usePathname();
   const prefersReducedMotion = useReducedMotion();
+
+  if (pathname === "/analytics" || pathname?.startsWith("/analytics/")) {
+    return null;
+  }
 
   return (
     <section

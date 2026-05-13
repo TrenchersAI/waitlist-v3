@@ -1,11 +1,20 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
+
 import logoMark from "./icons/logo-mark.svg";
 
 const FOOTER_LINK_CLASS =
   "inline-block text-[14px] text-white/90 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/25 focus-visible:ring-offset-2 focus-visible:ring-offset-black";
 
 export default function SiteFooter() {
+  const pathname = usePathname();
+  if (pathname === "/analytics" || pathname?.startsWith("/analytics/")) {
+    return null;
+  }
+
   const year = new Date().getFullYear();
 
   return (

@@ -24,3 +24,22 @@ model WaitlistSubscriber {
 
   @@index([referredById])
 }
+
+/** OTP challenge for /analytics (team @trenchers.ai only). Not waitlist data. */
+model AnalyticsOtpChallenge {
+  email        String   @id
+  otpCode      String
+  otpExpiresAt DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model AnalyticsSession {
+  id        String   @id @default(cuid())
+  email     String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([email])
+}
