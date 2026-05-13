@@ -44,12 +44,6 @@ export default function SiteNav() {
           </Link>
         ) : (
           <div className="flex items-center gap-1.5">
-            <Link
-              href="/about-us"
-              className="hidden rounded-full px-3 py-1.5 text-[13px] font-medium text-white/60 transition-colors hover:text-white sm:inline-flex"
-            >
-              About
-            </Link>
             <BorderBeam
               size="line"
               theme="dark"
@@ -62,9 +56,9 @@ export default function SiteNav() {
             >
               <Link
                 href="/#waitlist"
-                className="inline-flex items-center rounded-full border border-white/15 bg-black px-3.5 py-1.5 text-[12.5px] font-semibold text-white outline-none transition-colors hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-white/35"
+                className="inline-flex items-center rounded-full border border-white/15 bg-black px-5 py-3 text-[12px] font-medium text-white outline-none transition-colors hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-white/35"
               >
-                Join Early Access
+                Get Early Access
               </Link>
             </BorderBeam>
           </div>
