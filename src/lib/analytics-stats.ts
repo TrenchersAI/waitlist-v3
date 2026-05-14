@@ -1,8 +1,24 @@
+import { unstable_cache } from "next/cache";
+
 import { Prisma } from "@/src/generated/prisma/client";
 
 import { getPrismaClient } from "@/src/lib/prisma";
 
 export type SignupStatusFilter = "all" | "verified" | "pending";
+
+/** Cache window for analytics aggregates. The dashboard tolerates ~1min lag
+   well — these queries fan out (5–7 per page load) and re-run on every range
+   change, so caching is the biggest single perf win available. */
+const ANALYTICS_CACHE_SECONDS = 60;
+
+function cacheAggregate<TArgs extends unknown[], TResult>(
+  name: string,
+  fn: (...args: TArgs) => Promise<TResult>,
+): (...args: TArgs) => Promise<TResult> {
+  return unstable_cache(fn, [`analytics:${name}`], {
+    revalidate: ANALYTICS_CACHE_SECONDS,
+  });
+}
 
 function utcDayStart(isoDate: string) {
   const d = new Date(`${isoDate}T00:00:00.000Z`);
@@ -90,37 +106,43 @@ function mapCountsToSeries(
   return days.map((date) => ({ date, count: map.get(date) ?? 0 }));
 }
 
-export async function fetchDailyCreatedCounts(from: Date, toInclusive: Date) {
-  const prisma = getPrismaClient();
-  const rows = await prisma.$queryRaw<{ day: Date; count: bigint }[]>`
-    SELECT date_trunc('day', s."createdAt" AT TIME ZONE 'UTC') AS day,
-           COUNT(*)::bigint AS count
-    FROM "WaitlistSubscriber" s
-    WHERE s."createdAt" >= ${from}
-      AND s."createdAt" <= ${toInclusive}
-    GROUP BY 1
-    ORDER BY 1 ASC
-  `;
-  const days = eachUtcDay(from, toInclusive);
-  return mapCountsToSeries(days, rows);
-}
+export const fetchDailyCreatedCounts = cacheAggregate(
+  "daily-created",
+  async (from: Date, toInclusive: Date) => {
+    const prisma = getPrismaClient();
+    const rows = await prisma.$queryRaw<{ day: Date; count: bigint }[]>`
+      SELECT date_trunc('day', s."createdAt" AT TIME ZONE 'UTC') AS day,
+             COUNT(*)::bigint AS count
+      FROM "WaitlistSubscriber" s
+      WHERE s."createdAt" >= ${from}
+        AND s."createdAt" <= ${toInclusive}
+      GROUP BY 1
+      ORDER BY 1 ASC
+    `;
+    const days = eachUtcDay(from, toInclusive);
+    return mapCountsToSeries(days, rows);
+  },
+);
 
-export async function fetchDailyVerifiedCounts(from: Date, toInclusive: Date) {
-  const prisma = getPrismaClient();
-  const rows = await prisma.$queryRaw<{ day: Date; count: bigint }[]>`
-    SELECT date_trunc('day', s."verifiedAt" AT TIME ZONE 'UTC') AS day,
-           COUNT(*)::bigint AS count
-    FROM "WaitlistSubscriber" s
-    WHERE s."isVerified" = true
-      AND s."verifiedAt" IS NOT NULL
-      AND s."verifiedAt" >= ${from}
-      AND s."verifiedAt" <= ${toInclusive}
-    GROUP BY 1
-    ORDER BY 1 ASC
-  `;
-  const days = eachUtcDay(from, toInclusive);
-  return mapCountsToSeries(days, rows);
-}
+export const fetchDailyVerifiedCounts = cacheAggregate(
+  "daily-verified",
+  async (from: Date, toInclusive: Date) => {
+    const prisma = getPrismaClient();
+    const rows = await prisma.$queryRaw<{ day: Date; count: bigint }[]>`
+      SELECT date_trunc('day', s."verifiedAt" AT TIME ZONE 'UTC') AS day,
+             COUNT(*)::bigint AS count
+      FROM "WaitlistSubscriber" s
+      WHERE s."isVerified" = true
+        AND s."verifiedAt" IS NOT NULL
+        AND s."verifiedAt" >= ${from}
+        AND s."verifiedAt" <= ${toInclusive}
+      GROUP BY 1
+      ORDER BY 1 ASC
+    `;
+    const days = eachUtcDay(from, toInclusive);
+    return mapCountsToSeries(days, rows);
+  },
+);
 
 function buildHourlySeries(
   from: Date,
@@ -149,70 +171,82 @@ function buildHourlySeries(
   return out;
 }
 
-export async function fetchHourlyCreatedCounts(from: Date, toInclusive: Date) {
-  const prisma = getPrismaClient();
-  const rows = await prisma.$queryRaw<{ hour: Date; count: bigint }[]>`
-    SELECT date_trunc('hour', s."createdAt" AT TIME ZONE 'UTC') AS hour,
-           COUNT(*)::bigint AS count
-    FROM "WaitlistSubscriber" s
-    WHERE s."createdAt" >= ${from}
-      AND s."createdAt" <= ${toInclusive}
-    GROUP BY 1
-    ORDER BY 1 ASC
-  `;
-  return buildHourlySeries(from, rows);
-}
+export const fetchHourlyCreatedCounts = cacheAggregate(
+  "hourly-created",
+  async (from: Date, toInclusive: Date) => {
+    const prisma = getPrismaClient();
+    const rows = await prisma.$queryRaw<{ hour: Date; count: bigint }[]>`
+      SELECT date_trunc('hour', s."createdAt" AT TIME ZONE 'UTC') AS hour,
+             COUNT(*)::bigint AS count
+      FROM "WaitlistSubscriber" s
+      WHERE s."createdAt" >= ${from}
+        AND s."createdAt" <= ${toInclusive}
+      GROUP BY 1
+      ORDER BY 1 ASC
+    `;
+    return buildHourlySeries(from, rows);
+  },
+);
 
-export async function fetchHourlyVerifiedCounts(from: Date, toInclusive: Date) {
-  const prisma = getPrismaClient();
-  const rows = await prisma.$queryRaw<{ hour: Date; count: bigint }[]>`
-    SELECT date_trunc('hour', s."verifiedAt" AT TIME ZONE 'UTC') AS hour,
-           COUNT(*)::bigint AS count
-    FROM "WaitlistSubscriber" s
-    WHERE s."isVerified" = true
-      AND s."verifiedAt" IS NOT NULL
-      AND s."verifiedAt" >= ${from}
-      AND s."verifiedAt" <= ${toInclusive}
-    GROUP BY 1
-    ORDER BY 1 ASC
-  `;
-  return buildHourlySeries(from, rows);
-}
+export const fetchHourlyVerifiedCounts = cacheAggregate(
+  "hourly-verified",
+  async (from: Date, toInclusive: Date) => {
+    const prisma = getPrismaClient();
+    const rows = await prisma.$queryRaw<{ hour: Date; count: bigint }[]>`
+      SELECT date_trunc('hour', s."verifiedAt" AT TIME ZONE 'UTC') AS hour,
+             COUNT(*)::bigint AS count
+      FROM "WaitlistSubscriber" s
+      WHERE s."isVerified" = true
+        AND s."verifiedAt" IS NOT NULL
+        AND s."verifiedAt" >= ${from}
+        AND s."verifiedAt" <= ${toInclusive}
+      GROUP BY 1
+      ORDER BY 1 ASC
+    `;
+    return buildHourlySeries(from, rows);
+  },
+);
 
-export async function fetchTotalsInRange(from: Date, toInclusive: Date) {
-  const prisma = getPrismaClient();
-  const [createdAgg, verifiedInRange] = await Promise.all([
-    prisma.waitlistSubscriber.count({
-      where: {
-        createdAt: { gte: from, lte: toInclusive },
-      },
-    }),
-    prisma.waitlistSubscriber.count({
-      where: {
-        isVerified: true,
-        verifiedAt: {
-          not: null,
-          gte: from,
-          lte: toInclusive,
+export const fetchTotalsInRange = cacheAggregate(
+  "totals-in-range",
+  async (from: Date, toInclusive: Date) => {
+    const prisma = getPrismaClient();
+    const [createdAgg, verifiedInRange] = await Promise.all([
+      prisma.waitlistSubscriber.count({
+        where: {
+          createdAt: { gte: from, lte: toInclusive },
         },
-      },
-    }),
-  ]);
-  return { signupsStarted: createdAgg, signupsVerified: verifiedInRange };
-}
+      }),
+      prisma.waitlistSubscriber.count({
+        where: {
+          isVerified: true,
+          verifiedAt: {
+            not: null,
+            gte: from,
+            lte: toInclusive,
+          },
+        },
+      }),
+    ]);
+    return { signupsStarted: createdAgg, signupsVerified: verifiedInRange };
+  },
+);
 
-export async function fetchAllTimeTotals() {
-  const prisma = getPrismaClient();
-  const [totalRows, verifiedRows] = await Promise.all([
-    prisma.waitlistSubscriber.count(),
-    prisma.waitlistSubscriber.count({ where: { isVerified: true } }),
-  ]);
-  return {
-    totalSubscribers: totalRows,
-    verifiedSubscribers: verifiedRows,
-    pendingVerification: totalRows - verifiedRows,
-  };
-}
+export const fetchAllTimeTotals = cacheAggregate(
+  "all-time-totals",
+  async () => {
+    const prisma = getPrismaClient();
+    const [totalRows, verifiedRows] = await Promise.all([
+      prisma.waitlistSubscriber.count(),
+      prisma.waitlistSubscriber.count({ where: { isVerified: true } }),
+    ]);
+    return {
+      totalSubscribers: totalRows,
+      verifiedSubscribers: verifiedRows,
+      pendingVerification: totalRows - verifiedRows,
+    };
+  },
+);
 
 function signupsWhere(
   from: Date,
@@ -283,150 +317,159 @@ export async function fetchSignupsForExport(params: {
   });
 }
 
-export async function fetchReferralStats(from: Date, toInclusive: Date) {
-  const prisma = getPrismaClient();
+export const fetchReferralStats = cacheAggregate(
+  "referral-stats",
+  async (from: Date, toInclusive: Date) => {
+    const prisma = getPrismaClient();
 
-  const [
-    referredCreatedInRange,
-    referredVerifiedInRange,
-    distinctReferrersInRange,
-    allTimeReferredRows,
-  ] = await Promise.all([
-    prisma.waitlistSubscriber.count({
-      where: {
-        createdAt: { gte: from, lte: toInclusive },
-        referredById: { not: null },
-      },
-    }),
-    prisma.waitlistSubscriber.count({
-      where: {
-        createdAt: { gte: from, lte: toInclusive },
-        referredById: { not: null },
+    const [
+      referredCreatedInRange,
+      referredVerifiedInRange,
+      distinctReferrersInRange,
+      allTimeReferredRows,
+    ] = await Promise.all([
+      prisma.waitlistSubscriber.count({
+        where: {
+          createdAt: { gte: from, lte: toInclusive },
+          referredById: { not: null },
+        },
+      }),
+      prisma.waitlistSubscriber.count({
+        where: {
+          createdAt: { gte: from, lte: toInclusive },
+          referredById: { not: null },
+          isVerified: true,
+        },
+      }),
+      prisma.$queryRaw<{ count: bigint }[]>`
+        SELECT COUNT(DISTINCT "referredById")::bigint AS count
+        FROM "WaitlistSubscriber"
+        WHERE "referredById" IS NOT NULL
+          AND "createdAt" >= ${from}
+          AND "createdAt" <= ${toInclusive}
+      `,
+      prisma.$queryRaw<{ count: bigint }[]>`
+        SELECT COUNT(*)::bigint AS count
+        FROM "WaitlistSubscriber"
+        WHERE "referredById" IS NOT NULL
+      `,
+    ]);
+
+    const referrersInRange = Number(distinctReferrersInRange[0]?.count ?? 0);
+    const allTimeReferred = Number(allTimeReferredRows[0]?.count ?? 0);
+
+    return {
+      referredCreatedInRange,
+      referredVerifiedInRange,
+      referrersInRange,
+      avgReferralsPerReferrerInRange:
+        referrersInRange > 0
+          ? referredCreatedInRange / referrersInRange
+          : 0,
+      allTimeReferred,
+    };
+  },
+);
+
+export const fetchTopReferrers = cacheAggregate(
+  "top-referrers",
+  async (limit: number) => {
+    const prisma = getPrismaClient();
+    const safeLimit = Math.max(1, Math.min(100, limit));
+    return prisma.waitlistSubscriber.findMany({
+      where: { referralsMade: { gt: 0 } },
+      orderBy: [{ referralsMade: "desc" }, { createdAt: "asc" }],
+      take: safeLimit,
+      select: {
+        id: true,
+        email: true,
+        referralCode: true,
+        referralsMade: true,
         isVerified: true,
+        createdAt: true,
       },
-    }),
-    prisma.$queryRaw<{ count: bigint }[]>`
-      SELECT COUNT(DISTINCT "referredById")::bigint AS count
-      FROM "WaitlistSubscriber"
-      WHERE "referredById" IS NOT NULL
-        AND "createdAt" >= ${from}
-        AND "createdAt" <= ${toInclusive}
-    `,
-    prisma.$queryRaw<{ count: bigint }[]>`
-      SELECT COUNT(*)::bigint AS count
-      FROM "WaitlistSubscriber"
-      WHERE "referredById" IS NOT NULL
-    `,
-  ]);
-
-  const referrersInRange = Number(distinctReferrersInRange[0]?.count ?? 0);
-  const allTimeReferred = Number(allTimeReferredRows[0]?.count ?? 0);
-
-  return {
-    referredCreatedInRange,
-    referredVerifiedInRange,
-    referrersInRange,
-    avgReferralsPerReferrerInRange:
-      referrersInRange > 0
-        ? referredCreatedInRange / referrersInRange
-        : 0,
-    allTimeReferred,
-  };
-}
-
-export async function fetchTopReferrers(limit: number) {
-  const prisma = getPrismaClient();
-  const safeLimit = Math.max(1, Math.min(100, limit));
-  return prisma.waitlistSubscriber.findMany({
-    where: { referralsMade: { gt: 0 } },
-    orderBy: [{ referralsMade: "desc" }, { createdAt: "asc" }],
-    take: safeLimit,
-    select: {
-      id: true,
-      email: true,
-      referralCode: true,
-      referralsMade: true,
-      isVerified: true,
-      createdAt: true,
-    },
-  });
-}
+    });
+  },
+);
 
 /** Hourly version of `fetchDailyReferredSplit` for single-UTC-day windows.
    Always returns 24 buckets keyed `YYYY-MM-DDTHH` so consumers can render a
    24-bar axis even on quiet days. */
-export async function fetchHourlyReferredSplit(
-  from: Date,
-  toInclusive: Date,
-) {
-  const prisma = getPrismaClient();
-  const rows = await prisma.$queryRaw<
-    { hour: Date; referred: bigint; organic: bigint }[]
-  >`
-    SELECT date_trunc('hour', s."createdAt" AT TIME ZONE 'UTC') AS hour,
-           COUNT(*) FILTER (WHERE s."referredById" IS NOT NULL)::bigint AS referred,
-           COUNT(*) FILTER (WHERE s."referredById" IS NULL)::bigint AS organic
-    FROM "WaitlistSubscriber" s
-    WHERE s."createdAt" >= ${from}
-      AND s."createdAt" <= ${toInclusive}
-    GROUP BY 1
-    ORDER BY 1 ASC
-  `;
-  const startMs = Date.UTC(
-    from.getUTCFullYear(),
-    from.getUTCMonth(),
-    from.getUTCDate(),
-    0,
-    0,
-    0,
-    0,
-  );
-  const map = new Map<string, { referred: number; organic: number }>();
-  for (const row of rows) {
-    const key = row.hour.toISOString().slice(0, 13);
-    map.set(key, {
-      referred: Number(row.referred),
-      organic: Number(row.organic),
-    });
-  }
-  const out: { date: string; referred: number; organic: number }[] = [];
-  for (let h = 0; h < 24; h++) {
-    const key = new Date(startMs + h * 3600_000).toISOString().slice(0, 13);
-    const v = map.get(key);
-    out.push({
-      date: key,
-      referred: v?.referred ?? 0,
-      organic: v?.organic ?? 0,
-    });
-  }
-  return out;
-}
+export const fetchHourlyReferredSplit = cacheAggregate(
+  "hourly-referred-split",
+  async (from: Date, toInclusive: Date) => {
+    const prisma = getPrismaClient();
+    const rows = await prisma.$queryRaw<
+      { hour: Date; referred: bigint; organic: bigint }[]
+    >`
+      SELECT date_trunc('hour', s."createdAt" AT TIME ZONE 'UTC') AS hour,
+             COUNT(*) FILTER (WHERE s."referredById" IS NOT NULL)::bigint AS referred,
+             COUNT(*) FILTER (WHERE s."referredById" IS NULL)::bigint AS organic
+      FROM "WaitlistSubscriber" s
+      WHERE s."createdAt" >= ${from}
+        AND s."createdAt" <= ${toInclusive}
+      GROUP BY 1
+      ORDER BY 1 ASC
+    `;
+    const startMs = Date.UTC(
+      from.getUTCFullYear(),
+      from.getUTCMonth(),
+      from.getUTCDate(),
+      0,
+      0,
+      0,
+      0,
+    );
+    const map = new Map<string, { referred: number; organic: number }>();
+    for (const row of rows) {
+      const key = row.hour.toISOString().slice(0, 13);
+      map.set(key, {
+        referred: Number(row.referred),
+        organic: Number(row.organic),
+      });
+    }
+    const out: { date: string; referred: number; organic: number }[] = [];
+    for (let h = 0; h < 24; h++) {
+      const key = new Date(startMs + h * 3600_000).toISOString().slice(0, 13);
+      const v = map.get(key);
+      out.push({
+        date: key,
+        referred: v?.referred ?? 0,
+        organic: v?.organic ?? 0,
+      });
+    }
+    return out;
+  },
+);
 
-export async function fetchDailyReferredSplit(from: Date, toInclusive: Date) {
-  const prisma = getPrismaClient();
-  const rows = await prisma.$queryRaw<
-    { day: Date; referred: bigint; organic: bigint }[]
-  >`
-    SELECT date_trunc('day', s."createdAt" AT TIME ZONE 'UTC') AS day,
-           COUNT(*) FILTER (WHERE s."referredById" IS NOT NULL)::bigint AS referred,
-           COUNT(*) FILTER (WHERE s."referredById" IS NULL)::bigint AS organic
-    FROM "WaitlistSubscriber" s
-    WHERE s."createdAt" >= ${from}
-      AND s."createdAt" <= ${toInclusive}
-    GROUP BY 1
-    ORDER BY 1 ASC
-  `;
-  const map = new Map<string, { referred: number; organic: number }>();
-  for (const row of rows) {
-    const key = row.day.toISOString().slice(0, 10);
-    map.set(key, {
-      referred: Number(row.referred),
-      organic: Number(row.organic),
-    });
-  }
-  return eachUtcDay(from, toInclusive).map((date) => ({
-    date,
-    referred: map.get(date)?.referred ?? 0,
-    organic: map.get(date)?.organic ?? 0,
-  }));
-}
+export const fetchDailyReferredSplit = cacheAggregate(
+  "daily-referred-split",
+  async (from: Date, toInclusive: Date) => {
+    const prisma = getPrismaClient();
+    const rows = await prisma.$queryRaw<
+      { day: Date; referred: bigint; organic: bigint }[]
+    >`
+      SELECT date_trunc('day', s."createdAt" AT TIME ZONE 'UTC') AS day,
+             COUNT(*) FILTER (WHERE s."referredById" IS NOT NULL)::bigint AS referred,
+             COUNT(*) FILTER (WHERE s."referredById" IS NULL)::bigint AS organic
+      FROM "WaitlistSubscriber" s
+      WHERE s."createdAt" >= ${from}
+        AND s."createdAt" <= ${toInclusive}
+      GROUP BY 1
+      ORDER BY 1 ASC
+    `;
+    const map = new Map<string, { referred: number; organic: number }>();
+    for (const row of rows) {
+      const key = row.day.toISOString().slice(0, 10);
+      map.set(key, {
+        referred: Number(row.referred),
+        organic: Number(row.organic),
+      });
+    }
+    return eachUtcDay(from, toInclusive).map((date) => ({
+      date,
+      referred: map.get(date)?.referred ?? 0,
+      organic: map.get(date)?.organic ?? 0,
+    }));
+  },
+);

@@ -23,6 +23,11 @@ model WaitlistSubscriber {
   updatedAt    DateTime             @updatedAt
 
   @@index([referredById])
+  // Analytics aggregates date-bucket by createdAt / verifiedAt on every
+  // dashboard load. As the table grows these indexes prevent the queries
+  // from degrading to sequential scans.
+  @@index([createdAt])
+  @@index([verifiedAt])
 }
 
 /** OTP challenge for /analytics (team @trenchers.ai only). Not waitlist data. */
