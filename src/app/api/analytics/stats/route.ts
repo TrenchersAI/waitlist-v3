@@ -3,6 +3,8 @@ import {
   fetchAllTimeTotals,
   fetchDailyCreatedCounts,
   fetchDailyVerifiedCounts,
+  fetchHourlyCreatedCounts,
+  fetchHourlyVerifiedCounts,
   fetchTotalsInRange,
   parseAnalyticsRange,
 } from "@/src/lib/analytics-stats";
@@ -21,11 +23,24 @@ export async function GET(request: Request) {
     searchParams.get("to"),
   );
 
-  const [allTime, rangeTotals, dailyCreated, dailyVerified] = await Promise.all([
+  // Single-UTC-day windows get hourly buckets too; longer windows skip the
+  // extra query.
+  const singleDay = fromStr === toStr;
+
+  const [
+    allTime,
+    rangeTotals,
+    dailyCreated,
+    dailyVerified,
+    hourlyCreated,
+    hourlyVerified,
+  ] = await Promise.all([
     fetchAllTimeTotals(),
     fetchTotalsInRange(from, toInclusive),
     fetchDailyCreatedCounts(from, toInclusive),
     fetchDailyVerifiedCounts(from, toInclusive),
+    singleDay ? fetchHourlyCreatedCounts(from, toInclusive) : Promise.resolve(null),
+    singleDay ? fetchHourlyVerifiedCounts(from, toInclusive) : Promise.resolve(null),
   ]);
 
   return Response.json({
@@ -36,6 +51,8 @@ export async function GET(request: Request) {
     series: {
       signupsByDay: dailyCreated,
       verificationsByDay: dailyVerified,
+      ...(hourlyCreated ? { signupsByHour: hourlyCreated } : {}),
+      ...(hourlyVerified ? { verificationsByHour: hourlyVerified } : {}),
     },
   });
 }

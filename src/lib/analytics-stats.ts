@@ -122,6 +122,63 @@ export async function fetchDailyVerifiedCounts(from: Date, toInclusive: Date) {
   return mapCountsToSeries(days, rows);
 }
 
+function buildHourlySeries(
+  from: Date,
+  rows: { hour: Date; count: bigint }[],
+) {
+  // Pin to the UTC day represented by `from`. Output is exactly 24 buckets
+  // even when the underlying query returned fewer rows.
+  const startMs = Date.UTC(
+    from.getUTCFullYear(),
+    from.getUTCMonth(),
+    from.getUTCDate(),
+    0,
+    0,
+    0,
+    0,
+  );
+  const map = new Map<string, number>();
+  for (const row of rows) {
+    map.set(row.hour.toISOString().slice(0, 13), Number(row.count));
+  }
+  const out: { date: string; count: number }[] = [];
+  for (let h = 0; h < 24; h++) {
+    const key = new Date(startMs + h * 3600_000).toISOString().slice(0, 13);
+    out.push({ date: key, count: map.get(key) ?? 0 });
+  }
+  return out;
+}
+
+export async function fetchHourlyCreatedCounts(from: Date, toInclusive: Date) {
+  const prisma = getPrismaClient();
+  const rows = await prisma.$queryRaw<{ hour: Date; count: bigint }[]>`
+    SELECT date_trunc('hour', s."createdAt" AT TIME ZONE 'UTC') AS hour,
+           COUNT(*)::bigint AS count
+    FROM "WaitlistSubscriber" s
+    WHERE s."createdAt" >= ${from}
+      AND s."createdAt" <= ${toInclusive}
+    GROUP BY 1
+    ORDER BY 1 ASC
+  `;
+  return buildHourlySeries(from, rows);
+}
+
+export async function fetchHourlyVerifiedCounts(from: Date, toInclusive: Date) {
+  const prisma = getPrismaClient();
+  const rows = await prisma.$queryRaw<{ hour: Date; count: bigint }[]>`
+    SELECT date_trunc('hour', s."verifiedAt" AT TIME ZONE 'UTC') AS hour,
+           COUNT(*)::bigint AS count
+    FROM "WaitlistSubscriber" s
+    WHERE s."isVerified" = true
+      AND s."verifiedAt" IS NOT NULL
+      AND s."verifiedAt" >= ${from}
+      AND s."verifiedAt" <= ${toInclusive}
+    GROUP BY 1
+    ORDER BY 1 ASC
+  `;
+  return buildHourlySeries(from, rows);
+}
+
 export async function fetchTotalsInRange(from: Date, toInclusive: Date) {
   const prisma = getPrismaClient();
   const [createdAgg, verifiedInRange] = await Promise.all([
@@ -293,6 +350,56 @@ export async function fetchTopReferrers(limit: number) {
       createdAt: true,
     },
   });
+}
+
+/** Hourly version of `fetchDailyReferredSplit` for single-UTC-day windows.
+   Always returns 24 buckets keyed `YYYY-MM-DDTHH` so consumers can render a
+   24-bar axis even on quiet days. */
+export async function fetchHourlyReferredSplit(
+  from: Date,
+  toInclusive: Date,
+) {
+  const prisma = getPrismaClient();
+  const rows = await prisma.$queryRaw<
+    { hour: Date; referred: bigint; organic: bigint }[]
+  >`
+    SELECT date_trunc('hour', s."createdAt" AT TIME ZONE 'UTC') AS hour,
+           COUNT(*) FILTER (WHERE s."referredById" IS NOT NULL)::bigint AS referred,
+           COUNT(*) FILTER (WHERE s."referredById" IS NULL)::bigint AS organic
+    FROM "WaitlistSubscriber" s
+    WHERE s."createdAt" >= ${from}
+      AND s."createdAt" <= ${toInclusive}
+    GROUP BY 1
+    ORDER BY 1 ASC
+  `;
+  const startMs = Date.UTC(
+    from.getUTCFullYear(),
+    from.getUTCMonth(),
+    from.getUTCDate(),
+    0,
+    0,
+    0,
+    0,
+  );
+  const map = new Map<string, { referred: number; organic: number }>();
+  for (const row of rows) {
+    const key = row.hour.toISOString().slice(0, 13);
+    map.set(key, {
+      referred: Number(row.referred),
+      organic: Number(row.organic),
+    });
+  }
+  const out: { date: string; referred: number; organic: number }[] = [];
+  for (let h = 0; h < 24; h++) {
+    const key = new Date(startMs + h * 3600_000).toISOString().slice(0, 13);
+    const v = map.get(key);
+    out.push({
+      date: key,
+      referred: v?.referred ?? 0,
+      organic: v?.organic ?? 0,
+    });
+  }
+  return out;
 }
 
 export async function fetchDailyReferredSplit(from: Date, toInclusive: Date) {

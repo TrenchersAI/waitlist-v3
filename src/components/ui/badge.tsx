@@ -11,9 +11,9 @@ const badgeVariants = cva(
           "border-transparent bg-zinc-800 text-zinc-100 hover:bg-zinc-700/80",
         secondary: "border-transparent bg-zinc-800/60 text-zinc-300",
         success:
-          "border-transparent bg-emerald-500/15 text-emerald-400",
+          "border-white/15 bg-white/[0.06] text-white/90",
         warning:
-          "border-transparent bg-amber-500/15 text-amber-300",
+          "border-white/10 bg-transparent text-white/55",
         outline: "border-zinc-700 text-zinc-300",
       },
     },

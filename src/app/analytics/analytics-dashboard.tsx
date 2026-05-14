@@ -1,16 +1,33 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import Link from "next/link";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { KeyRound, ShieldCheck } from "lucide-react";
+import Image from "next/image";
+import Link from "next/link";
+import { KeyRound } from "lucide-react";
 
-import { AnalyticsSidebar, type AnalyticsNavId } from "@/src/app/analytics/analytics-sidebar";
 import {
-  ReferralsView,
+  AnalyticsSidebar,
+  MobileBottomNav,
+  type AnalyticsSection,
+} from "@/src/app/analytics/analytics-sidebar";
+import { AnalyticsTimeseriesChart } from "@/src/app/analytics/analytics-timeseries-chart";
+import {
+  ReferrersStrip,
   type ReferralsPayload,
 } from "@/src/app/analytics/analytics-referrals-view";
-import { AnalyticsTimeseriesChart } from "@/src/app/analytics/analytics-timeseries-chart";
+import {
+  type DateRange,
+  type HotkeyAction,
+  type HotkeyState,
+  type RangeKey,
+  newHotkeyState,
+  parseHotkey,
+  priorRange,
+  rangeForKey,
+  rangeLabel,
+} from "@/src/app/analytics/hotkeys";
+import logoMark from "@/src/components/icons/logo-mark.svg";
 import { Badge } from "@/src/components/ui/badge";
 import { Button, buttonVariants } from "@/src/components/ui/button";
 import {
@@ -20,8 +37,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/src/components/ui/card";
+import { Skeleton } from "@/src/components/ui/skeleton";
 import SiteNav from "@/src/components/site-nav";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/src/components/ui/tabs";
 import { getInternalAnalyticsEmailDomain } from "@/src/lib/analytics-email-domain";
 
 type StatsPayload = {
@@ -39,77 +56,115 @@ type StatsPayload = {
   series: {
     signupsByDay: { date: string; count: number }[];
     verificationsByDay: { date: string; count: number }[];
+    /** Present only when the requested range is a single UTC day. Each
+       array has 24 entries keyed `YYYY-MM-DDTHH`. */
+    signupsByHour?: { date: string; count: number }[];
+    verificationsByHour?: { date: string; count: number }[];
   };
 };
 
+type SignupRow = {
+  id: string;
+  email: string;
+  isVerified: boolean;
+  verifiedAt: string | null;
+  createdAt: string;
+  referralsMade: number;
+  referralCode: string;
+};
+
 type SignupsPayload = {
-  items: Array<{
-    id: string;
-    email: string;
-    isVerified: boolean;
-    verifiedAt: string | null;
-    createdAt: string;
-    referralsMade: number;
-    referralCode: string;
-  }>;
+  items: SignupRow[];
   total: number;
   page: number;
   pageSize: number;
   status: string;
 };
 
-type PresetKey = "7d" | "14d" | "30d" | "90d" | "all";
+/** A SignupRow annotated with its chronological position in the full list
+   (latest user = highest rank). Computed client-side after the fetch. */
+type RankedSignupRow = SignupRow & { signupRank: number };
 
-function presetRange(key: PresetKey): { from: string; to: string } {
-  const now = new Date();
-  const toStr = now.toISOString().slice(0, 10);
-  if (key === "all") {
-    return { from: "2020-01-01", to: toStr };
-  }
-  const days = key === "7d" ? 6 : key === "14d" ? 13 : key === "30d" ? 29 : 89;
-  const from = new Date(now);
-  from.setUTCDate(from.getUTCDate() - days);
-  return { from: from.toISOString().slice(0, 10), to: toStr };
-}
+type RankedSignupsPayload = Omit<SignupsPayload, "items"> & {
+  items: RankedSignupRow[];
+};
+
+type StatusFilter = "all" | "verified" | "pending";
+type SortKey = "createdAt" | "verifiedAt" | "email" | "referralsMade";
+type SortDir = "asc" | "desc";
 
 function formatDateTimeUtc(iso: string) {
   const d = new Date(iso);
-  return d.toLocaleString(undefined, {
+  // Locale is pinned to en-US so SSR and CSR render identical text — relying
+  // on the runtime default produced hydration mismatches.
+  return d.toLocaleString("en-US", {
     timeZone: "UTC",
     year: "numeric",
     month: "short",
     day: "numeric",
     hour: "2-digit",
     minute: "2-digit",
-    second: "2-digit",
     hour12: false,
   });
 }
 
-function BarRow({
-  label,
-  value,
-  max,
-}: {
-  label: string;
-  value: number;
-  max: number;
-}) {
-  const pct = max > 0 ? Math.round((value / max) * 100) : 0;
-  return (
-    <div className="flex min-w-0 flex-col gap-1">
-      <div className="flex justify-between gap-2 text-xs text-zinc-400">
-        <span className="truncate">{label}</span>
-        <span className="shrink-0 tabular-nums text-zinc-200">{value}</span>
-      </div>
-      <div className="h-2 overflow-hidden rounded-full bg-zinc-800">
-        <div
-          className="h-full rounded-full bg-emerald-500/80 transition-[width]"
-          style={{ width: `${pct}%` }}
-        />
-      </div>
-    </div>
-  );
+/** Drop leading days where both primary and secondary buckets are empty so
+   the "All-time" chart starts at the first signup rather than the hardcoded
+   2020-01-01 anchor. Walks both arrays together to keep them aligned. */
+/** When the hourly window covers today, drop bucket entries for hours that
+   haven't happened yet — otherwise the chart wastes pixels on a flat tail of
+   future zeros. Returns the array untouched when the day isn't today. */
+function trimHourlyToNow<T>(arr: T[], isToday: boolean): T[] {
+  if (!isToday) return arr;
+  const cutoff = new Date().getUTCHours() + 1;
+  return arr.slice(0, Math.min(arr.length, cutoff));
+}
+
+function trimLeadingEmpty<T extends { count: number }>(
+  primary: T[],
+  secondary?: T[],
+): { primary: T[]; secondary: T[] } {
+  const sec = secondary ?? [];
+  const len = primary.length;
+  let cut = 0;
+  while (
+    cut < len &&
+    primary[cut].count === 0 &&
+    (sec[cut]?.count ?? 0) === 0
+  ) {
+    cut++;
+  }
+  return { primary: primary.slice(cut), secondary: sec.slice(cut) };
+}
+
+function formatShortDate(iso: string) {
+  const d = new Date(`${iso}T00:00:00.000Z`);
+  return d.toLocaleDateString("en-US", {
+    timeZone: "UTC",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+/** Compact `Mon DD, YYYY` for the Users table — keeps the column narrow but
+   keeps the year so old signups don't look like recent ones. */
+function formatJoinedDate(iso: string) {
+  return new Date(iso).toLocaleDateString("en-US", {
+    timeZone: "UTC",
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function emailInitial(email: string): string {
+  const ch = email.trim()[0];
+  return ch ? ch.toUpperCase() : "?";
+}
+
+function pct(n: number, digits = 0): string {
+  if (!Number.isFinite(n)) return "—";
+  return `${(n * 100).toFixed(digits)}%`;
 }
 
 export default function AnalyticsDashboard({
@@ -120,124 +175,222 @@ export default function AnalyticsDashboard({
   const router = useRouter();
   const domain = useMemo(() => getInternalAnalyticsEmailDomain(), []);
 
+  // Auth state.
   const [sessionEmail, setSessionEmail] = useState(initialEmail);
   const [emailInput, setEmailInput] = useState("");
   const [otpInput, setOtpInput] = useState("");
   const [phase, setPhase] = useState<"email" | "otp">("email");
   const [loginEmail, setLoginEmail] = useState("");
   const [message, setMessage] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [authLoading, setAuthLoading] = useState(false);
+
+  // Dashboard data + filters.
+  const [rangeKey, setRangeKey] = useState<RangeKey>("last7");
+  const [appliedRange, setAppliedRange] = useState<DateRange>(() =>
+    rangeForKey("last7"),
+  );
 
   const [stats, setStats] = useState<StatsPayload | null>(null);
-  const [signups, setSignups] = useState<SignupsPayload | null>(null);
-  const [fromFilter, setFromFilter] = useState("");
-  const [toFilter, setToFilter] = useState("");
-  const [appliedRange, setAppliedRange] = useState<{
-    from: string;
-    to: string;
-  } | null>(null);
-  const [statusFilter, setStatusFilter] = useState<"all" | "verified" | "pending">(
-    "all",
-  );
-  const [tablePage, setTablePage] = useState(0);
-
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [mainNav, setMainNav] = useState<AnalyticsNavId>("overview");
-  const [trendsTab, setTrendsTab] = useState<"chart" | "daily">("chart");
+  const [priorStats, setPriorStats] = useState<StatsPayload | null>(null);
   const [referrals, setReferrals] = useState<ReferralsPayload | null>(null);
-  const [referralsLoading, setReferralsLoading] = useState(false);
+  const [signups, setSignups] = useState<SignupsPayload | null>(null);
+
+  const [signupsPage, setSignupsPage] = useState(0);
+  const [signupsStatus, setSignupsStatus] = useState<StatusFilter>("all");
+  const [signupsSearch, setSignupsSearch] = useState("");
+  const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({
+    key: "createdAt",
+    dir: "desc",
+  });
+
+  // UI affordances.
+  const [toast, setToast] = useState<{ id: number; label: string } | null>(
+    null,
+  );
+  const [section, setSection] = useState<AnalyticsSection>("dashboard");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  const searchRef = useRef<HTMLInputElement>(null);
+  const hotkeyStateRef = useRef<HotkeyState>(newHotkeyState());
 
   const isSignedIn = Boolean(sessionEmail);
 
-  const fetchDashboard = useCallback(
-    async (range: { from: string; to: string } | null, page: number) => {
-      const params = new URLSearchParams();
-      if (range) {
-        params.set("from", range.from);
-        params.set("to", range.to);
-      }
-      params.set("status", statusFilter);
-      params.set("page", String(page));
-      params.set("limit", "25");
+  // --- data fetching -----------------------------------------------------
 
-      const [statsRes, signRes] = await Promise.all([
-        fetch(`/api/analytics/stats?${params.toString()}`, {
-          credentials: "include",
-        }),
-        fetch(`/api/analytics/signups?${params.toString()}`, {
-          credentials: "include",
-        }),
+  const fetchAll = useCallback(
+    async (range: DateRange, key: RangeKey) => {
+      const baseParams = (r: DateRange) => {
+        const p = new URLSearchParams();
+        p.set("from", r.from);
+        p.set("to", r.to);
+        return p;
+      };
+
+      const statsParams = baseParams(range);
+      const referralsParams = baseParams(range);
+      referralsParams.set("limit", "20");
+
+      // Users section shows the complete directory, not just rows in the
+      // currently-selected window — the range picker is hidden there for the
+      // same reason. Always fetch signups with an all-time window.
+      const signupsRange = rangeForKey("all");
+      const signupsParams = baseParams(signupsRange);
+      signupsParams.set("status", signupsStatus);
+      signupsParams.set("page", String(signupsPage));
+      signupsParams.set("limit", "50");
+
+      const priorR = priorRange(range, key);
+      const priorParams = priorR ? baseParams(priorR) : null;
+
+      const safeFetch = async <T,>(
+        url: string,
+      ): Promise<{ status: number; data: T | null }> => {
+        try {
+          const res = await fetch(url, { credentials: "include" });
+          if (res.status === 401) return { status: 401, data: null };
+          if (!res.ok) return { status: res.status, data: null };
+          return { status: res.status, data: (await res.json()) as T };
+        } catch {
+          return { status: 0, data: null };
+        }
+      };
+
+      const [s, sg, ref, pr] = await Promise.all([
+        safeFetch<StatsPayload>(`/api/analytics/stats?${statsParams}`),
+        safeFetch<SignupsPayload>(`/api/analytics/signups?${signupsParams}`),
+        safeFetch<ReferralsPayload>(
+          `/api/analytics/referrals?${referralsParams}`,
+        ),
+        priorParams
+          ? safeFetch<StatsPayload>(`/api/analytics/stats?${priorParams}`)
+          : Promise.resolve({ status: 0, data: null }),
       ]);
 
-      if (statsRes.status === 401 || signRes.status === 401) {
+      if (s.status === 401 || sg.status === 401) {
         setSessionEmail(null);
         setStats(null);
         setSignups(null);
+        setReferrals(null);
+        setPriorStats(null);
         setPhase("email");
         return;
       }
 
-      if (statsRes.ok) {
-        const data = (await statsRes.json()) as StatsPayload;
-        setStats(data);
-        setFromFilter(data.range.from);
-        setToFilter(data.range.to);
-      }
-
-      if (signRes.ok) {
-        setSignups((await signRes.json()) as SignupsPayload);
-      }
+      if (s.data) setStats(s.data);
+      if (sg.data) setSignups(sg.data);
+      if (ref.data) setReferrals(ref.data);
+      setPriorStats(pr.data);
     },
-    [statusFilter],
+    [signupsStatus, signupsPage],
   );
 
   useEffect(() => {
     if (!isSignedIn) return;
-    queueMicrotask(() => {
-      void fetchDashboard(appliedRange, tablePage);
-    });
-  }, [isSignedIn, appliedRange, tablePage, statusFilter, fetchDashboard]);
+    void fetchAll(appliedRange, rangeKey);
+  }, [isSignedIn, appliedRange, rangeKey, fetchAll]);
 
-  const fetchReferrals = useCallback(
-    async (range: { from: string; to: string } | null) => {
-      const params = new URLSearchParams();
-      if (range) {
-        params.set("from", range.from);
-        params.set("to", range.to);
-      }
-      params.set("limit", "10");
-      setReferralsLoading(true);
-      try {
-        const res = await fetch(`/api/analytics/referrals?${params.toString()}`, {
-          credentials: "include",
-        });
-        if (res.status === 401) {
-          setSessionEmail(null);
-          setReferrals(null);
-          setPhase("email");
-          return;
-        }
-        if (res.ok) {
-          setReferrals((await res.json()) as ReferralsPayload);
-        }
-      } finally {
-        setReferralsLoading(false);
+  // --- toast auto-clear --------------------------------------------------
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => {
+      setToast((prev) => (prev?.id === toast.id ? null : prev));
+    }, 1700);
+    return () => clearTimeout(t);
+  }, [toast]);
+
+  const flashToast = useCallback((label: string) => {
+    setToast({ id: Date.now() + Math.random(), label });
+  }, []);
+
+  // --- hotkey dispatch ---------------------------------------------------
+
+  const csvExportHref = useMemo(() => {
+    // Users page is all-time; the export matches what's on screen.
+    const r = rangeForKey("all");
+    const p = new URLSearchParams();
+    p.set("from", r.from);
+    p.set("to", r.to);
+    p.set("status", signupsStatus);
+    return `/api/analytics/export?${p.toString()}`;
+  }, [signupsStatus]);
+
+  const applyRange = useCallback((key: RangeKey) => {
+    setRangeKey(key);
+    setAppliedRange(rangeForKey(key));
+    setSignupsPage(0);
+    // Drop the previous-window data so each card paints its skeleton until the
+    // new fetch returns. Without this, the hero shows the OLD signup count for
+    // a frame after the tab change, which reads as a misleading flash.
+    setStats(null);
+    setPriorStats(null);
+    setReferrals(null);
+    setSignups(null);
+  }, []);
+
+  const dispatchAction = useCallback(
+    (action: HotkeyAction) => {
+      flashToast(action.label);
+      switch (action.kind) {
+        case "range":
+          applyRange(action.key);
+          break;
+        case "nav":
+          // Map the four hotkey targets onto the three sidebar sections.
+          // "overview" / "trends" → Dashboard; "referrals" → Referrals; the
+          // signups list lives under the Users section.
+          if (action.target === "referrals") {
+            setSection("referrals");
+          } else if (action.target === "signups") {
+            setSection("users");
+          } else {
+            setSection("dashboard");
+          }
+          break;
+        case "refetch":
+          void fetchAll(appliedRange, rangeKey);
+          break;
+        case "export":
+          window.location.assign(csvExportHref);
+          break;
+        case "focus-search":
+          setSection("users");
+          // Give the section a tick to mount before we focus the input.
+          setTimeout(() => {
+            searchRef.current?.focus();
+            searchRef.current?.select();
+          }, 0);
+          break;
       }
     },
-    [],
+    [
+      flashToast,
+      applyRange,
+      fetchAll,
+      appliedRange,
+      rangeKey,
+      csvExportHref,
+    ],
   );
 
   useEffect(() => {
     if (!isSignedIn) return;
-    if (mainNav !== "referrals") return;
-    queueMicrotask(() => {
-      void fetchReferrals(appliedRange);
-    });
-  }, [isSignedIn, mainNav, appliedRange, fetchReferrals]);
+    const handler = (e: KeyboardEvent) => {
+      const { action, next } = parseHotkey(e, hotkeyStateRef.current);
+      hotkeyStateRef.current = next;
+      if (!action) return;
+      e.preventDefault();
+      dispatchAction(action);
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [isSignedIn, dispatchAction]);
+
+  // --- auth handlers (login view) ----------------------------------------
 
   async function requestCode() {
     setMessage(null);
-    setLoading(true);
+    setAuthLoading(true);
     try {
       const res = await fetch("/api/analytics/auth", {
         method: "POST",
@@ -254,13 +407,13 @@ export default function AnalyticsDashboard({
       setPhase("otp");
       setMessage(data.message ?? null);
     } finally {
-      setLoading(false);
+      setAuthLoading(false);
     }
   }
 
   async function verifyOtp() {
     setMessage(null);
-    setLoading(true);
+    setAuthLoading(true);
     try {
       const res = await fetch("/api/analytics/auth", {
         method: "POST",
@@ -280,16 +433,14 @@ export default function AnalyticsDashboard({
       setSessionEmail(data.email ?? loginEmail);
       setOtpInput("");
       setPhase("email");
-      setAppliedRange(null);
-      setTablePage(0);
       router.refresh();
     } finally {
-      setLoading(false);
+      setAuthLoading(false);
     }
   }
 
   async function logout() {
-    setLoading(true);
+    setAuthLoading(true);
     try {
       await fetch("/api/analytics/auth", {
         method: "POST",
@@ -300,108 +451,104 @@ export default function AnalyticsDashboard({
       setSessionEmail(null);
       setStats(null);
       setSignups(null);
-      setAppliedRange(null);
+      setReferrals(null);
+      setPriorStats(null);
       setEmailInput("");
       setOtpInput("");
       setPhase("email");
       router.refresh();
     } finally {
-      setLoading(false);
+      setAuthLoading(false);
     }
   }
 
-  function applyRange() {
-    setAppliedRange({ from: fromFilter, to: toFilter });
-    setTablePage(0);
-  }
+  // --- derived data ------------------------------------------------------
 
-  function applyPreset(key: PresetKey) {
-    const range = presetRange(key);
-    setFromFilter(range.from);
-    setToFilter(range.to);
-    setAppliedRange(range);
-    setTablePage(0);
-  }
+  const visibleSignups = useMemo(() => {
+    if (!signups) return null;
+    // Compute each row's "signup rank" — i.e. their position in the full
+    // chronological list, with the latest user holding the highest number.
+    // The API returns items in createdAt-desc order, so item 0 on page 0 is
+    // the most recent overall. We attach the rank BEFORE search/sort so the
+    // displayed number tracks the user, not their position in the current
+    // view.
+    const ranked: RankedSignupRow[] = signups.items.map((row, i) => ({
+      ...row,
+      signupRank: signups.total - (signups.page * signups.pageSize + i),
+    }));
+    const q = signupsSearch.trim().toLowerCase();
+    let items = ranked;
+    if (q) items = items.filter((r) => r.email.toLowerCase().includes(q));
+    items = [...items].sort((a, b) => {
+      const dir = sort.dir === "asc" ? 1 : -1;
+      switch (sort.key) {
+        case "createdAt":
+          return dir * (a.createdAt.localeCompare(b.createdAt));
+        case "verifiedAt": {
+          const av = a.verifiedAt ?? "";
+          const bv = b.verifiedAt ?? "";
+          return dir * av.localeCompare(bv);
+        }
+        case "email":
+          return dir * a.email.localeCompare(b.email);
+        case "referralsMade":
+          return dir * (a.referralsMade - b.referralsMade);
+      }
+    });
+    return { ...signups, items };
+  }, [signups, signupsSearch, sort]);
 
-  const csvExportHref = useMemo(() => {
-    const params = new URLSearchParams();
-    if (appliedRange) {
-      params.set("from", appliedRange.from);
-      params.set("to", appliedRange.to);
-    } else if (stats?.range) {
-      params.set("from", stats.range.from);
-      params.set("to", stats.range.to);
-    }
-    params.set("status", statusFilter);
-    return `/api/analytics/export?${params.toString()}`;
-  }, [appliedRange, stats, statusFilter]);
-
-  const chartMax = useMemo(() => {
-    if (!stats) return 1;
-    let m = 1;
-    for (const row of stats.series.signupsByDay) {
-      m = Math.max(m, row.count);
-    }
-    for (const row of stats.series.verificationsByDay) {
-      m = Math.max(m, row.count);
-    }
-    return m;
-  }, [stats]);
-
-  const lastBars = useMemo(() => {
-    type DayRow = { date: string; count: number };
-    const empty: { created: DayRow[]; verified: DayRow[] } = {
-      created: [],
-      verified: [],
-    };
-    if (!stats) return empty;
-    const n = 14;
-    return {
-      created: stats.series.signupsByDay.slice(-n),
-      verified: stats.series.verificationsByDay.slice(-n),
-    };
-  }, [stats]);
+  // --- LOGIN VIEW (unchanged) --------------------------------------------
 
   if (!isSignedIn) {
     const primaryCta =
-      "h-11 w-full rounded-lg border border-emerald-500/30 bg-emerald-600 px-4 text-[15px] font-semibold text-white shadow-lg shadow-emerald-950/30 outline-none transition-colors hover:bg-emerald-500 focus-visible:ring-2 focus-visible:ring-emerald-400/50 disabled:pointer-events-none disabled:opacity-40";
+      "inline-flex h-11 w-full items-center justify-center rounded-lg bg-white px-5 text-[15px] font-semibold text-zinc-950 shadow-sm outline-none transition hover:bg-white/90 active:scale-[0.99] focus-visible:ring-2 focus-visible:ring-white/40 disabled:pointer-events-none disabled:opacity-40";
 
     return (
-      <div className="flex min-h-dvh flex-col bg-[radial-gradient(ellipse_120%_80%_at_50%_-20%,rgb(6_78_59/0.35),transparent_55%),var(--site-base-color,#0a0a0a)]">
+      <div className="site-canvas-bg flex min-h-dvh flex-col">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute left-1/2 top-0 -z-10 h-[460px] w-[min(900px,110vw)] -translate-x-1/2 bg-[radial-gradient(closest-side,rgba(94,104,255,0.22),transparent_72%)] blur-2xl"
+        />
         <SiteNav />
         <main className="flex flex-1 flex-col items-center justify-center px-4 pb-10 pt-14 sm:px-6">
           <div className="w-full max-w-[440px] space-y-8">
             <div className="text-center">
-              <div className="mx-auto mb-5 flex size-14 items-center justify-center rounded-2xl border border-emerald-500/25 bg-emerald-500/10 shadow-inner shadow-emerald-950/20">
-                <ShieldCheck
-                  className="size-7 text-emerald-400"
-                  strokeWidth={1.75}
-                  aria-hidden
+              <div className="mx-auto mb-5 flex size-14 items-center justify-center rounded-2xl border border-white/10 bg-black/40 shadow-inner shadow-black/40">
+                <Image
+                  src={logoMark}
+                  alt="TrenchersAI"
+                  width={28}
+                  height={25}
+                  className="h-[25px] w-[28px]"
+                  priority
                 />
               </div>
-              <p className="text-[11px] font-semibold tracking-[0.22em] text-emerald-500/80 uppercase">
+              <p className="inline-flex items-center gap-3 text-[11px] font-semibold tracking-[0.18em] text-white/45 uppercase">
+                <span aria-hidden className="h-px w-6 bg-white/15" />
                 Team access
+                <span aria-hidden className="h-px w-6 bg-white/15" />
               </p>
-              <h1 className="mt-2 text-balance text-3xl font-semibold tracking-tight text-white sm:text-[2rem]">
+              <h1 className="mt-3 text-balance text-3xl font-medium leading-[1.1] tracking-[-0.02em] text-white sm:text-[2rem]">
                 Internal analytics
               </h1>
-              <p className="mx-auto mt-3 max-w-[40ch] text-pretty text-[15px] leading-relaxed text-zinc-400">
+              <p className="mx-auto mt-3 max-w-[40ch] text-pretty text-[15px] leading-[1.65] text-white/60">
                 Sign in with your{" "}
-                <span className="font-medium text-zinc-200">@{domain}</span> email.
-                We will send a one-time code to your inbox. This page is not indexed
-                and is for the Trenchers team only.
+                <span className="font-medium text-white/85">@{domain}</span>{" "}
+                email. We will send a one-time code to your inbox. This page is
+                not indexed and is for the Trenchers team only.
               </p>
             </div>
 
             {phase === "email" ? (
-              <Card className="border-zinc-700/80 bg-zinc-950/70 shadow-2xl shadow-black/40 ring-1 ring-white/[0.06] backdrop-blur-md">
-                <CardHeader className="space-y-1 pb-2">
+              <Card className="border-white/10 bg-black/55 shadow-2xl shadow-black/40 ring-1 ring-white/[0.04] backdrop-blur-md">
+                <CardHeader className="space-y-1 p-6 pb-4">
                   <CardTitle className="text-lg text-white">Sign in</CardTitle>
-                  <CardDescription>
+                  <CardDescription className="text-white/55">
                     Work email on your verified Trenchers domain.
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4 pt-0">
+                <CardContent className="space-y-4 p-6 pt-5">
                   <label className="sr-only" htmlFor="analytics-admin-email">
                     Work email
                   </label>
@@ -412,31 +559,35 @@ export default function AnalyticsDashboard({
                     value={emailInput}
                     onChange={(e) => setEmailInput(e.target.value)}
                     placeholder={`you@${domain}`}
-                    className="h-11 w-full rounded-lg border border-zinc-600 bg-black/35 px-3.5 text-[15px] text-white outline-none ring-emerald-500/0 transition-[box-shadow,border-color] placeholder:text-zinc-600 focus:border-emerald-500/60 focus:ring-2 focus:ring-emerald-500/25"
+                    className="h-11 w-full rounded-lg border border-white/12 bg-black/35 px-3.5 text-[15px] text-white outline-none transition-[box-shadow,border-color] placeholder:text-white/30 focus:border-white/35 focus:ring-2 focus:ring-white/15"
                   />
                   <button
                     type="button"
                     className={primaryCta}
-                    disabled={loading || !emailInput.trim()}
+                    disabled={authLoading || !emailInput.trim()}
                     onClick={() => void requestCode()}
                   >
-                    {loading ? "Sending code…" : "Email me a sign-in code"}
+                    {authLoading ? "Sending code…" : "Email me a sign-in code"}
                   </button>
                 </CardContent>
               </Card>
             ) : (
-              <Card className="border-zinc-700/80 bg-zinc-950/70 shadow-2xl shadow-black/40 ring-1 ring-white/[0.06] backdrop-blur-md">
-                <CardHeader className="space-y-1 pb-2">
+              <Card className="border-white/10 bg-black/55 shadow-2xl shadow-black/40 ring-1 ring-white/[0.04] backdrop-blur-md">
+                <CardHeader className="space-y-1 p-6 pb-4">
                   <div className="flex items-center gap-2">
-                    <KeyRound className="size-4 text-emerald-400/90" aria-hidden />
-                    <CardTitle className="text-lg text-white">Check your email</CardTitle>
+                    <KeyRound className="size-4 text-white/65" aria-hidden />
+                    <CardTitle className="text-lg text-white">
+                      Check your email
+                    </CardTitle>
                   </div>
-                  <CardDescription>
+                  <CardDescription className="text-white/55">
                     Enter the 6-digit code we sent to{" "}
-                    <span className="font-medium text-zinc-200">{loginEmail}</span>
+                    <span className="font-medium text-white/85">
+                      {loginEmail}
+                    </span>
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4 pt-0">
+                <CardContent className="space-y-4 p-6 pt-5">
                   <label className="sr-only" htmlFor="analytics-admin-otp">
                     One-time code
                   </label>
@@ -450,20 +601,20 @@ export default function AnalyticsDashboard({
                       setOtpInput(e.target.value.replace(/\D/g, "").slice(0, 6))
                     }
                     placeholder="• • • • • •"
-                    className="h-12 w-full rounded-lg border border-zinc-600 bg-black/35 px-3 text-center font-mono text-2xl tracking-[0.5em] text-white outline-none ring-emerald-500/0 transition-[box-shadow,border-color] placeholder:text-zinc-700 placeholder:tracking-[0.35em] focus:border-emerald-500/60 focus:ring-2 focus:ring-emerald-500/25"
+                    className="h-12 w-full rounded-lg border border-white/12 bg-black/35 px-3 text-center font-mono text-2xl tracking-[0.5em] text-white outline-none transition-[box-shadow,border-color] placeholder:text-white/20 placeholder:tracking-[0.35em] focus:border-white/35 focus:ring-2 focus:ring-white/15"
                   />
                   <button
                     type="button"
                     className={primaryCta}
-                    disabled={loading || otpInput.length !== 6}
+                    disabled={authLoading || otpInput.length !== 6}
                     onClick={() => void verifyOtp()}
                   >
-                    {loading ? "Verifying…" : "Sign in to dashboard"}
+                    {authLoading ? "Verifying…" : "Sign in to dashboard"}
                   </button>
                   <Button
                     type="button"
                     variant="outline"
-                    className="h-10 w-full border-zinc-700 bg-transparent text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200"
+                    className="h-10 w-full border-white/12 bg-transparent text-white/60 hover:bg-white/5 hover:text-white"
                     onClick={() => {
                       setPhase("email");
                       setOtpInput("");
@@ -478,18 +629,18 @@ export default function AnalyticsDashboard({
 
             {message ? (
               <p
-                className="rounded-lg border border-zinc-700/90 bg-zinc-900/60 px-4 py-3 text-center text-sm leading-snug text-zinc-300"
+                className="rounded-lg border border-white/10 bg-black/40 px-4 py-3 text-center text-sm leading-snug text-white/70"
                 role="status"
               >
                 {message}
               </p>
             ) : null}
 
-            <p className="text-center text-[11px] leading-relaxed text-zinc-600">
+            <p className="text-center text-[11px] leading-relaxed text-white/35">
               Internal tooling · not indexed ·{" "}
               <Link
                 href="/"
-                className="text-zinc-500 underline-offset-2 hover:text-zinc-400 hover:underline"
+                className="text-white/55 underline-offset-2 hover:text-white/80 hover:underline"
               >
                 Return to marketing site
               </Link>
@@ -500,429 +651,1224 @@ export default function AnalyticsDashboard({
     );
   }
 
+  // --- DASHBOARD VIEW ----------------------------------------------------
+
   return (
-    <>
-      <SiteNav />
-      <div className="flex min-h-0 w-full min-w-0 flex-1 pt-14">
+    <div className="site-canvas-bg flex min-h-dvh flex-col">
+      <SiteNav
+        analyticsActions={
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => void logout()}
+            className="h-7 rounded-full border-white/15 bg-transparent px-3 text-[12.5px] font-medium text-white/85 hover:bg-white/10 hover:text-white"
+          >
+            Sign out
+          </Button>
+        }
+      />
+      <div className="flex flex-1 pt-14">
         <AnalyticsSidebar
+          active={section}
+          onChange={setSection}
           collapsed={sidebarCollapsed}
           onCollapsedChange={setSidebarCollapsed}
-          active={mainNav}
-          onNavigate={setMainNav}
         />
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-zinc-950/30">
-          <main className="scrollbar-minimal-black min-h-0 flex-1 overflow-y-auto px-3 pb-12 sm:px-4 md:px-6">
-            <div className="mx-auto flex max-w-6xl flex-col gap-6 py-4 sm:gap-8 sm:py-6">
-              <MobileAnalyticsTabs active={mainNav} onNavigate={setMainNav} />
+        <main className="min-w-0 flex-1">
+          <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 pb-28 pt-6 sm:gap-8 sm:px-6 sm:pb-10 sm:pt-10">
+            <DashboardHeader
+              sessionEmail={sessionEmail!}
+              rangeKey={rangeKey}
+              range={appliedRange}
+              section={section}
+            />
 
-              <header className="flex flex-wrap items-end justify-between gap-3 border-b border-zinc-800 pb-4 sm:gap-4 sm:pb-6">
-                <div className="min-w-0">
-                  <p className="text-xs font-medium tracking-wider text-zinc-500 uppercase">
-                    Trenchers waitlist
-                  </p>
-                  <h1 className="mt-1 text-xl font-semibold tracking-tight text-white sm:text-2xl">
-                    Signup analytics
-                  </h1>
-                  <p className="mt-2 truncate text-xs text-zinc-400 sm:text-sm">
-                    Signed in as{" "}
-                    <span className="font-medium text-zinc-200">{sessionEmail}</span>
-                  </p>
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="sm:[&]:h-9 sm:[&]:px-4"
-                  onClick={() => void logout()}
-                >
-                  Sign out
-                </Button>
-              </header>
+            {section === "dashboard" ? <AllTimeStrip stats={stats} /> : null}
 
-              {mainNav === "overview" ? (
-                <>
-                  {stats ? (
-                    <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                      <StatCard
-                        label="All-time signups"
-                        value={stats.allTime.totalSubscribers}
-                      />
-                      <StatCard
-                        label="Verified"
-                        value={stats.allTime.verifiedSubscribers}
-                      />
-                      <StatCard
-                        label="Pending verify"
-                        value={stats.allTime.pendingVerification}
-                      />
-                      <StatCard
-                        label="Range conversion"
-                        value={
-                          stats.rangeTotals.signupsStarted === 0
-                            ? "—"
-                            : `${Math.round(
-                                (stats.rangeTotals.signupsVerified /
-                                  stats.rangeTotals.signupsStarted) *
-                                  100,
-                              )}%`
-                        }
-                        hint={`${stats.rangeTotals.signupsVerified} verified / ${stats.rangeTotals.signupsStarted} started in range`}
-                      />
-                    </section>
-                  ) : (
-                    <p className="text-sm text-zinc-500">Loading metrics…</p>
-                  )}
+            {section === "top-referrers" || section === "users" ? null : (
+              <InPageNav
+                activeRangeKey={rangeKey}
+                onPickRange={applyRange}
+              />
+            )}
 
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Date range</CardTitle>
-                      <CardDescription>
-                        Full UTC days. Applies to charts, summary, and the signups table.
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="flex flex-col gap-4">
-                      <div className="flex flex-wrap gap-2">
-                        {(
-                          [
-                            { key: "7d", label: "7 days" },
-                            { key: "14d", label: "14 days" },
-                            { key: "30d", label: "30 days" },
-                            { key: "90d", label: "90 days" },
-                            { key: "all", label: "All-time" },
-                          ] as { key: PresetKey; label: string }[]
-                        ).map(({ key, label }) => (
-                          <Button
-                            key={key}
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => applyPreset(key)}
-                          >
-                            {label}
-                          </Button>
-                        ))}
-                      </div>
-                      <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end">
-                        <label className="flex flex-col gap-1 text-xs text-zinc-400">
-                          From
-                          <input
-                            type="date"
-                            value={fromFilter}
-                            onChange={(e) => setFromFilter(e.target.value)}
-                            className="rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-sm text-white"
-                          />
-                        </label>
-                        <label className="flex flex-col gap-1 text-xs text-zinc-400">
-                          To
-                          <input
-                            type="date"
-                            value={toFilter}
-                            onChange={(e) => setToFilter(e.target.value)}
-                            className="rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-sm text-white"
-                          />
-                        </label>
-                        <label className="flex flex-col gap-1 text-xs text-zinc-400">
-                          Table filter
-                          <select
-                            value={statusFilter}
-                            onChange={(e) => {
-                              setStatusFilter(e.target.value as typeof statusFilter);
-                              setTablePage(0);
-                            }}
-                            className="rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-sm text-white"
-                          >
-                            <option value="all">All statuses</option>
-                            <option value="verified">Verified only</option>
-                            <option value="pending">Pending only</option>
-                          </select>
-                        </label>
-                        <Button type="button" onClick={() => applyRange()}>
-                          Apply custom range
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </>
-              ) : null}
-
-              {mainNav === "trends" && stats ? (
-                <Tabs value={trendsTab} onValueChange={(v) => setTrendsTab(v as "chart" | "daily")}>
-                  <TabsList className="w-full max-w-md">
-                    <TabsTrigger value="chart" className="flex-1">
-                      Chart
-                    </TabsTrigger>
-                    <TabsTrigger value="daily" className="flex-1">
-                      Daily breakdown
-                    </TabsTrigger>
-                  </TabsList>
-
-                  <TabsContent value="chart">
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>Daily volume</CardTitle>
-                        <CardDescription>
-                          Selected range ({stats.range.from} → {stats.range.to}, UTC). Green
-                          = new waitlist rows; blue = OTP verifications.
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <AnalyticsTimeseriesChart
-                          signupsByDay={stats.series.signupsByDay}
-                          verificationsByDay={stats.series.verificationsByDay}
-                        />
-                      </CardContent>
-                    </Card>
-                  </TabsContent>
-
-                  <TabsContent value="daily">
-                    <div className="grid gap-6 lg:grid-cols-2">
-                      <Card>
-                        <CardHeader>
-                          <CardTitle>New emails (by day)</CardTitle>
-                          <CardDescription>
-                            Last {lastBars.created.length} days in range (UTC).
-                          </CardDescription>
-                        </CardHeader>
-                        <CardContent className="flex max-h-80 flex-col gap-2 overflow-y-auto pr-1">
-                          {lastBars.created.map((row) => (
-                            <BarRow
-                              key={row.date}
-                              label={row.date}
-                              value={row.count}
-                              max={chartMax}
-                            />
-                          ))}
-                        </CardContent>
-                      </Card>
-                      <Card>
-                        <CardHeader>
-                          <CardTitle>Verifications (by day)</CardTitle>
-                          <CardDescription>
-                            Last {lastBars.verified.length} days in range (UTC).
-                          </CardDescription>
-                        </CardHeader>
-                        <CardContent className="flex max-h-80 flex-col gap-2 overflow-y-auto pr-1">
-                          {lastBars.verified.map((row) => (
-                            <BarRow
-                              key={row.date}
-                              label={row.date}
-                              value={row.count}
-                              max={chartMax}
-                            />
-                          ))}
-                        </CardContent>
-                      </Card>
-                    </div>
-                  </TabsContent>
-                </Tabs>
-              ) : null}
-
-              {mainNav === "trends" && !stats ? (
-                <p className="text-sm text-zinc-500">Loading chart data…</p>
-              ) : null}
-
-              {mainNav === "referrals" ? (
-                <ReferralsView
-                  data={referrals}
-                  loading={referralsLoading}
-                  rangeStarted={stats?.rangeTotals.signupsStarted ?? null}
-                  rangeVerified={stats?.rangeTotals.signupsVerified ?? null}
-                />
-              ) : null}
-
-              {mainNav === "signups" ? (
-                <Card>
-                  <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                      <CardTitle>Recent signups</CardTitle>
-                      <CardDescription>
-                        Timestamps in UTC.{" "}
-                        {signups ? (
-                          <span className="text-zinc-500">
-                            {signups.total} in range · page {signups.page + 1}
-                          </span>
-                        ) : null}
-                      </CardDescription>
-                    </div>
-                    <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
-                      <label className="flex flex-col gap-1 text-xs text-zinc-400">
-                        Status
-                        <select
-                          value={statusFilter}
-                          onChange={(e) => {
-                            setStatusFilter(e.target.value as typeof statusFilter);
-                            setTablePage(0);
-                          }}
-                          className="rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-sm text-white"
-                        >
-                          <option value="all">All</option>
-                          <option value="verified">Verified</option>
-                          <option value="pending">Pending</option>
-                        </select>
-                      </label>
-                      <div className="flex gap-2 sm:ml-auto">
-                        <a
-                          href={csvExportHref}
-                          download
-                          title="Download current filter as CSV (cap 10,000 rows)"
-                          className={buttonVariants({
-                            variant: "outline",
-                            size: "sm",
-                          })}
-                        >
-                          Export CSV
-                        </a>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          disabled={!signups || tablePage <= 0}
-                          onClick={() => setTablePage((p) => Math.max(0, p - 1))}
-                        >
-                          Previous
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          disabled={
-                            !signups ||
-                            (tablePage + 1) * signups.pageSize >= signups.total
-                          }
-                          onClick={() => setTablePage((p) => p + 1)}
-                        >
-                          Next
-                        </Button>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="px-0 sm:px-4">
-                    <div className="overflow-x-auto px-4 sm:px-0">
-                      <table className="w-full min-w-[880px] border-collapse text-left text-sm">
-                        <thead>
-                          <tr className="border-b border-zinc-800 text-xs uppercase tracking-wide text-zinc-500">
-                            <th className="py-2 pr-4 font-medium">Email</th>
-                            <th className="py-2 pr-4 font-medium">Status</th>
-                            <th className="py-2 pr-4 font-medium">Created (UTC)</th>
-                            <th className="py-2 pr-4 font-medium">Verified (UTC)</th>
-                            <th className="py-2 pr-4 font-medium">Referrals</th>
-                            <th className="py-2 font-medium">Code</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {signups?.items.map((row) => (
-                            <tr
-                              key={row.id}
-                              className="border-b border-zinc-800/80 text-zinc-300"
-                            >
-                              <td className="py-2 pr-4 font-mono text-xs text-zinc-200">
-                                {row.email}
-                              </td>
-                              <td className="py-2 pr-4">
-                                {row.isVerified ? (
-                                  <Badge variant="success">Verified</Badge>
-                                ) : (
-                                  <Badge variant="warning">Pending</Badge>
-                                )}
-                              </td>
-                              <td className="py-2 pr-4 font-mono text-[11px] leading-snug text-zinc-400 whitespace-nowrap">
-                                {formatDateTimeUtc(row.createdAt)}
-                              </td>
-                              <td className="py-2 pr-4 font-mono text-[11px] leading-snug text-zinc-400 whitespace-nowrap">
-                                {row.verifiedAt
-                                  ? formatDateTimeUtc(row.verifiedAt)
-                                  : "—"}
-                              </td>
-                              <td className="py-2 pr-4 tabular-nums text-zinc-300">
-                                {row.referralsMade}
-                              </td>
-                              <td className="py-2 font-mono text-xs text-zinc-500">
-                                {row.referralCode}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                      {!signups ? (
-                        <p className="mt-4 text-sm text-zinc-500">Loading table…</p>
-                      ) : null}
-                      {signups && signups.items.length === 0 ? (
-                        <p className="mt-4 text-sm text-zinc-500">
-                          No rows for this filter.
-                        </p>
-                      ) : null}
-                    </div>
-                  </CardContent>
-                </Card>
-              ) : null}
-            </div>
-          </main>
-        </div>
+            {section === "dashboard" ? (
+              <DashboardSection
+                stats={stats}
+                priorStats={priorStats}
+                referrals={referrals}
+                rangeKey={rangeKey}
+                range={appliedRange}
+              />
+            ) : section === "referrals" ? (
+              <ReferralsSection
+                referrals={referrals}
+                stats={stats}
+                rangeKey={rangeKey}
+                range={appliedRange}
+              />
+            ) : section === "top-referrers" ? (
+              <TopReferrersSection referrals={referrals} />
+            ) : (
+              <UsersSection
+                data={visibleSignups}
+                page={signupsPage}
+                onPageChange={setSignupsPage}
+                status={signupsStatus}
+                onStatusChange={(s) => {
+                  setSignupsStatus(s);
+                  setSignupsPage(0);
+                }}
+                search={signupsSearch}
+                onSearchChange={setSignupsSearch}
+                searchRef={searchRef}
+                sort={sort}
+                onSortChange={setSort}
+                exportHref={csvExportHref}
+              />
+            )}
+          </div>
+        </main>
       </div>
-    </>
+
+      <MobileBottomNav active={section} onChange={setSection} />
+      <ToastChip toast={toast} />
+    </div>
   );
 }
 
-function StatCard({
-  label,
-  value,
-  hint,
+// =========================================================================
+// SECTIONS
+// =========================================================================
+
+function DashboardSection({
+  stats,
+  priorStats,
+  referrals,
+  rangeKey,
+  range,
 }: {
-  label: string;
-  value: number | string;
-  hint?: string;
+  stats: StatsPayload | null;
+  priorStats: StatsPayload | null;
+  referrals: ReferralsPayload | null;
+  rangeKey: RangeKey;
+  range: DateRange;
 }) {
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const isToday = range.from === todayStr && range.to === todayStr;
+  const sparkSeries = (() => {
+    if (stats?.series.signupsByHour) {
+      return trimHourlyToNow(stats.series.signupsByHour, isToday);
+    }
+    if (!stats?.series.signupsByDay) return null;
+    if (rangeKey === "all") {
+      return trimLeadingEmpty(stats.series.signupsByDay).primary;
+    }
+    return stats.series.signupsByDay;
+  })();
+
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardDescription>{label}</CardDescription>
-        <CardTitle className="text-2xl font-semibold tabular-nums text-white">
-          {value}
-        </CardTitle>
-      </CardHeader>
-      {hint ? (
-        <CardContent className="pt-0 text-xs text-zinc-500">{hint}</CardContent>
-      ) : null}
+    <div className="flex flex-col gap-6 sm:gap-8">
+      <HeroMetric
+        stats={stats}
+        priorStats={priorStats}
+        sparkSeries={sparkSeries}
+        rangeKey={rangeKey}
+        range={range}
+      />
+      <ActivityChart stats={stats} rangeKey={rangeKey} range={range} />
+      <KpiRow stats={stats} referrals={referrals} rangeKey={rangeKey} />
+    </div>
+  );
+}
+
+/** Fixed all-time signups summary at the top of the Dashboard. Doesn't move
+   with the range picker — gives the team a stable headline number that's
+   always the same regardless of the active window. */
+function AllTimeStrip({ stats }: { stats: StatsPayload | null }) {
+  return (
+    <Card className="border-white/10 bg-white/[0.02]">
+      <CardContent className="flex flex-wrap items-end justify-between gap-3 p-4 sm:p-5">
+        <div>
+          <p className="text-[10px] font-semibold tracking-[0.18em] text-white/45 uppercase">
+            All-time signups
+          </p>
+          {stats ? (
+            <p className="mt-1 text-2xl font-medium tabular-nums tracking-tight text-white sm:text-3xl">
+              {stats.allTime.totalSubscribers}
+            </p>
+          ) : (
+            <Skeleton className="mt-1 h-8 w-24" />
+          )}
+        </div>
+        <div className="text-xs text-white/45">
+          {stats ? (
+            <>
+              <span className="tabular-nums text-white/75">
+                {stats.allTime.verifiedSubscribers}
+              </span>{" "}
+              verified ·{" "}
+              <span className="tabular-nums text-white/75">
+                {stats.allTime.pendingVerification}
+              </span>{" "}
+              pending
+            </>
+          ) : (
+            <Skeleton className="h-3 w-40" />
+          )}
+        </div>
+      </CardContent>
     </Card>
   );
 }
 
-function MobileAnalyticsTabs({
-  active,
-  onNavigate,
+function ReferralsSection({
+  referrals,
+  stats,
+  rangeKey,
+  range,
 }: {
-  active: AnalyticsNavId;
-  onNavigate: (id: AnalyticsNavId) => void;
+  referrals: ReferralsPayload | null;
+  stats: StatsPayload | null;
+  rangeKey: RangeKey;
+  range: DateRange;
 }) {
-  const items: { id: AnalyticsNavId; label: string }[] = [
-    { id: "overview", label: "Overview" },
-    { id: "trends", label: "Trends" },
-    { id: "referrals", label: "Referrals" },
-    { id: "signups", label: "Signups" },
-  ];
+  // A reduced KPI row (the two referral KPIs only) sits above the leaderboard
+  // — Verification rate lives on Dashboard, so this section is referral-only.
+  return (
+    <div className="flex flex-col gap-6 sm:gap-8">
+      <ReferralKpiRow
+        referrals={referrals}
+        stats={stats}
+        rangeKey={rangeKey}
+      />
+      <ReferralActivityChart
+        referrals={referrals}
+        rangeKey={rangeKey}
+        range={range}
+      />
+    </div>
+  );
+}
+
+function TopReferrersSection({
+  referrals,
+}: {
+  referrals: ReferralsPayload | null;
+}) {
+  return (
+    <div className="flex flex-col gap-6">
+      <ReferrersStrip data={referrals} loading={referrals === null} />
+    </div>
+  );
+}
+
+/** Mirror of the dashboard's `ActivityChart` but with the secondary-bar
+   overlay turned on. Light bar = total signups in the bucket; bright bar on
+   top = the portion that came through a referral. Switches to hourly
+   buckets when the range is a single UTC day. */
+function ReferralActivityChart({
+  referrals,
+  rangeKey,
+  range,
+}: {
+  referrals: ReferralsPayload | null;
+  rangeKey: RangeKey;
+  range: DateRange;
+}) {
+  const isLoading = referrals === null;
+  const hourly = referrals?.hourlySplit ?? null;
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const isToday = range.from === todayStr && range.to === todayStr;
+
+  const pairs: { total: { date: string; count: number }[]; referred: { date: string; count: number }[] } | null = (() => {
+    if (!referrals) return null;
+    if (hourly) {
+      const trimmed = trimHourlyToNow(hourly, isToday);
+      return {
+        total: trimmed.map((d) => ({
+          date: d.date,
+          count: d.referred + d.organic,
+        })),
+        referred: trimmed.map((d) => ({ date: d.date, count: d.referred })),
+      };
+    }
+    let daily = referrals.dailySplit;
+    if (rangeKey === "all") {
+      // Trim leading no-activity days so the All-time axis starts at the
+      // first signup, matching the dashboard's activity chart behaviour.
+      const totals = daily.map((d) => ({
+        date: d.date,
+        count: d.referred + d.organic,
+      }));
+      const referred = daily.map((d) => ({
+        date: d.date,
+        count: d.referred,
+      }));
+      const trimmed = trimLeadingEmpty(totals, referred);
+      // Snap dailySplit back together using the trimmed primary's dates.
+      const trimmedDates = new Set(trimmed.primary.map((p) => p.date));
+      daily = daily.filter((d) => trimmedDates.has(d.date));
+    }
+    return {
+      total: daily.map((d) => ({
+        date: d.date,
+        count: d.referred + d.organic,
+      })),
+      referred: daily.map((d) => ({ date: d.date, count: d.referred })),
+    };
+  })();
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex flex-wrap items-end justify-between gap-2">
+          <div>
+            <CardTitle>Referral activity</CardTitle>
+            <CardDescription>
+              {hourly
+                ? "Signups per UTC hour, with the referred portion overlaid in bright white."
+                : "Signups per UTC day, with the referred portion overlaid in bright white."}
+            </CardDescription>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {isLoading || !pairs ? (
+          <Skeleton className="h-[260px] w-full" />
+        ) : (
+          <AnalyticsTimeseriesChart
+            signupsByDay={pairs.total}
+            verificationsByDay={pairs.referred}
+            bucketType={hourly ? "hour" : "day"}
+            showSecondaryBar
+            primaryLabel="total"
+            secondaryLabel="referred"
+            primaryLegend="Total signups"
+            secondaryLegend="Referred"
+          />
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function UsersSection(props: React.ComponentProps<typeof SignupsTable>) {
+  return (
+    <div className="flex flex-col gap-6">
+      <SignupsTable {...props} />
+    </div>
+  );
+}
+
+
+// =========================================================================
+// HEADER
+// =========================================================================
+
+const SECTION_TITLE: Record<AnalyticsSection, string> = {
+  dashboard: "Dashboard",
+  referrals: "Referrals",
+  "top-referrers": "Top referrers",
+  users: "Users",
+};
+
+function DashboardHeader({
+  sessionEmail,
+  rangeKey,
+  range,
+  section,
+}: {
+  sessionEmail: string;
+  rangeKey: RangeKey;
+  range: DateRange;
+  section: AnalyticsSection;
+}) {
+  return (
+    <header className="flex flex-wrap items-end justify-between gap-3 border-b border-white/8 pb-5">
+      <div className="min-w-0">
+        <p className="text-[11px] font-semibold tracking-[0.18em] text-white/40 uppercase">
+          Trenchers · Analytics
+        </p>
+        <h1 className="mt-1 text-xl font-medium tracking-tight text-white sm:text-2xl">
+          {SECTION_TITLE[section]}
+        </h1>
+        <p className="mt-1 truncate text-xs text-white/45">
+          Signed in as{" "}
+          <span className="text-white/70">{sessionEmail}</span>
+        </p>
+      </div>
+      {section === "top-referrers" || section === "users" ? null : (
+        <RangePill rangeKey={rangeKey} range={range} />
+      )}
+    </header>
+  );
+}
+
+function RangePill({
+  rangeKey,
+  range,
+}: {
+  rangeKey: RangeKey;
+  range: DateRange;
+}) {
+  return (
+    <span className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/[0.04] px-3 py-1 text-xs text-white/70">
+      <span aria-hidden className="size-1.5 rounded-full bg-indigo-400" />
+      <span className="font-medium text-white/90">{rangeLabel(rangeKey)}</span>
+      <span className="hidden text-white/40 sm:inline">
+        · {formatShortDate(range.from)} → {formatShortDate(range.to)} UTC
+      </span>
+    </span>
+  );
+}
+
+// =========================================================================
+// IN-PAGE NAV
+// =========================================================================
+
+const RANGE_QUICK: { key: RangeKey; label: string }[] = [
+  { key: "last1", label: "1d" },
+  { key: "last2", label: "2d" },
+  { key: "last3", label: "3d" },
+  { key: "last7", label: "1w" },
+  { key: "last30", label: "1m" },
+  { key: "last90", label: "3m" },
+  { key: "all", label: "All" },
+];
+
+function InPageNav({
+  activeRangeKey,
+  onPickRange,
+}: {
+  activeRangeKey: RangeKey;
+  onPickRange: (key: RangeKey) => void;
+}) {
   return (
     <nav
-      aria-label="Analytics sections"
-      className="-mx-3 flex gap-1 overflow-x-auto border-b border-zinc-800 px-3 pb-2 sm:-mx-4 sm:px-4 md:hidden"
+      aria-label="Range presets"
+      className="mt-4 flex w-full gap-1 overflow-x-auto rounded-xl border border-white/10 bg-black/40 p-1"
     >
-      {items.map(({ id, label }) => {
-        const selected = active === id;
+      {RANGE_QUICK.map((r) => {
+        const active = activeRangeKey === r.key;
         return (
           <button
-            key={id}
+            key={r.key}
             type="button"
-            onClick={() => onNavigate(id)}
+            onClick={() => onPickRange(r.key)}
             className={
-              "shrink-0 rounded-md px-3 py-1.5 text-xs font-medium transition-colors " +
-              (selected
-                ? "bg-zinc-800 text-white"
-                : "text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200")
+              "inline-flex flex-1 shrink-0 items-center justify-center rounded-lg px-3 py-1.5 text-xs font-medium transition-colors " +
+              (active
+                ? "bg-white text-zinc-950"
+                : "text-white/65 hover:bg-white/[0.04] hover:text-white")
             }
           >
-            {label}
+            {r.label}
           </button>
         );
       })}
     </nav>
+  );
+}
+
+// =========================================================================
+// HERO METRIC
+// =========================================================================
+
+function HeroMetric({
+  stats,
+  priorStats,
+  sparkSeries,
+  rangeKey,
+  range,
+}: {
+  stats: StatsPayload | null;
+  priorStats: StatsPayload | null;
+  sparkSeries: { date: string; count: number }[] | null;
+  rangeKey: RangeKey;
+  range: DateRange;
+}) {
+  const current = stats?.rangeTotals.signupsStarted ?? null;
+  const prior = priorStats?.rangeTotals.signupsStarted ?? null;
+  const deltaPct =
+    current != null && prior != null && prior > 0
+      ? ((current - prior) / prior) * 100
+      : null;
+  const deltaTone: "up" | "down" | "flat" | "neutral" =
+    deltaPct == null
+      ? "neutral"
+      : deltaPct > 0
+        ? "up"
+        : deltaPct < 0
+          ? "down"
+          : "flat";
+  const deltaGlyph =
+    deltaTone === "up" ? "↑" : deltaTone === "down" ? "↓" : "";
+
+  return (
+    <Card className="relative overflow-hidden border-white/10 bg-black/55 shadow-2xl shadow-black/40 ring-1 ring-white/[0.04] backdrop-blur-md">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -top-24 left-1/2 h-72 w-[min(720px,110%)] -translate-x-1/2 bg-[radial-gradient(closest-side,rgba(94,104,255,0.22),transparent_72%)] blur-2xl"
+      />
+      <CardContent className="relative flex flex-col gap-6 p-5 sm:flex-row sm:items-end sm:justify-between sm:p-8">
+        <div className="min-w-0">
+          <p className="text-[11px] font-semibold tracking-[0.18em] text-white/45 uppercase">
+            New signups · {rangeLabel(rangeKey)}
+          </p>
+          <div className="mt-3 flex flex-wrap items-baseline gap-3">
+            {current != null ? (
+              <span className="text-4xl font-medium tabular-nums tracking-tight text-white sm:text-6xl">
+                {current}
+              </span>
+            ) : (
+              <Skeleton className="h-12 w-28 sm:h-16 sm:w-40" />
+            )}
+            {deltaPct != null ? (
+              <span
+                className={
+                  "text-sm font-medium tabular-nums " +
+                  (deltaTone === "up"
+                    ? "text-white"
+                    : deltaTone === "down"
+                      ? "text-white/55"
+                      : "text-white/50")
+                }
+              >
+                {deltaGlyph} {Math.abs(Math.round(deltaPct))}%
+                <span className="font-normal text-white/35">
+                  {" "}
+                  vs prior {rangeLabel(rangeKey).toLowerCase()}
+                </span>
+              </span>
+            ) : rangeKey === "all" ? null : prior != null && prior === 0 && current != null && current > 0 ? (
+              <span className="text-sm font-medium tabular-nums text-white">
+                ↑ new
+                <span className="font-normal text-white/35">
+                  {" "}
+                  vs prior {rangeLabel(rangeKey).toLowerCase()}
+                </span>
+              </span>
+            ) : null}
+          </div>
+          <p className="mt-3 text-sm text-white/55">
+            {formatShortDate(range.from)} → {formatShortDate(range.to)} (UTC)
+            {stats ? (
+              <span className="text-white/35">
+                {" · "}
+                {stats.rangeTotals.signupsVerified} verified
+              </span>
+            ) : null}
+          </p>
+        </div>
+
+        <div className="flex flex-col items-start gap-1.5 sm:items-end">
+          {sparkSeries && sparkSeries.length > 1 ? (
+            <Sparkline
+              values={sparkSeries.map((d) => d.count)}
+              width={200}
+              height={52}
+            />
+          ) : (
+            <Skeleton className="h-12 w-48" />
+          )}
+          <span className="text-[10px] font-medium tracking-[0.15em] text-white/35 uppercase">
+            {rangeLabel(rangeKey)}
+            {sparkSeries && sparkSeries[0]?.date.includes("T")
+              ? " · by hour"
+              : ""}
+          </span>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function Sparkline({
+  values,
+  width,
+  height,
+  color = "white",
+  strokeWidth = 1.5,
+}: {
+  values: number[];
+  width: number;
+  height: number;
+  color?: string;
+  strokeWidth?: number;
+}) {
+  if (values.length < 2) {
+    return <div style={{ width, height }} aria-hidden />;
+  }
+  const max = Math.max(1, ...values);
+  const pad = strokeWidth;
+  const w = width;
+  const h = height;
+  const pts = values
+    .map((v, i) => {
+      const x = (i / (values.length - 1)) * (w - pad * 2) + pad;
+      const y = h - pad - (v / max) * (h - pad * 2);
+      return `${x},${y}`;
+    })
+    .join(" ");
+  const areaPts = `${pad},${h} ${pts} ${w - pad},${h}`;
+  return (
+    <svg
+      width={w}
+      height={h}
+      viewBox={`0 0 ${w} ${h}`}
+      preserveAspectRatio="none"
+      className="block"
+      aria-hidden
+    >
+      <defs>
+        <linearGradient id={`spark-fill-${width}-${height}`} x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.25" />
+          <stop offset="100%" stopColor={color} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <polygon points={areaPts} fill={`url(#spark-fill-${width}-${height})`} />
+      <polyline
+        fill="none"
+        stroke={color}
+        strokeOpacity="0.85"
+        strokeWidth={strokeWidth}
+        strokeLinejoin="round"
+        strokeLinecap="round"
+        points={pts}
+      />
+    </svg>
+  );
+}
+
+// =========================================================================
+// ACTIVITY CHART
+// =========================================================================
+
+function ActivityChart({
+  stats,
+  rangeKey,
+  range,
+}: {
+  stats: StatsPayload | null;
+  rangeKey: RangeKey;
+  range: DateRange;
+}) {
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const isToday = range.from === todayStr && range.to === todayStr;
+  // Hourly view is server-gated: the stats route only populates `signupsByHour`
+  // when the requested range is a single UTC day, so the chart switches modes
+  // automatically when the user picks "1d" / "Today". Future hours of today
+  // are trimmed off so the axis doesn't carry a flat tail of zeros.
+  const hourly =
+    stats?.series.signupsByHour && stats.series.verificationsByHour
+      ? {
+          signups: trimHourlyToNow(stats.series.signupsByHour, isToday),
+          verifications: trimHourlyToNow(
+            stats.series.verificationsByHour,
+            isToday,
+          ),
+        }
+      : null;
+  // For "All-time", drop leading days with no activity so the axis starts at
+  // the first signup instead of 2020-01-01. Other windows respect the picker
+  // exactly — even empty days are shown.
+  const daily =
+    stats && rangeKey === "all"
+      ? trimLeadingEmpty(
+          stats.series.signupsByDay,
+          stats.series.verificationsByDay,
+        )
+      : stats
+        ? {
+            primary: stats.series.signupsByDay,
+            secondary: stats.series.verificationsByDay,
+          }
+        : null;
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex flex-wrap items-end justify-between gap-2">
+          <div>
+            <CardTitle>Daily activity</CardTitle>
+            <CardDescription>
+              {hourly
+                ? "New signups per UTC hour. Hover a bar to see the hour breakdown."
+                : "New signups per UTC day. Hover a bar to see the day breakdown."}
+            </CardDescription>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {stats && daily ? (
+          hourly ? (
+            <AnalyticsTimeseriesChart
+              signupsByDay={hourly.signups}
+              verificationsByDay={hourly.verifications}
+              bucketType="hour"
+            />
+          ) : (
+            <AnalyticsTimeseriesChart
+              signupsByDay={daily.primary}
+              verificationsByDay={daily.secondary}
+            />
+          )
+        ) : (
+          <Skeleton className="h-[260px] w-full" />
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// =========================================================================
+// KPI ROW
+// =========================================================================
+
+function KpiRow({
+  stats,
+  referrals,
+  rangeKey,
+}: {
+  stats: StatsPayload | null;
+  referrals: ReferralsPayload | null;
+  rangeKey: RangeKey;
+}) {
+  // Same All-time fix as the hero/activity charts: when the user picks
+  // All-time, walk past the leading days that have no activity so the
+  // sparkline isn't a flat line that spikes at the end.
+  const verifySeries = (() => {
+    if (!stats) return null;
+    if (stats.series.verificationsByHour) {
+      return stats.series.verificationsByHour.map((d) => d.count);
+    }
+    if (rangeKey === "all") {
+      return trimLeadingEmpty(
+        stats.series.verificationsByDay,
+        stats.series.signupsByDay,
+      ).primary.map((d) => d.count);
+    }
+    return stats.series.verificationsByDay.map((d) => d.count);
+  })();
+  const dailySplitTrimmed = (() => {
+    if (!referrals) return null;
+    if (rangeKey === "all") {
+      // Use the referred+organic sum as the "is this day empty?" signal so
+      // both sparklines (referred, total) trim at the same anchor.
+      const totals = referrals.dailySplit.map((d) => ({
+        date: d.date,
+        count: d.referred + d.organic,
+      }));
+      const referredAligned = referrals.dailySplit.map((d) => ({
+        date: d.date,
+        count: d.referred,
+      }));
+      const trimmed = trimLeadingEmpty(totals, referredAligned);
+      return {
+        referred: trimmed.secondary.map((d) => d.count),
+        total: trimmed.primary.map((d) => d.count),
+      };
+    }
+    return {
+      referred: referrals.dailySplit.map((d) => d.referred),
+      total: referrals.dailySplit.map((d) => d.referred + d.organic),
+    };
+  })();
+
+  return (
+    <div className="grid gap-4 sm:grid-cols-3">
+      <KpiCard
+        label="Verification rate"
+        value={
+          stats && stats.rangeTotals.signupsStarted > 0
+            ? pct(
+                stats.rangeTotals.signupsVerified /
+                  stats.rangeTotals.signupsStarted,
+              )
+            : null
+        }
+        hint={
+          stats
+            ? `${stats.rangeTotals.signupsVerified} / ${stats.rangeTotals.signupsStarted} verified`
+            : null
+        }
+        sparkValues={verifySeries}
+      />
+      <KpiCard
+        label="Referred share"
+        value={
+          referrals && stats && stats.rangeTotals.signupsStarted > 0
+            ? pct(
+                referrals.stats.referredCreatedInRange /
+                  stats.rangeTotals.signupsStarted,
+              )
+            : null
+        }
+        hint={
+          referrals
+            ? `${referrals.stats.referredCreatedInRange} of ${stats?.rangeTotals.signupsStarted ?? "—"} came via referral`
+            : null
+        }
+        sparkValues={dailySplitTrimmed?.referred ?? null}
+      />
+      <KpiCard
+        label="Active referrers"
+        value={
+          referrals
+            ? String(referrals.stats.referrersInRange)
+            : null
+        }
+        hint={
+          referrals
+            ? `${referrals.stats.avgReferralsPerReferrerInRange.toFixed(2)} referrals per referrer (avg)`
+            : null
+        }
+        sparkValues={dailySplitTrimmed?.total ?? null}
+      />
+    </div>
+  );
+}
+
+/** Two-card KPI strip for the Referrals section — drops Verification rate
+   (which lives on the Dashboard section) and reuses the same trim/skeleton
+   logic as the full KpiRow. */
+function ReferralKpiRow({
+  referrals,
+  stats,
+  rangeKey,
+}: {
+  referrals: ReferralsPayload | null;
+  stats: StatsPayload | null;
+  rangeKey: RangeKey;
+}) {
+  const dailySplitTrimmed = (() => {
+    if (!referrals) return null;
+    if (rangeKey === "all") {
+      const totals = referrals.dailySplit.map((d) => ({
+        date: d.date,
+        count: d.referred + d.organic,
+      }));
+      const referredAligned = referrals.dailySplit.map((d) => ({
+        date: d.date,
+        count: d.referred,
+      }));
+      const trimmed = trimLeadingEmpty(totals, referredAligned);
+      return {
+        referred: trimmed.secondary.map((d) => d.count),
+        total: trimmed.primary.map((d) => d.count),
+      };
+    }
+    return {
+      referred: referrals.dailySplit.map((d) => d.referred),
+      total: referrals.dailySplit.map((d) => d.referred + d.organic),
+    };
+  })();
+  return (
+    <div className="grid gap-4 sm:grid-cols-2">
+      <KpiCard
+        label="Referred share"
+        value={
+          referrals && stats && stats.rangeTotals.signupsStarted > 0
+            ? pct(
+                referrals.stats.referredCreatedInRange /
+                  stats.rangeTotals.signupsStarted,
+              )
+            : null
+        }
+        hint={
+          referrals
+            ? `${referrals.stats.referredCreatedInRange} of ${stats?.rangeTotals.signupsStarted ?? "—"} came via referral`
+            : null
+        }
+        sparkValues={dailySplitTrimmed?.referred ?? null}
+      />
+      <KpiCard
+        label="Active referrers"
+        value={referrals ? String(referrals.stats.referrersInRange) : null}
+        hint={
+          referrals
+            ? `${referrals.stats.avgReferralsPerReferrerInRange.toFixed(2)} referrals per referrer (avg)`
+            : null
+        }
+        sparkValues={dailySplitTrimmed?.total ?? null}
+      />
+    </div>
+  );
+}
+
+function KpiCard({
+  label,
+  value,
+  hint,
+  sparkValues,
+}: {
+  label: string;
+  value: string | null;
+  hint: string | null;
+  sparkValues: number[] | null;
+}) {
+  return (
+    <Card>
+      <CardHeader className="gap-3 border-b-0 pb-3">
+        <div className="flex items-center justify-between gap-2">
+          <CardDescription>{label}</CardDescription>
+          <span className="rounded-full border border-white/12 bg-white/[0.03] px-2 py-0.5 text-[10px] font-medium tracking-wide text-white/55">
+            In range
+          </span>
+        </div>
+        {value != null ? (
+          <CardTitle className="text-3xl font-medium tabular-nums tracking-tight text-white">
+            {value}
+          </CardTitle>
+        ) : (
+          <Skeleton className="h-8 w-24" />
+        )}
+      </CardHeader>
+      <CardContent className="space-y-3 pt-0">
+        {hint != null ? (
+          <p className="text-xs text-white/45">{hint}</p>
+        ) : (
+          <Skeleton className="h-3 w-44 max-w-full" />
+        )}
+        <div className="-mx-1">
+          {sparkValues === null ? (
+            <Skeleton className="h-9 w-full" />
+          ) : sparkValues.length > 1 ? (
+            <Sparkline
+              values={sparkValues}
+              width={260}
+              height={36}
+              color="rgb(129 140 248)"
+              strokeWidth={1.25}
+            />
+          ) : (
+            // Loaded but not enough points to draw — leave the slot empty
+            // rather than show a misleading skeleton or a flat dot.
+            <div aria-hidden />
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// =========================================================================
+// SIGNUPS TABLE
+// =========================================================================
+
+function SignupsTable({
+  data,
+  page,
+  onPageChange,
+  status,
+  onStatusChange,
+  search,
+  onSearchChange,
+  searchRef,
+  sort,
+  onSortChange,
+  exportHref,
+}: {
+  data: RankedSignupsPayload | null;
+  page: number;
+  onPageChange: (page: number) => void;
+  status: StatusFilter;
+  onStatusChange: (status: StatusFilter) => void;
+  search: string;
+  onSearchChange: (q: string) => void;
+  searchRef: React.RefObject<HTMLInputElement | null>;
+  sort: { key: SortKey; dir: SortDir };
+  onSortChange: (next: { key: SortKey; dir: SortDir }) => void;
+  exportHref: string;
+}) {
+  const toggleSort = (key: SortKey) => {
+    if (sort.key === key) {
+      onSortChange({ key, dir: sort.dir === "asc" ? "desc" : "asc" });
+    } else {
+      onSortChange({ key, dir: "desc" });
+    }
+  };
+
+  const totalPages = data ? Math.max(1, Math.ceil(data.total / data.pageSize)) : 1;
+
+  return (
+    <Card>
+      <CardHeader className="gap-4 border-b-0 pb-4">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <CardTitle>Users</CardTitle>
+            <CardDescription>
+              All-time waitlist directory. Search by email, sort any column,
+              or export the current view to CSV.
+            </CardDescription>
+          </div>
+          <a
+            href={exportHref}
+            download
+            title="Download current filter as CSV"
+            className={buttonVariants({ variant: "outline", size: "sm" })}
+          >
+            Export CSV
+          </a>
+        </div>
+
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="relative flex-1">
+            <input
+              ref={searchRef}
+              type="search"
+              value={search}
+              onChange={(e) => onSearchChange(e.target.value)}
+              placeholder="Search email…"
+              className="h-9 w-full rounded-lg border border-white/12 bg-black/35 px-3 text-sm text-white outline-none placeholder:text-white/30 focus:border-white/35 focus:ring-2 focus:ring-white/15"
+            />
+          </div>
+          <select
+            value={status}
+            onChange={(e) => onStatusChange(e.target.value as StatusFilter)}
+            className="h-9 rounded-lg border border-white/12 bg-black/35 px-2 text-sm text-white outline-none focus:border-white/35 focus:ring-2 focus:ring-white/15"
+          >
+            <option value="all">All statuses</option>
+            <option value="verified">Verified only</option>
+            <option value="pending">Pending only</option>
+          </select>
+        </div>
+      </CardHeader>
+
+      <CardContent className="p-0">
+        <div className="relative max-h-[560px] overflow-auto">
+          <table className="w-full min-w-[820px] border-collapse text-left text-sm">
+            <thead className="sticky top-0 z-10 bg-black/85 backdrop-blur">
+              <tr className="border-b border-white/10 text-[11px] uppercase tracking-wide text-white/45">
+                <th className="w-12 py-2.5 pl-4 pr-2 text-center font-medium">
+                  #
+                </th>
+                <SortHeader
+                  label="User"
+                  active={sort.key === "email"}
+                  dir={sort.dir}
+                  onClick={() => toggleSort("email")}
+                />
+                <th className="py-2.5 pr-4 font-medium">Status</th>
+                <SortHeader
+                  label="Joined"
+                  active={sort.key === "createdAt"}
+                  dir={sort.dir}
+                  onClick={() => toggleSort("createdAt")}
+                />
+                <SortHeader
+                  label="Verified"
+                  active={sort.key === "verifiedAt"}
+                  dir={sort.dir}
+                  onClick={() => toggleSort("verifiedAt")}
+                />
+                <SortHeader
+                  label="Referrals"
+                  active={sort.key === "referralsMade"}
+                  dir={sort.dir}
+                  onClick={() => toggleSort("referralsMade")}
+                  align="right"
+                />
+                <th className="py-2.5 pr-4 font-medium">Code</th>
+              </tr>
+            </thead>
+            <tbody>
+              {!data
+                ? Array.from({ length: 8 }).map((_, i) => (
+                    <SignupsTableSkeletonRow key={i} />
+                  ))
+                : data.items.length === 0
+                  ? (
+                    <tr>
+                      <td
+                        colSpan={7}
+                        className="px-4 py-8 text-center text-sm text-white/50"
+                      >
+                        No users match this filter.
+                      </td>
+                    </tr>
+                  )
+                  : data.items.map((row) => (
+                      <tr
+                        key={row.id}
+                        className="border-b border-white/[0.04] text-white/80"
+                      >
+                        <td className="py-3 pl-4 pr-2 text-center font-mono text-xs tabular-nums text-white/55">
+                          {row.signupRank}
+                        </td>
+                        <td className="py-3 pr-4">
+                          <div className="flex items-center gap-3">
+                            <div
+                              aria-hidden
+                              className="flex size-8 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-[12px] font-semibold text-white/85"
+                            >
+                              {emailInitial(row.email)}
+                            </div>
+                            <span
+                              className="truncate font-mono text-[12.5px] text-white/90"
+                              title={row.email}
+                            >
+                              {row.email}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="py-3 pr-4">
+                          {row.isVerified ? (
+                            <Badge variant="success">Verified</Badge>
+                          ) : (
+                            <Badge variant="warning">Pending</Badge>
+                          )}
+                        </td>
+                        <td className="py-3 pr-4 font-mono text-[11px] whitespace-nowrap text-white/55">
+                          {formatJoinedDate(row.createdAt)}
+                        </td>
+                        <td className="py-3 pr-4 font-mono text-[11px] whitespace-nowrap text-white/45">
+                          {row.verifiedAt
+                            ? formatJoinedDate(row.verifiedAt)
+                            : "—"}
+                        </td>
+                        <td className="py-3 pr-4 text-right">
+                          <span className="font-mono text-sm tabular-nums text-white">
+                            {row.referralsMade}
+                          </span>
+                        </td>
+                        <td className="py-3 pr-4 font-mono text-xs text-white/40">
+                          {row.referralCode}
+                        </td>
+                      </tr>
+                    ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="flex items-center justify-between gap-3 border-t border-white/8 px-4 py-3 text-xs text-white/55">
+          <span>
+            {data ? (
+              <>
+                {data.items.length} of {data.total} rows · page {page + 1} of{" "}
+                {totalPages}
+              </>
+            ) : (
+              "Loading…"
+            )}
+          </span>
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={!data || page <= 0}
+              onClick={() => onPageChange(Math.max(0, page - 1))}
+            >
+              Previous
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={!data || (page + 1) * data.pageSize >= data.total}
+              onClick={() => onPageChange(page + 1)}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function SortHeader({
+  label,
+  active,
+  dir,
+  onClick,
+  align = "left",
+  className = "",
+}: {
+  label: string;
+  active: boolean;
+  dir: SortDir;
+  onClick: () => void;
+  align?: "left" | "right";
+  className?: string;
+}) {
+  return (
+    <th
+      className={
+        "py-2.5 pr-4 font-medium " +
+        (align === "right" ? "text-right" : "text-left") +
+        " " +
+        className
+      }
+    >
+      <button
+        type="button"
+        onClick={onClick}
+        className={
+          "inline-flex items-center gap-1 transition-colors " +
+          (active ? "text-white" : "text-white/45 hover:text-white/75")
+        }
+      >
+        {label}
+        <span aria-hidden className="text-[10px]">
+          {active ? (dir === "asc" ? "▲" : "▼") : "↕"}
+        </span>
+      </button>
+    </th>
+  );
+}
+
+function SignupsTableSkeletonRow() {
+  return (
+    <tr className="border-b border-white/[0.04]">
+      <td className="py-3 pl-4 pr-2 text-center">
+        <Skeleton className="mx-auto h-3 w-3" />
+      </td>
+      <td className="py-3 pr-4">
+        <div className="flex items-center gap-3">
+          <Skeleton className="size-8 rounded-full" />
+          <Skeleton className="h-3 w-44 max-w-full" />
+        </div>
+      </td>
+      <td className="py-3 pr-4">
+        <Skeleton className="h-5 w-16 rounded-full" />
+      </td>
+      <td className="py-3 pr-4">
+        <Skeleton className="h-3 w-20" />
+      </td>
+      <td className="py-3 pr-4">
+        <Skeleton className="h-3 w-20" />
+      </td>
+      <td className="py-3 pr-4 text-right">
+        <Skeleton className="ml-auto h-4 w-6" />
+      </td>
+      <td className="py-3 pr-4">
+        <Skeleton className="h-3 w-20" />
+      </td>
+    </tr>
+  );
+}
+
+// =========================================================================
+// TOAST
+// =========================================================================
+
+function ToastChip({
+  toast,
+}: {
+  toast: { id: number; label: string } | null;
+}) {
+  if (!toast) return null;
+  return (
+    <div
+      key={toast.id}
+      role="status"
+      aria-live="polite"
+      className="pointer-events-none fixed bottom-6 left-1/2 z-[150] -translate-x-1/2 rounded-full border border-white/12 bg-black/85 px-3.5 py-1.5 text-xs font-medium text-white/85 shadow-2xl shadow-black/50 ring-1 ring-white/[0.04] backdrop-blur"
+    >
+      {toast.label}
+    </div>
   );
 }

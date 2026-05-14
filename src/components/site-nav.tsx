@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -8,8 +9,15 @@ import { useReducedMotion } from "motion/react";
 
 import logoMark from "./icons/logo-mark.svg";
 
+type Props = {
+  /** Optional slot rendered to the right of "← Marketing site" on /analytics
+     pages. Lets the dashboard inject its own actions (e.g. Sign out) into the
+     fixed nav instead of paying a second header strip below it. */
+  analyticsActions?: ReactNode;
+};
+
 /** Sticky glass nav — marketing chrome on public pages; minimal chrome on `/analytics`. */
-export default function SiteNav() {
+export default function SiteNav({ analyticsActions }: Props = {}) {
   const pathname = usePathname();
   const prefersReducedMotion = useReducedMotion();
   const isAnalytics =
@@ -36,12 +44,15 @@ export default function SiteNav() {
         </Link>
 
         {isAnalytics ? (
-          <Link
-            href="/"
-            className="rounded-full px-3 py-1.5 text-[13px] font-medium text-white/65 transition-colors hover:bg-white/10 hover:text-white"
-          >
-            ← Marketing site
-          </Link>
+          <div className="flex items-center gap-1.5">
+            <Link
+              href="/"
+              className="rounded-full px-3 py-1.5 text-[13px] font-medium text-white/65 transition-colors hover:bg-white/10 hover:text-white"
+            >
+              ← Marketing site
+            </Link>
+            {analyticsActions}
+          </div>
         ) : (
           <div className="flex items-center gap-1.5">
             <BorderBeam
