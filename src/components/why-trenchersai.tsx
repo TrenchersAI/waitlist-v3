@@ -21,14 +21,22 @@ const reveal = {
   transition: { duration: 0.5, ease: "easeOut" as const },
 };
 
-const LOOP_STEPS = [
+type LoopStep = {
+  src: string;
+  label: string;
+  /** Optional mobile-only asset override for narrower viewports. */
+  mobileSrc?: string;
+};
+
+const LOOP_STEPS: LoopStep[] = [
   { src: "/feature_1.svg", label: "Describe what you want" },
   { src: "/feature_3.svg", label: "Fund the bot" },
   {
     src: "/feature_2.svg",
+    mobileSrc: "/feature_2_mobile.svg",
     label: "Let it run while you are asleep",
   },
-] as const;
+];
 
 function Eyebrow({ children }: { children: ReactNode }) {
   return (
@@ -241,17 +249,40 @@ export function SolutionSection() {
               >
                 <div className="flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border border-white/8 bg-white/4 p-3 shadow-[0_20px_60px_-40px_rgba(0,0,0,0.85)] sm:p-4">
                   <div className="relative aspect-16/10 w-full min-h-[320px] min-w-0 overflow-hidden rounded-xl bg-black/35 ring-1 ring-inset ring-white/6 sm:min-h-[400px] lg:min-h-[480px]">
-                    <Image
-                      src={step.src}
-                      alt={step.label}
-                      fill
-                      className="object-contain p-2 sm:p-3"
-                      sizes={
-                        index === 2
-                          ? "(min-width: 1024px) 1100px, 100vw"
-                          : "(min-width: 1024px) 520px, 100vw"
-                      }
-                    />
+                    {step.mobileSrc ? (
+                      <>
+                        <Image
+                          src={step.mobileSrc}
+                          alt={step.label}
+                          fill
+                          className="object-contain p-2 sm:hidden"
+                          sizes="100vw"
+                        />
+                        <Image
+                          src={step.src}
+                          alt={step.label}
+                          fill
+                          className="hidden object-contain p-3 sm:block"
+                          sizes={
+                            index === 2
+                              ? "(min-width: 1024px) 1100px, 100vw"
+                              : "(min-width: 1024px) 520px, 100vw"
+                          }
+                        />
+                      </>
+                    ) : (
+                      <Image
+                        src={step.src}
+                        alt={step.label}
+                        fill
+                        className="object-contain p-2 sm:p-3"
+                        sizes={
+                          index === 2
+                            ? "(min-width: 1024px) 1100px, 100vw"
+                            : "(min-width: 1024px) 520px, 100vw"
+                        }
+                      />
+                    )}
                   </div>
                   <p className="mt-3 px-1 text-left text-[14px] font-medium leading-snug tracking-[-0.01em] text-white sm:text-[15px] md:mt-4 md:text-[16px]">
                     {step.label}
@@ -358,7 +389,7 @@ export function PreviewSection() {
               />
               <div
                 aria-hidden
-                className="pointer-events-none absolute inset-x-0 bottom-0 h-[42%] bg-gradient-to-t from-[#0D0D0D] to-transparent"
+                className="pointer-events-none absolute inset-x-0 bottom-0 h-[42%] bg-linear-to-t from-[#0D0D0D] to-transparent"
               />
             </div>
           </div>
