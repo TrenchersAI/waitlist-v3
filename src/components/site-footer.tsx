@@ -99,7 +99,7 @@ export default function SiteFooter() {
                 </li>
                 <li>
                   <a
-                    href="https://discord.com"
+                    href="https://discord.gg/jakcSkCr"
                     target="_blank"
                     rel="noreferrer"
                     className={FOOTER_LINK_CLASS}
