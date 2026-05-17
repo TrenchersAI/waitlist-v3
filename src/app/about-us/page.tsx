@@ -35,7 +35,7 @@ export default function AboutUsPage() {
             X
           </a>
           <a
-            href="https://t.me"
+            href="https://t.me/trenchersai"
             target="_blank"
             rel="noreferrer"
             className="transition-colors hover:text-white"

@@ -89,7 +89,7 @@ export default function SiteFooter() {
                 </li>
                 <li>
                   <a
-                    href="https://t.me"
+                    href="https://t.me/trenchersai"
                     target="_blank"
                     rel="noreferrer"
                     className={FOOTER_LINK_CLASS}
