@@ -1,7 +1,36 @@
+import type { Metadata, ResolvingMetadata } from "next";
 import { cookies } from "next/headers";
 import Hero from "../components/hero";
 import TrenchersFeaturesGrid from "../components/trenchers-features-grid";
 import { VERIFIED_COOKIE_NAME } from "../lib/waitlist-session-client";
+import {
+  buildReferralMetadata,
+  resolveReferralPath,
+} from "@/src/lib/site-metadata";
+
+type HomePageProps = {
+  searchParams: Promise<{ ref?: string | string[] }>;
+};
+
+export async function generateMetadata({
+  searchParams,
+}: HomePageProps, parent: ResolvingMetadata): Promise<Metadata> {
+  const params = await searchParams;
+  const rawRefParam = params.ref;
+  const rawRef = Array.isArray(rawRefParam) ? rawRefParam[0] : rawRefParam;
+  const referralPath = resolveReferralPath(rawRef);
+
+  if (!referralPath) return {};
+  const parentMetadata = await parent;
+
+  return {
+    ...buildReferralMetadata(referralPath),
+    openGraph: {
+      ...parentMetadata.openGraph,
+      url: referralPath,
+    },
+  };
+}
 
 export default async function Home() {
   /** Server-side mirror of the verified-session flag. The actual referral

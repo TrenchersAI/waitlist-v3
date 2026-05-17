@@ -2,6 +2,16 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import SiteFooter from "../components/site-footer";
 import FinalCtaSection from "../components/final-cta-section";
+import {
+  SITE_DESCRIPTION,
+  SITE_ORIGIN,
+  SITE_TITLE,
+  SOCIAL_PREVIEW_IMAGE_ALT,
+  SOCIAL_PREVIEW_IMAGE_HEIGHT,
+  SOCIAL_PREVIEW_IMAGE_PATH,
+  SOCIAL_PREVIEW_IMAGE_WIDTH,
+  TRENCHERS_X_HANDLE,
+} from "@/src/lib/site-metadata";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -15,14 +25,16 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://trenchers.ai"),
+  metadataBase: new URL(SITE_ORIGIN),
   title: {
-    default: "TrenchersAI · AI-native trading terminal for the trenches",
+    default: SITE_TITLE,
     template: "%s · TrenchersAI",
   },
-  description:
-    "Spawn AI trading agents from chat. One terminal to discover, snipe, copy, track, and manage positions on Solana.",
+  description: SITE_DESCRIPTION,
   applicationName: "TrenchersAI",
+  alternates: {
+    canonical: "/",
+  },
   keywords: [
     "Solana",
     "trading terminal",
@@ -34,16 +46,32 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     siteName: "TrenchersAI",
-    title: "TrenchersAI · AI-native trading terminal for the trenches",
-    description:
-      "Spawn AI trading agents from chat. One terminal to discover, snipe, copy, track, and manage positions on Solana.",
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
     url: "/",
+    locale: "en_US",
+    images: [
+      {
+        url: SOCIAL_PREVIEW_IMAGE_PATH,
+        width: SOCIAL_PREVIEW_IMAGE_WIDTH,
+        height: SOCIAL_PREVIEW_IMAGE_HEIGHT,
+        alt: SOCIAL_PREVIEW_IMAGE_ALT,
+        type: "image/png",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "TrenchersAI · AI-native trading terminal for the trenches",
-    description:
-      "Spawn AI trading agents from chat. One terminal to discover, snipe, copy, track, and manage positions on Solana.",
+    site: TRENCHERS_X_HANDLE,
+    creator: TRENCHERS_X_HANDLE,
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+    images: [
+      {
+        url: SOCIAL_PREVIEW_IMAGE_PATH,
+        alt: SOCIAL_PREVIEW_IMAGE_ALT,
+      },
+    ],
   },
   robots: {
     index: true,

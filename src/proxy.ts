@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { resolveReferralPath } from "@/src/lib/site-metadata";
 
 /** Paths that must never be treated as referral codes. Both real Next.js
    routes and well-known assets/endpoints. Keep this in sync as the app grows. */
@@ -6,6 +7,7 @@ const RESERVED_SEGMENTS = new Set([
   "",
   "api",
   "analytics",
+  "about-us",
   "privacy",
   "terms",
   "_next",
@@ -14,21 +16,17 @@ const RESERVED_SEGMENTS = new Set([
   "sitemap.xml",
 ]);
 
-/** Match the same shape Prisma's cuid()-derived referral codes use:
-   alphanumeric, 6–12 lowercase chars/digits. Tightening this prevents
-   /aboutus or /dashboard typos from being misinterpreted as ref codes. */
-const REF_CODE_PATTERN = /^[a-z0-9]{6,12}$/;
-
 export function proxy(req: NextRequest) {
   const pathname = req.nextUrl.pathname;
   const segment = pathname.slice(1).split("/")[0];
 
   if (RESERVED_SEGMENTS.has(segment)) return NextResponse.next();
-  if (!REF_CODE_PATTERN.test(segment)) return NextResponse.next();
+  const referralPath = resolveReferralPath(segment);
+  if (!referralPath) return NextResponse.next();
 
   const url = req.nextUrl.clone();
   url.pathname = "/";
-  url.searchParams.set("ref", segment);
+  url.searchParams.set("ref", referralPath.slice(1));
   return NextResponse.rewrite(url);
 }
 
