@@ -73,7 +73,11 @@ export default function Hero({ initialVerified = false }: HeroProps) {
 
         <div
           id="waitlist"
-          className="relative mx-auto flex w-full min-w-0 max-w-6xl flex-col items-center px-5 pb-20 pt-32 text-center md:px-8 md:pt-40 md:pb-28"
+          className={`relative mx-auto flex w-full min-w-0 max-w-6xl flex-col items-center px-5 text-center md:px-8 ${
+            hasReturningVerifiedSession
+              ? "pb-16 pt-24 md:pt-32 md:pb-20"
+              : "pb-20 pt-32 md:pt-40 md:pb-28"
+          }`}
         >
           {!hasReturningVerifiedSession && (
             <div className="feature-strip-marquee mb-1 w-full max-w-[640px]">
@@ -100,7 +104,7 @@ export default function Hero({ initialVerified = false }: HeroProps) {
           <h1
             className={`text-balance font-medium leading-[1.04] tracking-[-0.02em] text-white ${
               hasReturningVerifiedSession
-                ? "mt-6 text-[34px] sm:text-[44px] md:text-[52px]"
+                ? "mt-2 text-[34px] sm:text-[44px] md:text-[52px]"
                 : "mt-7 max-w-[min(1120px,100%)] text-[40px] sm:text-[56px] md:text-[68px]"
             }`}
           >
@@ -125,7 +129,11 @@ export default function Hero({ initialVerified = false }: HeroProps) {
             </p>
           )}
 
-          <div className="mt-10 flex w-full justify-center md:mt-11">
+          <div
+            className={`flex w-full justify-center ${
+              hasReturningVerifiedSession ? "mt-6 md:mt-7" : "mt-10 md:mt-11"
+            }`}
+          >
             <EmailCapture
               initialVerified={initialVerified}
               onVerifiedFollowGateOpen={() =>
