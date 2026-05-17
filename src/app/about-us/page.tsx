@@ -27,7 +27,7 @@ export default function AboutUsPage() {
             Home
           </Link>
           <a
-            href="https://x.com"
+            href="https://x.com/TrenchersAI"
             target="_blank"
             rel="noreferrer"
             className="transition-colors hover:text-white"

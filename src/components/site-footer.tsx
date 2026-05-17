@@ -79,7 +79,7 @@ export default function SiteFooter() {
               <ul className="mt-4 flex flex-col gap-3">
                 <li>
                   <a
-                    href="https://x.com"
+                    href="https://x.com/TrenchersAI"
                     target="_blank"
                     rel="noreferrer"
                     className={FOOTER_LINK_CLASS}
