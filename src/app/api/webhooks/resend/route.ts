@@ -80,11 +80,7 @@ function verifySignature(params: {
 }
 
 function extractInviteIdFromTags(
-  tags: ResendEvent["data"] extends infer T
-    ? T extends { tags?: infer U }
-      ? U
-      : never
-    : never,
+  tags: NonNullable<ResendEvent["data"]>["tags"] | undefined,
 ): string | null {
   if (!tags) return null;
   if (Array.isArray(tags)) {
