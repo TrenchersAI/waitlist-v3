@@ -10,7 +10,11 @@ export default function FinalCtaSection() {
   const pathname = usePathname();
   const prefersReducedMotion = useReducedMotion();
 
-  if (pathname === "/analytics" || pathname?.startsWith("/analytics/")) {
+  if (
+    pathname === "/analytics" ||
+    pathname?.startsWith("/analytics/") ||
+    pathname?.startsWith("/survey")
+  ) {
     return null;
   }
 
@@ -31,7 +35,7 @@ export default function FinalCtaSection() {
           Join the vibe trenchers.
         </h2>
         <p className="mx-auto mt-4 max-w-[52ch] text-balance text-[15px] leading-[1.65] text-white/60 md:text-[16px]">
-          Join the waitlist for TrenchersAI—one terminal to discover, snipe,
+          Join the waitlist for TrenchersAI, one terminal to discover, snipe,
           copy, track, and manage positions with AI agents built for speed.
         </p>
         <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row sm:gap-4">

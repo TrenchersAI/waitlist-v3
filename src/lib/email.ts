@@ -205,12 +205,86 @@ export async function sendInternalAnalyticsOtpEmail(params: {
   return { ok: true as const, id: result.data?.id ?? null };
 }
 
+export type SurveyInviteSendParams = {
+  to: string;
+  surveyUrl: string;
+  unsubscribeUrl: string;
+  inviteId: string;
+  campaign: string;
+};
+
+/// Sends one survey-invite email. The batch script (scripts/send-survey-
+/// batch.ts) calls this in chunks. We set RFC-8058 List-Unsubscribe
+/// headers and a `tags` payload so the Resend webhook can join events
+/// back to the SurveyInvite row via either resendMsgId or inviteId.
+export async function sendSurveyInviteEmail(params: SurveyInviteSendParams) {
+  const appName = process.env.WAITLIST_APP_NAME ?? "Trenchers";
+  const subject = `${appName} · 2 min for priority Trencher access`;
+
+  let html: string;
+  try {
+    html = await buildSurveyInviteHtml({
+      surveyUrl: params.surveyUrl,
+      unsubscribeUrl: params.unsubscribeUrl,
+    });
+  } catch (err) {
+    console.error(
+      "Failed to build survey invite html, falling back:",
+      err,
+    );
+    html = `
+      <div style="font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;">
+        <h2 style="margin: 0 0 12px;">Help shape Trencher</h2>
+        <p style="margin: 0 0 16px;">
+          You're on the Trenchers waitlist. Answer 5 short questions and we'll
+          bump you up the queue for early access:
+        </p>
+        <p style="margin: 0 0 16px;">
+          <a href="${params.surveyUrl}" style="background:#fff;color:#000;padding:10px 18px;border-radius:999px;text-decoration:none;font-weight:700;">
+            Take the survey
+          </a>
+        </p>
+        <p style="margin: 0; color: #6b7280; font-size: 12px;">
+          Or open: <a href="${params.surveyUrl}">${params.surveyUrl}</a>
+        </p>
+      </div>
+    `;
+  }
+
+  const result = await sendEmail({
+    to: params.to,
+    subject,
+    html,
+    headers: {
+      // Gmail/Yahoo's Feb-2024 bulk-sender rules require List-Unsubscribe
+      // with the POST companion header. Without these, deliverability for
+      // a 2k blast tanks.
+      "List-Unsubscribe": `<${params.unsubscribeUrl}>`,
+      "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+    },
+    tags: [
+      { name: "campaign", value: params.campaign },
+      { name: "inviteId", value: params.inviteId },
+    ],
+  });
+
+  if ("skipped" in result) {
+    return result;
+  }
+  if (result.error) {
+    throw new Error(`Resend send failed: ${result.error.message}`);
+  }
+  return { ok: true as const, id: result.data?.id ?? null };
+}
+
 async function sendEmail(params: {
   to: string;
   subject: string;
   heading?: string;
   body?: string;
   html?: string;
+  headers?: Record<string, string>;
+  tags?: { name: string; value: string }[];
   attachments?: Array<{
     filename: string;
     content: string;
@@ -222,7 +296,7 @@ async function sendEmail(params: {
   if (!resend) {
     if (process.env.NODE_ENV === "development") {
       console.warn(
-        "[email] RESEND_API_KEY is missing — emails are not sent. Set it in .env",
+        "[email] RESEND_API_KEY is missing. Emails are not sent. Set it in .env",
       );
     }
     return { ok: false as const, skipped: true as const };
@@ -232,7 +306,7 @@ async function sendEmail(params: {
   if (!from) {
     if (process.env.NODE_ENV === "development") {
       console.warn(
-        "[email] RESEND_FROM_EMAIL is missing — use an address on your verified Resend domain",
+        "[email] RESEND_FROM_EMAIL is missing. Use an address on your verified Resend domain",
       );
     }
     throw new Error("RESEND_FROM_EMAIL is not set.");
@@ -243,6 +317,8 @@ async function sendEmail(params: {
     to: params.to,
     subject: params.subject,
     attachments: params.attachments,
+    headers: params.headers,
+    tags: params.tags,
     html:
       params.html ??
       `
@@ -298,6 +374,43 @@ async function buildWelcomeEmailHtml() {
       'src="/trenchers-component.svg"',
       `src="${assetsUrl}/welcome-component.jpg?v=2"`,
     )
+    .replace(/href="\/terms"/g, `href="${appUrl}/terms"`)
+    .replace(/href="\/privacy"/g, `href="${appUrl}/privacy"`);
+}
+
+async function buildSurveyInviteHtml(params: {
+  surveyUrl: string;
+  unsubscribeUrl: string;
+}) {
+  const templatePath = join(
+    process.cwd(),
+    "src/email-templates/survey-invite/index.html",
+  );
+  const stylesPath = join(
+    process.cwd(),
+    "src/email-templates/survey-invite/styles.css",
+  );
+  const [templateHtml, templateCss] = await Promise.all([
+    readFile(templatePath, "utf-8"),
+    readFile(stylesPath, "utf-8"),
+  ]);
+
+  const appUrl =
+    process.env.NEXT_PUBLIC_SITE_URL ??
+    process.env.WAITLIST_SITE_URL ??
+    "https://trenchers.ai";
+  const assetsUrl =
+    process.env.EMAIL_ASSETS_URL ??
+    "https://assets.trenchers.ai/email-assets";
+
+  return templateHtml
+    .replace(
+      '<link rel="stylesheet" href="./styles.css" />',
+      `<style>${templateCss}</style>`,
+    )
+    .replaceAll("{{LOGO_URL}}", `${assetsUrl}/welcome-logo.png?v=2`)
+    .replaceAll("{{SURVEY_URL}}", params.surveyUrl)
+    .replaceAll("{{UNSUBSCRIBE_URL}}", params.unsubscribeUrl)
     .replace(/href="\/terms"/g, `href="${appUrl}/terms"`)
     .replace(/href="\/privacy"/g, `href="${appUrl}/privacy"`);
 }

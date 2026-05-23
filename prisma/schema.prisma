@@ -21,6 +21,7 @@ model WaitlistSubscriber {
   otpExpiresAt DateTime?
   createdAt    DateTime             @default(now())
   updatedAt    DateTime             @updatedAt
+  surveyInvite SurveyInvite?
 
   @@index([referredById])
   // Analytics aggregates date-bucket by createdAt / verifiedAt on every
@@ -28,6 +29,80 @@ model WaitlistSubscriber {
   // from degrading to sequential scans.
   @@index([createdAt])
   @@index([verifiedAt])
+}
+
+/// One row per (campaign, subscriber). Created up-front by the send script
+/// so we can join Resend webhook events back to the subscriber via
+/// `resendMsgId`, and so the survey URL token resolves to exactly one row.
+model SurveyInvite {
+  id           String   @id @default(cuid())
+  campaign     String   @default("trader-research-v1")
+  subscriberId String   @unique
+  subscriber   WaitlistSubscriber @relation(fields: [subscriberId], references: [id], onDelete: Cascade)
+  token        String   @unique
+  resendMsgId  String?  @unique
+  sentAt       DateTime?
+  deliveredAt  DateTime?
+  openedAt     DateTime?
+  clickedAt    DateTime?
+  bouncedAt    DateTime?
+  complainedAt DateTime?
+  unsubscribedAt DateTime?
+  createdAt    DateTime @default(now())
+  response     SurveyResponse?
+
+  @@index([campaign])
+  @@index([sentAt])
+}
+
+/// Created the first time a recipient opens the survey URL. We keep it
+/// even if they bail before submitting — the absence of `completedAt` plus
+/// the set of `SurveyAnswer` rows tells us where they dropped.
+model SurveyResponse {
+  id              String   @id @default(cuid())
+  inviteId        String   @unique
+  invite          SurveyInvite @relation(fields: [inviteId], references: [id], onDelete: Cascade)
+  startedAt       DateTime @default(now())
+  lastTouchedAt   DateTime @default(now())
+  completedAt     DateTime?
+  ipCountry       String?
+  userAgent       String?
+  twitter         String?
+  telegram        String?
+  countryAnswer   String?
+  answers         SurveyAnswer[]
+
+  @@index([completedAt])
+}
+
+/// One row per (response, question). On-blur autosave from the client
+/// upserts here so we know which fields the user actually engaged with
+/// before bailing.
+model SurveyAnswer {
+  id          String   @id @default(cuid())
+  responseId  String
+  response    SurveyResponse @relation(fields: [responseId], references: [id], onDelete: Cascade)
+  questionKey String
+  valueJson   Json
+  answeredAt  DateTime @default(now())
+
+  @@unique([responseId, questionKey])
+  @@index([questionKey])
+}
+
+/// Raw audit log of Resend webhook events. We also fold the relevant
+/// timestamps onto SurveyInvite for fast dashboard reads — this table is
+/// for forensics / debugging when a number looks wrong.
+model EmailEvent {
+  id          String   @id @default(cuid())
+  resendMsgId String
+  type        String
+  payload     Json
+  occurredAt  DateTime
+  createdAt   DateTime @default(now())
+
+  @@index([resendMsgId])
+  @@index([type])
 }
 
 /** OTP challenge for /analytics (team @trenchers.ai only). Not waitlist data. */

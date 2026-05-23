@@ -11,6 +11,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import { createPortal } from "react-dom";
+import { useRouter } from "next/navigation";
 import { BorderBeam } from "border-beam";
 import { motion, useReducedMotion } from "motion/react";
 import XIcon from "../icons/x-icon";
@@ -122,6 +123,12 @@ export default function EmailCapture({
   const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">(
     "idle",
   );
+  // Inline state for the "Help us shape Trenchers" survey CTA. Lets us
+  // transform the card in place ("Loading your trench…") while we look up
+  // the user's invite token, instead of bouncing them through a separate
+  // /survey loading splash.
+  const [surveyLoading, setSurveyLoading] = useState(false);
+  const router = useRouter();
   const prefersReducedMotion = useReducedMotion();
   const fadeUpVariants = prefersReducedMotion ? reducedFadeUp : fadeUp;
   const otpInputRefs = useRef<Array<HTMLInputElement | null>>([]);
@@ -399,6 +406,23 @@ export default function EmailCapture({
     setIsVerified(true);
   }, [storedVerifiedEmail, email]);
 
+  // bfcache rescue. Hard-navigating out of this page (e.g., the Survey
+  // CTA's `window.location.href = "/survey/<token>"`) gets the homepage
+  // frozen into the browser back-forward cache. On the back navigation
+  // the page is restored as-is; React state is intact in principle but
+  // useEffects don't re-fire, leaving the verified-state fetch in a stale
+  // "still loading" condition and the dashboard stuck on the loader. The
+  // canonical fix is to listen for `pageshow` with `event.persisted` set
+  // (true only on bfcache restores) and force a reload, which cleanly
+  // re-derives everything.
+  useEffect(() => {
+    const onPageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) window.location.reload();
+    };
+    window.addEventListener("pageshow", onPageShow);
+    return () => window.removeEventListener("pageshow", onPageShow);
+  }, []);
+
   /** Cookie/localStorage divergence guard. The SSR cookie said verified, but
      the post-hydration snapshot reveals an empty localStorage (e.g., user
      cleared site data in another tab while the cookie lingered). Wipe both
@@ -544,6 +568,48 @@ Let's run it up together!
 join the trenches:`;
     const intentUrl = `https://t.me/share/url?url=${encodeURIComponent(referralUrl)}&text=${encodeURIComponent(telegramText)}`;
     window.open(intentUrl, "_blank", "noopener,noreferrer");
+  };
+
+  // CTA click handler: hits /api/survey/lookup with the verified email,
+  // resolves to the user's invite token, and SPA-navigates to /survey/
+  // <token>. Falls back to the public /survey entry on any unverified /
+  // lookup-failure case so the email+OTP flow can take over. We use
+  // router.push (not window.location.href) so the homepage stays mounted
+  // in the React tree — back navigation restores its state cleanly
+  // instead of going through bfcache, which would otherwise leave the
+  // "You're in the trenches" deck stuck on the loading skeleton.
+  const handleOpenSurvey = async () => {
+    if (surveyLoading) return;
+    setSurveyLoading(true);
+    const verifiedEmail =
+      readStoredVerifiedEmail() || normalizedEmail;
+    const navigate = (path: string) => {
+      router.push(path);
+      // Reset the inline label after the route change so a quick back-
+      // navigation doesn't leave the CTA stuck on "Loading your trench…".
+      window.setTimeout(() => setSurveyLoading(false), 600);
+    };
+    try {
+      if (verifiedEmail) {
+        const res = await fetch("/api/survey/lookup", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: verifiedEmail }),
+        });
+        if (res.ok) {
+          const data = (await res.json()) as
+            | { status: "ok"; token: string }
+            | { status: "needs_otp" };
+          if (data.status === "ok") {
+            navigate(`/survey/${data.token}`);
+            return;
+          }
+        }
+      }
+      navigate("/survey");
+    } catch {
+      navigate("/survey");
+    }
   };
 
   useEffect(() => {
@@ -735,6 +801,47 @@ join the trenches:`;
                   </button>
                 </div>
               </div>
+            </div>
+
+            {/* Survey CTA — bumps verified subscribers up the queue and
+               doubles as the discovery surface for users who can't find /
+               opted out of the survey email. */}
+            <div className="mt-4">
+              <button
+                type="button"
+                onClick={() => void handleOpenSurvey()}
+                disabled={surveyLoading}
+                aria-busy={surveyLoading}
+                className="group block w-full rounded-[12px] border border-white/10 bg-[radial-gradient(circle_at_top_right,rgba(94,104,255,0.18),transparent_60%)] bg-black/35 p-4 text-left transition-colors hover:border-white/20 hover:bg-black/45 disabled:cursor-wait disabled:opacity-90 disabled:hover:border-white/10"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-[10.5px] font-medium tracking-[0.12em] text-white/55 uppercase">
+                      Priority access · 2 min
+                    </p>
+                    <p className="mt-1.5 text-[14px] font-medium text-[#fafafa]">
+                      {surveyLoading
+                        ? "Loading your trench…"
+                        : "Help us shape Trenchers"}
+                    </p>
+                    <p className="mt-0.5 text-[12px] leading-snug text-white/55">
+                      {surveyLoading
+                        ? "Finding your invite. One sec."
+                        : "Quick survey about how you trade. Bumps you up the queue."}
+                    </p>
+                  </div>
+                  <span
+                    aria-hidden
+                    className="inline-flex size-9 shrink-0 items-center justify-center rounded-full border border-white/12 bg-white/[0.04] text-[15px] text-white/75 transition-colors group-hover:border-white/25 group-hover:bg-white/[0.08] group-hover:text-white"
+                  >
+                    {surveyLoading ? (
+                      <span className="block size-4 animate-spin rounded-full border-2 border-white/20 border-t-white/80" />
+                    ) : (
+                      "→"
+                    )}
+                  </span>
+                </div>
+              </button>
             </div>
           </>
         )}

@@ -1,9 +1,11 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import {
   ChevronsLeft,
   ChevronsRight,
+  ClipboardList,
   LayoutDashboard,
   Share2,
   Trophy,
@@ -59,6 +61,23 @@ export function AnalyticsSidebar({
     >
         <SidebarHeader collapsed={collapsed} />
         <SidebarNav active={active} onChange={onChange} collapsed={collapsed} />
+        <div className="border-t border-white/5 p-2">
+          <Link
+            href="/analytics/survey"
+            title={collapsed ? "Survey" : undefined}
+            className={cn(
+              "flex h-9 items-center gap-2.5 rounded-md px-2 text-sm font-medium text-white/55 transition-colors hover:bg-white/[0.04] hover:text-white",
+              collapsed && "justify-center",
+            )}
+          >
+            <ClipboardList className="size-4 shrink-0 text-white/55" aria-hidden />
+            {!collapsed ? (
+              <span className="truncate">Survey</span>
+            ) : (
+              <span className="sr-only">Survey</span>
+            )}
+          </Link>
+        </div>
         <div className="mt-auto border-t border-white/5 p-2">
           <button
             type="button"

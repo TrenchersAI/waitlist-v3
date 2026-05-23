@@ -163,7 +163,7 @@ function emailInitial(email: string): string {
 }
 
 function pct(n: number, digits = 0): string {
-  if (!Number.isFinite(n)) return "—";
+  if (!Number.isFinite(n)) return "-";
   return `${(n * 100).toFixed(digits)}%`;
 }
 
@@ -1407,7 +1407,7 @@ function KpiRow({
         }
         hint={
           referrals
-            ? `${referrals.stats.referredCreatedInRange} of ${stats?.rangeTotals.signupsStarted ?? "—"} came via referral`
+            ? `${referrals.stats.referredCreatedInRange} of ${stats?.rangeTotals.signupsStarted ?? "-"} came via referral`
             : null
         }
         sparkValues={dailySplitTrimmed?.referred ?? null}
@@ -1478,7 +1478,7 @@ function ReferralKpiRow({
         }
         hint={
           referrals
-            ? `${referrals.stats.referredCreatedInRange} of ${stats?.rangeTotals.signupsStarted ?? "—"} came via referral`
+            ? `${referrals.stats.referredCreatedInRange} of ${stats?.rangeTotals.signupsStarted ?? "-"} came via referral`
             : null
         }
         sparkValues={dailySplitTrimmed?.referred ?? null}
@@ -1726,7 +1726,7 @@ function SignupsTable({
                         <td className="py-3 pr-4 font-mono text-[11px] whitespace-nowrap text-white/45">
                           {row.verifiedAt
                             ? formatJoinedDate(row.verifiedAt)
-                            : "—"}
+                            : "-"}
                         </td>
                         <td className="py-3 pr-4 text-right">
                           <span className="font-mono text-sm tabular-nums text-white">

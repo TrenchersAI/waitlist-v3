@@ -9,6 +9,7 @@ const RESERVED_SEGMENTS = new Set([
   "analytics",
   "about-us",
   "privacy",
+  "survey",
   "terms",
   "_next",
   "favicon.ico",
