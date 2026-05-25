@@ -10,9 +10,78 @@
 import "dotenv/config";
 import { randomBytes } from "node:crypto";
 
+import { Resend } from "resend";
+
 import { sendSurveyInviteEmail } from "../src/lib/email";
 import { getPrismaClient } from "../src/lib/prisma";
 import { SURVEY_CAMPAIGN } from "../src/lib/survey";
+
+// Pull the bare address out of a From header that may be either
+// "Name <user@domain>" or "user@domain", then return its domain.
+function domainFromAddress(fromEmail: string): string | null {
+  const angle = fromEmail.match(/<([^>]+)>/);
+  const addr = (angle ? angle[1] : fromEmail).trim();
+  const at = addr.lastIndexOf("@");
+  return at === -1 ? null : addr.slice(at + 1).toLowerCase();
+}
+
+// Preflight: ask Resend whether the From domain can actually send before
+// we touch the DB or attempt a send. `capabilities.sending` is the
+// authoritative flag — a domain can be `partially_verified` (e.g. DMARC
+// still pending) yet already cleared to send. Exits non-zero with a clear
+// message when the domain is missing or not sending-enabled.
+async function preflightDomainCheck() {
+  const apiKey = process.env.RESEND_API_KEY;
+  const fromEmail = process.env.RESEND_FROM_EMAIL;
+  if (!apiKey) {
+    console.error("RESEND_API_KEY is not set — cannot send. Set it in .env.");
+    process.exit(1);
+  }
+  if (!fromEmail) {
+    console.error(
+      "RESEND_FROM_EMAIL is not set — set it to an address on your verified Resend domain.",
+    );
+    process.exit(1);
+  }
+  const domain = domainFromAddress(fromEmail);
+  if (!domain) {
+    console.error(
+      `Could not parse a domain from RESEND_FROM_EMAIL="${fromEmail}".`,
+    );
+    process.exit(1);
+  }
+
+  const resend = new Resend(apiKey);
+  const { data, error } = await resend.domains.list();
+  if (error) {
+    console.warn(
+      `Domain preflight skipped: could not list Resend domains (${error.message}). The send below will still surface any auth/domain error.`,
+    );
+    return;
+  }
+
+  const domains = data?.data ?? [];
+  const match = domains.find((d) => d.name.toLowerCase() === domain);
+
+  console.log("Resend domain preflight:");
+  if (!match) {
+    console.error(
+      `  ✗ "${domain}" is not in this Resend account. Add & verify it at https://resend.com/domains, or check that RESEND_API_KEY belongs to the right account.`,
+    );
+    process.exit(1);
+  }
+  const sending = match.capabilities?.sending ?? "disabled";
+  console.log(`  domain:   ${match.name}`);
+  console.log(`  status:   ${match.status}`);
+  console.log(`  sending:  ${sending}`);
+  if (sending !== "enabled") {
+    console.error(
+      `  ✗ Sending is not enabled for "${domain}" yet — Resend will reject the send. Finish verification at https://resend.com/domains.`,
+    );
+    process.exit(1);
+  }
+  console.log(`  ✓ "${domain}" is cleared to send. Proceeding…\n`);
+}
 
 async function main() {
   const to = process.argv[2];
@@ -20,6 +89,9 @@ async function main() {
     console.error("usage: tsx scripts/send-test-survey.ts <email>");
     process.exit(1);
   }
+
+  // Fail fast (before any DB writes) if the sending domain isn't ready.
+  await preflightDomainCheck();
 
   const siteUrl =
     process.env.SURVEY_TEST_SITE_URL ??
