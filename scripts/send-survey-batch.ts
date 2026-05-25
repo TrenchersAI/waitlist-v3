@@ -41,7 +41,7 @@ const BATCH_SIZE = 100;
 const SLEEP_MS_BETWEEN_BATCHES = 600;
 
 const SUBJECT =
-  "Following up, you're still being considered for priority access";
+  "[REMINDER] You're still being considered for priority access";
 
 function parseArgs() {
   const args = process.argv.slice(2);
