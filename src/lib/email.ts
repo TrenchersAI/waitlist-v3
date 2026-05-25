@@ -243,10 +243,6 @@ export async function sendSurveyInviteEmail(params: SurveyInviteSendParams) {
         <p>You're still being considered for early access to Trenchers, and your spot is being held.</p>
         <p>To make our final call, we need to know how you trade. It's a quick 2-minute survey, and <a href="${params.surveyUrl}" style="color:#1a1a1a;text-decoration:underline;">you can take it here</a>.</p>
         <p style="color:#555;">Thanks,<br/>TrenchersAI</p>
-        <p style="font-size:12px;color:#999;margin-top:40px;">
-          You're getting this because you joined the Trenchers waitlist.
-          <a href="${params.unsubscribeUrl}" style="color:#999;">Unsubscribe</a>.
-        </p>
       </div>
     `;
   }
@@ -444,9 +440,6 @@ export function buildSurveyInviteText(params: {
     "",
     "Thanks,",
     "TrenchersAI",
-    "",
-    "---",
-    `You're getting this because you joined the Trenchers waitlist. Unsubscribe: ${params.unsubscribeUrl}`,
   ].join("\n");
 }
 
