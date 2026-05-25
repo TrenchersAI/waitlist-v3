@@ -28,7 +28,6 @@ import { Resend } from "resend";
 import {
   buildSurveyInviteHtml,
   buildSurveyInviteText,
-  greetingNameFromEmail,
 } from "../src/lib/email";
 import { getPrismaClient } from "../src/lib/prisma";
 import { SURVEY_CAMPAIGN } from "../src/lib/survey";
@@ -170,17 +169,11 @@ async function main() {
       chunk.map(async (inv) => {
         const surveyUrl = `${siteUrl}/survey/${inv.token}`;
         const unsubscribeUrl = `${siteUrl}/api/survey/unsubscribe?token=${inv.token}`;
-        const firstName = greetingNameFromEmail(inv.subscriber.email);
         const html = await buildSurveyInviteHtml({
           surveyUrl,
           unsubscribeUrl,
-          firstName,
         });
-        const text = buildSurveyInviteText({
-          surveyUrl,
-          unsubscribeUrl,
-          firstName,
-        });
+        const text = buildSurveyInviteText({ surveyUrl, unsubscribeUrl });
         return {
           from: fromEmail!,
           to: inv.subscriber.email,

@@ -217,38 +217,7 @@ export type SurveyInviteSendParams = {
 /// batch.ts) calls this in chunks. We set RFC-8058 List-Unsubscribe
 /// headers and a `tags` payload so the Resend webhook can join events
 /// back to the SurveyInvite row via either resendMsgId or inviteId.
-// Best-effort first name for the greeting. We only store `email`, so we
-// derive a name from the local-part: the leading run of letters, title-
-// cased. A 1:1-looking "Hey Harsh," reads as Primary-tab personal mail
-// where a bare "Hey," reads as a mail-merge. When the local-part can't
-// yield a plausible name (too short/long, or a role mailbox like
-// info@/support@) we fall back to "there" rather than ship a mangled
-// "Hey Jdoe," that looks worse than no name at all.
-const ROLE_MAILBOXES = new Set([
-  "info",
-  "support",
-  "team",
-  "hello",
-  "admin",
-  "contact",
-  "sales",
-  "noreply",
-  "no-reply",
-  "help",
-  "billing",
-  "office",
-]);
-
-export function greetingNameFromEmail(email: string): string {
-  const local = (email.split("@")[0] ?? "").toLowerCase();
-  if (ROLE_MAILBOXES.has(local)) return "there";
-  const lead = local.match(/^[a-z]+/)?.[0] ?? "";
-  if (lead.length < 2 || lead.length > 15) return "there";
-  return lead.charAt(0).toUpperCase() + lead.slice(1);
-}
-
 export async function sendSurveyInviteEmail(params: SurveyInviteSendParams) {
-  const firstName = greetingNameFromEmail(params.to);
   // Subject: conversational, no symbols, no all-caps, no "trigger" words
   // like "FREE / exclusive / limited time". Reads like a real person
   // writing — Gmail's Primary-tab classifier prefers this over the
@@ -262,7 +231,6 @@ export async function sendSurveyInviteEmail(params: SurveyInviteSendParams) {
     html = await buildSurveyInviteHtml({
       surveyUrl: params.surveyUrl,
       unsubscribeUrl: params.unsubscribeUrl,
-      firstName,
     });
   } catch (err) {
     console.error(
@@ -271,7 +239,7 @@ export async function sendSurveyInviteEmail(params: SurveyInviteSendParams) {
     );
     html = `
       <div style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:520px;margin:0 auto;padding:36px 24px;color:#1a1a1a;font-size:16px;line-height:1.6;">
-        <p>Hey ${firstName},</p>
+        <p>Hey,</p>
         <p>You're being considered for early access to Trenchers.</p>
         <p>To make our final call on who joins the first wave in the trenches, we need to know more about how you trade. It's a quick 2-minute survey, and <a href="${params.surveyUrl}" style="color:#1a1a1a;text-decoration:underline;">you can take it here</a>.</p>
         <p style="color:#555;">Thanks,<br/>TrenchersAI</p>
@@ -286,7 +254,6 @@ export async function sendSurveyInviteEmail(params: SurveyInviteSendParams) {
   const text = buildSurveyInviteText({
     surveyUrl: params.surveyUrl,
     unsubscribeUrl: params.unsubscribeUrl,
-    firstName,
   });
 
   const result = await sendEmail({
@@ -442,7 +409,6 @@ async function buildWelcomeEmailHtml() {
 export async function buildSurveyInviteHtml(params: {
   surveyUrl: string;
   unsubscribeUrl: string;
-  firstName: string;
 }) {
   // Inline styles only — no separate stylesheet. Marketing-CSS shells
   // (linked stylesheet, multi-column tables, gradient header) push the
@@ -455,7 +421,6 @@ export async function buildSurveyInviteHtml(params: {
   const templateHtml = await readFile(templatePath, "utf-8");
 
   return templateHtml
-    .replaceAll("{{FIRST_NAME}}", params.firstName)
     .replaceAll("{{SURVEY_URL}}", params.surveyUrl)
     .replaceAll("{{UNSUBSCRIBE_URL}}", params.unsubscribeUrl);
 }
@@ -467,10 +432,9 @@ export async function buildSurveyInviteHtml(params: {
 export function buildSurveyInviteText(params: {
   surveyUrl: string;
   unsubscribeUrl: string;
-  firstName: string;
 }) {
   return [
-    `Hey ${params.firstName},`,
+    "Hey,",
     "",
     "You're being considered for early access to Trenchers.",
     "",
