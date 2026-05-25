@@ -1199,15 +1199,28 @@ function Sparkline({
   height,
   color = "white",
   strokeWidth = 1.5,
+  fluid = false,
 }: {
   values: number[];
   width: number;
   height: number;
   color?: string;
   strokeWidth?: number;
+  /** When true, the SVG renders at `width: 100%` of its parent. The
+     viewBox stays in the original pixel coordinate space (so the line
+     math is unchanged) and `preserveAspectRatio="none"` stretches the
+     drawing horizontally. Use this in narrow / responsive containers
+     like KPI cards where the parent decides the final width. */
+  fluid?: boolean;
 }) {
   if (values.length < 2) {
-    return <div style={{ width, height }} aria-hidden />;
+    return (
+      <div
+        style={fluid ? { height } : { width, height }}
+        className={fluid ? "w-full" : undefined}
+        aria-hidden
+      />
+    );
   }
   const max = Math.max(1, ...values);
   const pad = strokeWidth;
@@ -1223,11 +1236,11 @@ function Sparkline({
   const areaPts = `${pad},${h} ${pts} ${w - pad},${h}`;
   return (
     <svg
-      width={w}
+      width={fluid ? "100%" : w}
       height={h}
       viewBox={`0 0 ${w} ${h}`}
       preserveAspectRatio="none"
-      className="block"
+      className={fluid ? "block w-full" : "block"}
       aria-hidden
     >
       <defs>
@@ -1539,7 +1552,7 @@ function KpiCard({
         ) : (
           <Skeleton className="h-3 w-44 max-w-full" />
         )}
-        <div className="-mx-1">
+        <div className="w-full">
           {sparkValues === null ? (
             <Skeleton className="h-9 w-full" />
           ) : sparkValues.length > 1 ? (
@@ -1549,6 +1562,7 @@ function KpiCard({
               height={36}
               color="rgb(129 140 248)"
               strokeWidth={1.25}
+              fluid
             />
           ) : (
             // Loaded but not enough points to draw — leave the slot empty
