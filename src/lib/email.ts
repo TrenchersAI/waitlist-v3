@@ -218,13 +218,13 @@ export type SurveyInviteSendParams = {
 /// headers and a `tags` payload so the Resend webhook can join events
 /// back to the SurveyInvite row via either resendMsgId or inviteId.
 export async function sendSurveyInviteEmail(params: SurveyInviteSendParams) {
-  // Subject: conversational, no symbols, no all-caps, no "trigger" words
-  // like "FREE / exclusive / limited time". Reads like a real person
-  // writing — Gmail's Primary-tab classifier prefers this over the
-  // marketing pattern we shipped first. Comma instead of em dash per
-  // the project-wide UI-copy convention.
+  // Subject: conversational follow-up, no symbols, no all-caps, no
+  // "trigger" words like "FREE / exclusive / limited time". Reads like a
+  // real person nudging you — Gmail's Primary-tab classifier prefers this
+  // over the marketing pattern we shipped first. Comma instead of em dash
+  // per the project-wide UI-copy convention.
   const subject =
-    "Quick question, you're being considered for priority access";
+    "Following up, you're still being considered for priority access";
 
   let html: string;
   try {
@@ -240,8 +240,8 @@ export async function sendSurveyInviteEmail(params: SurveyInviteSendParams) {
     html = `
       <div style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:520px;margin:0 auto;padding:36px 24px;color:#1a1a1a;font-size:16px;line-height:1.6;">
         <p>Hey,</p>
-        <p>You're being considered for early access to Trenchers.</p>
-        <p>To make our final call on who joins the first wave in the trenches, we need to know more about how you trade. It's a quick 2-minute survey, and <a href="${params.surveyUrl}" style="color:#1a1a1a;text-decoration:underline;">you can take it here</a>.</p>
+        <p>Just following up, you're still being considered for early access to Trenchers and I don't want you to miss your spot.</p>
+        <p>We still need to know how you trade to make our final call. It's a quick 2-minute survey, and <a href="${params.surveyUrl}" style="color:#1a1a1a;text-decoration:underline;">you can take it here</a>.</p>
         <p style="color:#555;">Thanks,<br/>TrenchersAI</p>
         <p style="font-size:12px;color:#999;margin-top:40px;">
           You're getting this because you joined the Trenchers waitlist.
@@ -274,7 +274,7 @@ export async function sendSurveyInviteEmail(params: SurveyInviteSendParams) {
       // address instead of bouncing — another deliverability signal.
       "List-Unsubscribe": `<${params.unsubscribeUrl}>`,
       "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
-      "Reply-To": process.env.RESEND_REPLY_TO ?? "harsh@trenchers.ai",
+      "Reply-To": process.env.RESEND_REPLY_TO ?? "prakhar@trenchers.ai",
     },
     tags: [
       { name: "campaign", value: params.campaign },
@@ -436,9 +436,9 @@ export function buildSurveyInviteText(params: {
   return [
     "Hey,",
     "",
-    "You're being considered for early access to Trenchers.",
+    "Just following up, you're still being considered for early access to Trenchers and I don't want you to miss your spot.",
     "",
-    "To make our final call on who joins the first wave in the trenches, we need to know more about how you trade. It's a quick 2-minute survey, and you can take it here:",
+    "We still need to know how you trade to make our final call. It's a quick 2-minute survey, and you can take it here:",
     "",
     params.surveyUrl,
     "",

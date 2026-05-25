@@ -41,7 +41,7 @@ const BATCH_SIZE = 100;
 const SLEEP_MS_BETWEEN_BATCHES = 600;
 
 const SUBJECT =
-  "Quick question, you're being considered for priority access";
+  "Following up, you're still being considered for priority access";
 
 function parseArgs() {
   const args = process.argv.slice(2);
@@ -83,7 +83,7 @@ async function main() {
     "https://trenchers.ai"
   ).replace(/\/$/, "");
 
-  const replyTo = process.env.RESEND_REPLY_TO ?? "harsh@trenchers.ai";
+  const replyTo = process.env.RESEND_REPLY_TO ?? "prakhar@trenchers.ai";
 
   console.log(`\nSurvey campaign: ${SURVEY_CAMPAIGN}`);
   console.log(`Site URL:        ${siteUrl}`);
