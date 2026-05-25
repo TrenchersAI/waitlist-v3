@@ -40,7 +40,9 @@ import { SURVEY_CAMPAIGN } from "../src/lib/survey";
 const BATCH_SIZE = 100;
 const SLEEP_MS_BETWEEN_BATCHES = 600;
 
-const SUBJECT = "You're still being considered for priority access";
+// This script is the INVITE path — first send to new signups. The reminder
+// follow-up to non-completers lives in scripts/send-survey-reminder.ts.
+const SUBJECT = "You're being considered for priority access";
 
 function parseArgs() {
   const args = process.argv.slice(2);
@@ -171,8 +173,13 @@ async function main() {
         const html = await buildSurveyInviteHtml({
           surveyUrl,
           unsubscribeUrl,
+          variant: "invite",
         });
-        const text = buildSurveyInviteText({ surveyUrl, unsubscribeUrl });
+        const text = buildSurveyInviteText({
+          surveyUrl,
+          unsubscribeUrl,
+          variant: "invite",
+        });
         return {
           from: fromEmail!,
           to: inv.subscriber.email,

@@ -42,6 +42,11 @@ model SurveyInvite {
   token        String   @unique
   resendMsgId  String?  @unique
   sentAt       DateTime?
+  /// Set when the follow-up reminder email goes out (a second send to
+  /// non-completers). Separate from `sentAt` so first-send analytics stay
+  /// intact, and so the reminder batch is resumable: a crashed 10-hour run
+  /// re-runs and skips anyone already reminded.
+  reminderSentAt DateTime?
   deliveredAt  DateTime?
   openedAt     DateTime?
   clickedAt    DateTime?

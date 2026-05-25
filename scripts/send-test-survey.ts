@@ -86,9 +86,14 @@ async function preflightDomainCheck() {
 async function main() {
   const to = process.argv[2];
   if (!to) {
-    console.error("usage: tsx scripts/send-test-survey.ts <email>");
+    console.error(
+      "usage: tsx scripts/send-test-survey.ts <email> [invite|reminder]",
+    );
     process.exit(1);
   }
+  // Second arg picks which email to test; defaults to the reminder.
+  const variant = process.argv[3] === "invite" ? "invite" : "reminder";
+  console.log(`Variant:     ${variant}`);
 
   // Fail fast (before any DB writes) if the sending domain isn't ready.
   await preflightDomainCheck();
@@ -154,6 +159,7 @@ async function main() {
     unsubscribeUrl,
     inviteId: invite.id,
     campaign: invite.campaign,
+    variant,
   });
 
   if ("skipped" in result) {

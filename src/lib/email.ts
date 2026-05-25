@@ -205,29 +205,61 @@ export async function sendInternalAnalyticsOtpEmail(params: {
   return { ok: true as const, id: result.data?.id ?? null };
 }
 
+export type SurveyVariant = "invite" | "reminder";
+
+/// Per-variant copy. The HTML body lives in the template files
+/// (src/email-templates/survey-{invite,reminder}/); `intro` + `askLead`
+/// here drive the plain-text alternative and the HTML fallback so they
+/// stay consistent with the template wording.
+const SURVEY_COPY: Record<
+  SurveyVariant,
+  { subject: string; templateDir: string; intro: string; askLead: string }
+> = {
+  invite: {
+    subject: "You're being considered for priority access",
+    templateDir: "survey-invite",
+    intro: "You're being considered for early access to Trenchers.",
+    askLead:
+      "To make our final call on who joins the first wave in the trenches, we need to know more about how you trade. It's a quick 2-minute survey, and",
+  },
+  reminder: {
+    subject: "You're still being considered for priority access",
+    templateDir: "survey-reminder",
+    intro:
+      "You're still being considered for early access to Trenchers, and your spot is being held.",
+    askLead:
+      "To make our final call, we need to know how you trade. It's a quick 2-minute survey, and",
+  },
+};
+
 export type SurveyInviteSendParams = {
   to: string;
   surveyUrl: string;
   unsubscribeUrl: string;
   inviteId: string;
   campaign: string;
+  /// "invite" = first send to new signups; "reminder" = follow-up to
+  /// non-completers. Selects subject, template, and body copy.
+  variant: SurveyVariant;
 };
 
-/// Sends one survey-invite email. The batch script (scripts/send-survey-
-/// batch.ts) calls this in chunks. We set RFC-8058 List-Unsubscribe
-/// headers and a `tags` payload so the Resend webhook can join events
-/// back to the SurveyInvite row via either resendMsgId or inviteId.
+/// Sends one survey email (invite or reminder). The batch scripts call this
+/// in chunks. We set RFC-8058 List-Unsubscribe headers and a `tags` payload
+/// so the Resend webhook can join events back to the SurveyInvite row via
+/// either resendMsgId or inviteId.
 export async function sendSurveyInviteEmail(params: SurveyInviteSendParams) {
-  // Subject: a follow-up reminder, kept conversational with no brackets,
-  // all-caps, or "trigger" words ("FREE / exclusive / limited time") —
-  // those read as automated/bulk to Gmail's Primary-tab classifier.
-  const subject = "You're still being considered for priority access";
+  const copy = SURVEY_COPY[params.variant];
+  // Subject kept conversational: no brackets, all-caps, or "trigger" words
+  // ("FREE / exclusive / limited time") — those read as automated/bulk to
+  // Gmail's Primary-tab classifier.
+  const subject = copy.subject;
 
   let html: string;
   try {
     html = await buildSurveyInviteHtml({
       surveyUrl: params.surveyUrl,
       unsubscribeUrl: params.unsubscribeUrl,
+      variant: params.variant,
     });
   } catch (err) {
     console.error(
@@ -237,8 +269,8 @@ export async function sendSurveyInviteEmail(params: SurveyInviteSendParams) {
     html = `
       <div style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:520px;margin:0 auto;padding:36px 24px;color:#1a1a1a;font-size:16px;line-height:1.6;">
         <p>Hey,</p>
-        <p>You're still being considered for early access to Trenchers, and your spot is being held.</p>
-        <p>To make our final call, we need to know how you trade. It's a quick 2-minute survey, and <a href="${params.surveyUrl}" style="color:#1a1a1a;text-decoration:underline;">you can take it here</a>.</p>
+        <p>${copy.intro}</p>
+        <p>${copy.askLead} <a href="${params.surveyUrl}" style="color:#1a1a1a;text-decoration:underline;">you can take it here</a>.</p>
         <p style="color:#555;">Thanks,<br/>TrenchersAI</p>
       </div>
     `;
@@ -247,6 +279,7 @@ export async function sendSurveyInviteEmail(params: SurveyInviteSendParams) {
   const text = buildSurveyInviteText({
     surveyUrl: params.surveyUrl,
     unsubscribeUrl: params.unsubscribeUrl,
+    variant: params.variant,
   });
 
   const result = await sendEmail({
@@ -410,6 +443,7 @@ async function buildWelcomeEmailHtml() {
 export async function buildSurveyInviteHtml(params: {
   surveyUrl: string;
   unsubscribeUrl: string;
+  variant: SurveyVariant;
 }) {
   // Inline styles only — no separate stylesheet. Marketing-CSS shells
   // (linked stylesheet, multi-column tables, gradient header) push the
@@ -417,7 +451,7 @@ export async function buildSurveyInviteHtml(params: {
   // stays in Primary.
   const templatePath = join(
     process.cwd(),
-    "src/email-templates/survey-invite/index.html",
+    `src/email-templates/${SURVEY_COPY[params.variant].templateDir}/index.html`,
   );
   const templateHtml = await readFile(templatePath, "utf-8");
 
@@ -433,13 +467,15 @@ export async function buildSurveyInviteHtml(params: {
 export function buildSurveyInviteText(params: {
   surveyUrl: string;
   unsubscribeUrl: string;
+  variant: SurveyVariant;
 }) {
+  const copy = SURVEY_COPY[params.variant];
   return [
     "Hey,",
     "",
-    "You're still being considered for early access to Trenchers, and your spot is being held.",
+    copy.intro,
     "",
-    "To make our final call, we need to know how you trade. It's a quick 2-minute survey, and you can take it here:",
+    `${copy.askLead} you can take it here:`,
     "",
     params.surveyUrl,
     "",
