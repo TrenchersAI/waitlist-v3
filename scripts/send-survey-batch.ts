@@ -40,8 +40,7 @@ import { SURVEY_CAMPAIGN } from "../src/lib/survey";
 const BATCH_SIZE = 100;
 const SLEEP_MS_BETWEEN_BATCHES = 600;
 
-const SUBJECT =
-  "[REMINDER] You're still being considered for priority access";
+const SUBJECT = "You're still being considered for priority access";
 
 function parseArgs() {
   const args = process.argv.slice(2);
@@ -193,15 +192,20 @@ async function main() {
           // doesn't include `settings` yet, so cast through unknown to
           // keep the runtime payload while bypassing the type check.
         } as unknown as Parameters<typeof resend.batch.send>[0][number] & {
-          settings: { tracking: { open: false } };
+          settings: { tracking: { open: false; click: false } };
         };
       }),
     );
     // Inject the tracking-disable settings on each payload item via a
     // mutable pass so the type narrowing above doesn't lose the flag.
+    // Both open and click tracking off — the pixel and the click-URL
+    // rewrite are strong "bulk marketing" signals to Gmail/Yahoo.
     for (const p of payload) {
-      (p as unknown as { settings: { tracking: { open: false } } }).settings =
-        { tracking: { open: false } };
+      (
+        p as unknown as {
+          settings: { tracking: { open: false; click: false } };
+        }
+      ).settings = { tracking: { open: false, click: false } };
     }
 
     try {

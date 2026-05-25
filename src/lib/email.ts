@@ -218,13 +218,10 @@ export type SurveyInviteSendParams = {
 /// headers and a `tags` payload so the Resend webhook can join events
 /// back to the SurveyInvite row via either resendMsgId or inviteId.
 export async function sendSurveyInviteEmail(params: SurveyInviteSendParams) {
-  // Subject: a follow-up reminder. The explicit "[REMINDER]" tag is a
-  // product decision — note it's a mild bulk/automated signal to Gmail's
-  // Primary-tab classifier, but it's the requested framing. Otherwise we
-  // keep the copy conversational: no all-caps, no "trigger" words like
-  // "FREE / exclusive / limited time".
-  const subject =
-    "[REMINDER] You're still being considered for priority access";
+  // Subject: a follow-up reminder, kept conversational with no brackets,
+  // all-caps, or "trigger" words ("FREE / exclusive / limited time") —
+  // those read as automated/bulk to Gmail's Primary-tab classifier.
+  const subject = "You're still being considered for priority access";
 
   let html: string;
   try {
@@ -257,12 +254,14 @@ export async function sendSurveyInviteEmail(params: SurveyInviteSendParams) {
     subject,
     html,
     text,
-    // Disable open tracking on this specific send. The 1x1 pixel that
-    // Resend injects is one of the strongest "this is bulk marketing"
-    // signals to Gmail/Yahoo. Click tracking still works (URL rewriting)
-    // so we keep the funnel data — we only lose the noisy "opened"
-    // metric which was already inflated by Apple Mail Privacy Protection.
+    // Disable BOTH open and click tracking on this send. The 1x1 open
+    // pixel and the click-tracking URL rewrite (links repointed at a
+    // Resend tracking domain) are two of the strongest "this is bulk
+    // marketing" signals to Gmail/Yahoo. We lose nothing useful: opens
+    // were inflated by Apple Mail Privacy Protection anyway, and the
+    // click is recorded first-party when the survey page loads.
     trackOpens: false,
+    trackClicks: false,
     headers: {
       // Gmail/Yahoo's Feb-2024 bulk-sender rules require List-Unsubscribe
       // with the POST companion header. Without these, deliverability for
@@ -299,6 +298,9 @@ async function sendEmail(params: {
   /** Pass false to disable Resend's 1x1 open-tracking pixel for this
      send. The pixel is a strong "bulk marketing" signal for Gmail. */
   trackOpens?: boolean;
+  /** Pass false to disable Resend's click-tracking URL rewrite. Rewritten
+     links point at a Resend tracking domain — another "bulk" signal. */
+  trackClicks?: boolean;
   headers?: Record<string, string>;
   tags?: { name: string; value: string }[];
   attachments?: Array<{
@@ -329,10 +331,13 @@ async function sendEmail(params: {
   }
 
   // Resend's per-message settings object — used here to override the
-  // project-default open-tracking pixel for transactional/personal mail.
-  // The shape comes from Resend's REST API (`tracking.open: false`).
+  // project-default open/click tracking for transactional/personal mail.
+  // The shape comes from Resend's REST API (`tracking.open|click`).
+  const tracking: { open?: boolean; click?: boolean } = {};
+  if (params.trackOpens === false) tracking.open = false;
+  if (params.trackClicks === false) tracking.click = false;
   const settings =
-    params.trackOpens === false ? { tracking: { open: false } } : undefined;
+    Object.keys(tracking).length > 0 ? { tracking } : undefined;
 
   return resend.emails.send({
     from,
