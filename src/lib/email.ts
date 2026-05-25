@@ -218,8 +218,13 @@ export type SurveyInviteSendParams = {
 /// headers and a `tags` payload so the Resend webhook can join events
 /// back to the SurveyInvite row via either resendMsgId or inviteId.
 export async function sendSurveyInviteEmail(params: SurveyInviteSendParams) {
-  const appName = process.env.WAITLIST_APP_NAME ?? "Trenchers";
-  const subject = `${appName} · 2 min for priority Trencher access`;
+  // Subject: conversational, no symbols, no all-caps, no "trigger" words
+  // like "FREE / exclusive / limited time". Reads like a real person
+  // writing — Gmail's Primary-tab classifier prefers this over the
+  // marketing pattern we shipped first. Comma instead of em dash per
+  // the project-wide UI-copy convention.
+  const subject =
+    "Quick question, you're being considered for priority access";
 
   let html: string;
   try {
@@ -233,34 +238,48 @@ export async function sendSurveyInviteEmail(params: SurveyInviteSendParams) {
       err,
     );
     html = `
-      <div style="font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;">
-        <h2 style="margin: 0 0 12px;">Help shape Trencher</h2>
-        <p style="margin: 0 0 16px;">
-          You're on the Trenchers waitlist. Answer 5 short questions and we'll
-          bump you up the queue for early access:
-        </p>
-        <p style="margin: 0 0 16px;">
-          <a href="${params.surveyUrl}" style="background:#fff;color:#000;padding:10px 18px;border-radius:999px;text-decoration:none;font-weight:700;">
+      <div style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:520px;margin:0 auto;padding:36px 24px;color:#1a1a1a;font-size:16px;line-height:1.6;">
+        <p>Hey,</p>
+        <p>You're being considered for early access to Trenchers.</p>
+        <p>To make our final call on who joins the first wave in the trenches, we need to know more about how you trade. A 2-minute survey is all it takes.</p>
+        <p style="margin:28px 0;">
+          <a href="${params.surveyUrl}" style="display:inline-block;background:#000;color:#fff;padding:14px 28px;text-decoration:none;border-radius:8px;font-weight:600;">
             Take the survey
           </a>
         </p>
-        <p style="margin: 0; color: #6b7280; font-size: 12px;">
-          Or open: <a href="${params.surveyUrl}">${params.surveyUrl}</a>
+        <p style="color:#555;">Thanks,<br/>TrenchersAI</p>
+        <p style="font-size:12px;color:#999;margin-top:40px;">
+          You're getting this because you joined the Trenchers waitlist.
+          <a href="${params.unsubscribeUrl}" style="color:#999;">Unsubscribe</a>.
         </p>
       </div>
     `;
   }
 
+  const text = buildSurveyInviteText({
+    surveyUrl: params.surveyUrl,
+    unsubscribeUrl: params.unsubscribeUrl,
+  });
+
   const result = await sendEmail({
     to: params.to,
     subject,
     html,
+    text,
+    // Disable open tracking on this specific send. The 1x1 pixel that
+    // Resend injects is one of the strongest "this is bulk marketing"
+    // signals to Gmail/Yahoo. Click tracking still works (URL rewriting)
+    // so we keep the funnel data — we only lose the noisy "opened"
+    // metric which was already inflated by Apple Mail Privacy Protection.
+    trackOpens: false,
     headers: {
       // Gmail/Yahoo's Feb-2024 bulk-sender rules require List-Unsubscribe
       // with the POST companion header. Without these, deliverability for
-      // a 2k blast tanks.
+      // a 2k blast tanks. Also set a Reply-To so replies go to a real
+      // address instead of bouncing — another deliverability signal.
       "List-Unsubscribe": `<${params.unsubscribeUrl}>`,
       "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+      "Reply-To": process.env.RESEND_REPLY_TO ?? "harsh@trenchers.ai",
     },
     tags: [
       { name: "campaign", value: params.campaign },
@@ -283,6 +302,12 @@ async function sendEmail(params: {
   heading?: string;
   body?: string;
   html?: string;
+  /** Plain-text alternative. RFC 2822 spam scoring penalizes HTML-only
+     mail; including a text part improves Primary-tab placement. */
+  text?: string;
+  /** Pass false to disable Resend's 1x1 open-tracking pixel for this
+     send. The pixel is a strong "bulk marketing" signal for Gmail. */
+  trackOpens?: boolean;
   headers?: Record<string, string>;
   tags?: { name: string; value: string }[];
   attachments?: Array<{
@@ -312,6 +337,12 @@ async function sendEmail(params: {
     throw new Error("RESEND_FROM_EMAIL is not set.");
   }
 
+  // Resend's per-message settings object — used here to override the
+  // project-default open-tracking pixel for transactional/personal mail.
+  // The shape comes from Resend's REST API (`tracking.open: false`).
+  const settings =
+    params.trackOpens === false ? { tracking: { open: false } } : undefined;
+
   return resend.emails.send({
     from,
     to: params.to,
@@ -319,6 +350,8 @@ async function sendEmail(params: {
     attachments: params.attachments,
     headers: params.headers,
     tags: params.tags,
+    text: params.text,
+    ...(settings ? { settings } : {}),
     html:
       params.html ??
       `
@@ -378,41 +411,48 @@ async function buildWelcomeEmailHtml() {
     .replace(/href="\/privacy"/g, `href="${appUrl}/privacy"`);
 }
 
-async function buildSurveyInviteHtml(params: {
+export async function buildSurveyInviteHtml(params: {
   surveyUrl: string;
   unsubscribeUrl: string;
 }) {
+  // Inline styles only — no separate stylesheet. Marketing-CSS shells
+  // (linked stylesheet, multi-column tables, gradient header) push the
+  // message into Gmail's Promotions tab; the founder-style 1:1 template
+  // stays in Primary.
   const templatePath = join(
     process.cwd(),
     "src/email-templates/survey-invite/index.html",
   );
-  const stylesPath = join(
-    process.cwd(),
-    "src/email-templates/survey-invite/styles.css",
-  );
-  const [templateHtml, templateCss] = await Promise.all([
-    readFile(templatePath, "utf-8"),
-    readFile(stylesPath, "utf-8"),
-  ]);
-
-  const appUrl =
-    process.env.NEXT_PUBLIC_SITE_URL ??
-    process.env.WAITLIST_SITE_URL ??
-    "https://trenchers.ai";
-  const assetsUrl =
-    process.env.EMAIL_ASSETS_URL ??
-    "https://assets.trenchers.ai/email-assets";
+  const templateHtml = await readFile(templatePath, "utf-8");
 
   return templateHtml
-    .replace(
-      '<link rel="stylesheet" href="./styles.css" />',
-      `<style>${templateCss}</style>`,
-    )
-    .replaceAll("{{LOGO_URL}}", `${assetsUrl}/welcome-logo.png?v=2`)
     .replaceAll("{{SURVEY_URL}}", params.surveyUrl)
-    .replaceAll("{{UNSUBSCRIBE_URL}}", params.unsubscribeUrl)
-    .replace(/href="\/terms"/g, `href="${appUrl}/terms"`)
-    .replace(/href="\/privacy"/g, `href="${appUrl}/privacy"`);
+    .replaceAll("{{UNSUBSCRIBE_URL}}", params.unsubscribeUrl);
+}
+
+/// Plain-text alternative for the survey invite. RFC 2822 spam scoring
+/// penalizes HTML-only messages, and some clients (Outlook in reading
+/// pane, watch / terminal readers) actually show this version. Keep it
+/// in sync with the HTML copy.
+export function buildSurveyInviteText(params: {
+  surveyUrl: string;
+  unsubscribeUrl: string;
+}) {
+  return [
+    "Hey,",
+    "",
+    "You're being considered for early access to Trenchers.",
+    "",
+    "To make our final call on who joins the first wave in the trenches, we need to know more about how you trade. A 2-minute survey is all it takes.",
+    "",
+    params.surveyUrl,
+    "",
+    "Thanks,",
+    "TrenchersAI",
+    "",
+    "---",
+    `You're getting this because you joined the Trenchers waitlist. Unsubscribe: ${params.unsubscribeUrl}`,
+  ].join("\n");
 }
 
 async function buildOtpEmailHtml(otp: string) {
