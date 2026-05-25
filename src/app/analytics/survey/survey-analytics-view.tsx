@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
-import { Button } from "@/src/components/ui/button";
 import {
   Card,
   CardContent,
@@ -64,11 +63,49 @@ function formatDateTime(iso: string | null) {
   });
 }
 
+/// Standalone wrapper used by the (now-redirect) /analytics/survey route.
+/// Wraps the content in the site canvas + a page header. New consumers
+/// should embed `<SurveyAnalyticsContent />` directly instead (see the
+/// dashboard's `SurveySection`) — this exists so the bookmarkable URL
+/// keeps working.
 export default function SurveyAnalyticsView({
   viewerEmail,
 }: {
   viewerEmail: string;
 }) {
+  return (
+    <div className="site-canvas-bg flex min-h-dvh flex-col">
+      <main className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 pb-20 pt-8 sm:px-6 sm:pt-12">
+        <header className="flex flex-wrap items-end justify-between gap-3 border-b border-white/8 pb-5">
+          <div>
+            <p className="text-[11px] font-semibold tracking-[0.18em] text-white/40 uppercase">
+              Trenchers · Survey analytics
+            </p>
+            <h1 className="mt-1 text-2xl font-medium tracking-tight text-white">
+              Trader research v1
+            </h1>
+            <p className="mt-1 text-xs text-white/45">
+              Signed in as <span className="text-white/70">{viewerEmail}</span>
+            </p>
+          </div>
+          <Link
+            href="/analytics"
+            className="inline-flex h-9 items-center rounded-lg border border-white/12 bg-white/[0.04] px-3 text-sm text-white/85 hover:bg-white/10"
+          >
+            ← Waitlist analytics
+          </Link>
+        </header>
+
+        <SurveyAnalyticsContent />
+      </main>
+    </div>
+  );
+}
+
+/// Content-only variant. Renders just the cards + funnel rows, with no
+/// page header or outer canvas wrapper. Used by the main dashboard so
+/// "Survey" becomes a real tab alongside Dashboard / Referrals / etc.
+export function SurveyAnalyticsContent() {
   const [data, setData] = useState<Payload | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -105,80 +142,54 @@ export default function SurveyAnalyticsView({
   );
 
   return (
-    <div className="site-canvas-bg flex min-h-dvh flex-col">
-      <main className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 pb-20 pt-8 sm:px-6 sm:pt-12">
-        <header className="flex flex-wrap items-end justify-between gap-3 border-b border-white/8 pb-5">
-          <div>
-            <p className="text-[11px] font-semibold tracking-[0.18em] text-white/40 uppercase">
-              Trenchers · Survey analytics
-            </p>
-            <h1 className="mt-1 text-2xl font-medium tracking-tight text-white">
-              Trader research v1
-            </h1>
-            <p className="mt-1 text-xs text-white/45">
-              Signed in as <span className="text-white/70">{viewerEmail}</span>
-              {data ? (
-                <>
-                  {" · "}generated {formatDateTime(data.generatedAt)} UTC
-                </>
-              ) : null}
-            </p>
-          </div>
-          <Link
-            href="/analytics"
-            className="inline-flex h-9 items-center rounded-lg border border-white/12 bg-white/[0.04] px-3 text-sm text-white/85 hover:bg-white/10"
-          >
-            ← Waitlist analytics
-          </Link>
-        </header>
+    <div className="flex flex-col gap-6">
+      {error ? (
+        <Card className="border-amber-400/30 bg-amber-400/10">
+          <CardContent className="p-4 text-sm text-amber-100">
+            Failed to load: {error}
+          </CardContent>
+        </Card>
+      ) : null}
 
-        {error ? (
-          <Card className="border-amber-400/30 bg-amber-400/10">
-            <CardContent className="p-4 text-sm text-amber-100">
-              Failed to load: {error}
-            </CardContent>
-          </Card>
-        ) : null}
+      <FunnelCard data={data} />
 
-        <FunnelCard data={data} />
+      <div className="grid gap-4 lg:grid-cols-2">
+        <EngagementCard data={data} startedCount={startedCount} />
+        <CountriesCard data={data} />
+      </div>
 
-        <div className="grid gap-4 lg:grid-cols-2">
-          <EngagementCard data={data} startedCount={startedCount} />
-          <CountriesCard data={data} />
-        </div>
-
-        <div className="grid gap-4 lg:grid-cols-2">
-          <DistributionCard
-            title="Tools used today"
-            description="Multi-select: sums exceed response count."
-            rows={data?.distributions.tools ?? null}
-            total={startedCount}
-          />
-          <DistributionCard
-            title="Monthly trading volume"
-            description="Single-select: totals to response count when answered."
-            rows={data?.distributions.volume ?? null}
-            total={
-              data?.distributions.volume.reduce((s, r) => s + r.count, 0) ?? 0
-            }
-            ordered
-          />
-        </div>
-
+      <div className="grid gap-4 lg:grid-cols-2">
         <DistributionCard
-          title="What an AI agent should help with"
+          title="Tools used today"
           description="Multi-select: sums exceed response count."
-          rows={data?.distributions.wants ?? null}
+          rows={data?.distributions.tools ?? null}
           total={startedCount}
-          wide
         />
+        <DistributionCard
+          title="Monthly trading volume"
+          description="Single-select: totals to response count when answered."
+          rows={data?.distributions.volume ?? null}
+          total={
+            data?.distributions.volume.reduce((s, r) => s + r.count, 0) ?? 0
+          }
+          ordered
+        />
+      </div>
 
-        <FreeformCard rows={data?.freeform ?? null} />
+      <DistributionCard
+        title="What an AI agent should help with"
+        description="Multi-select: sums exceed response count."
+        rows={data?.distributions.wants ?? null}
+        total={startedCount}
+        wide
+      />
 
-        <p className="text-[11px] text-white/35">
-          Top-of-funnel: {topOfFunnel} invites sent in this campaign.
-        </p>
-      </main>
+      <FreeformCard rows={data?.freeform ?? null} />
+
+      <p className="text-[11px] text-white/35">
+        Top-of-funnel: {topOfFunnel} invites sent in this campaign
+        {data ? ` · generated ${formatDateTime(data.generatedAt)} UTC` : ""}.
+      </p>
     </div>
   );
 }

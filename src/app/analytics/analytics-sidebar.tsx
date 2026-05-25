@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import {
   ChevronsLeft,
   ChevronsRight,
@@ -18,7 +17,8 @@ export type AnalyticsSection =
   | "dashboard"
   | "referrals"
   | "top-referrers"
-  | "users";
+  | "users"
+  | "survey";
 
 type ItemDef = {
   id: AnalyticsSection;
@@ -31,6 +31,7 @@ const ITEMS: ReadonlyArray<ItemDef> = [
   { id: "referrals", label: "Referrals", icon: Share2 },
   { id: "top-referrers", label: "Top referrers", icon: Trophy },
   { id: "users", label: "Users", icon: Users },
+  { id: "survey", label: "Survey", icon: ClipboardList },
 ];
 
 type Props = {
@@ -61,23 +62,6 @@ export function AnalyticsSidebar({
     >
         <SidebarHeader collapsed={collapsed} />
         <SidebarNav active={active} onChange={onChange} collapsed={collapsed} />
-        <div className="border-t border-white/5 p-2">
-          <Link
-            href="/analytics/survey"
-            title={collapsed ? "Survey" : undefined}
-            className={cn(
-              "flex h-9 items-center gap-2.5 rounded-md px-2 text-sm font-medium text-white/55 transition-colors hover:bg-white/[0.04] hover:text-white",
-              collapsed && "justify-center",
-            )}
-          >
-            <ClipboardList className="size-4 shrink-0 text-white/55" aria-hidden />
-            {!collapsed ? (
-              <span className="truncate">Survey</span>
-            ) : (
-              <span className="sr-only">Survey</span>
-            )}
-          </Link>
-        </div>
         <div className="mt-auto border-t border-white/5 p-2">
           <button
             type="button"
@@ -113,7 +97,7 @@ export function MobileBottomNav({
       className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-black/85 backdrop-blur-md md:hidden"
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
-      <ul className="grid grid-cols-4">
+      <ul className="grid grid-cols-5">
         {ITEMS.map(({ id, label, icon: Icon }) => {
           const isActive = active === id;
           return (

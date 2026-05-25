@@ -12,6 +12,7 @@ import {
   type AnalyticsSection,
 } from "@/src/app/analytics/analytics-sidebar";
 import { AnalyticsTimeseriesChart } from "@/src/app/analytics/analytics-timeseries-chart";
+import { SurveyAnalyticsContent } from "@/src/app/analytics/survey/survey-analytics-view";
 import {
   ReferrersStrip,
   type ReferralsPayload,
@@ -686,7 +687,9 @@ export default function AnalyticsDashboard({
 
             {section === "dashboard" ? <AllTimeStrip stats={stats} /> : null}
 
-            {section === "top-referrers" || section === "users" ? null : (
+            {section === "top-referrers" ||
+            section === "users" ||
+            section === "survey" ? null : (
               <InPageNav
                 activeRangeKey={rangeKey}
                 onPickRange={applyRange}
@@ -710,6 +713,8 @@ export default function AnalyticsDashboard({
               />
             ) : section === "top-referrers" ? (
               <TopReferrersSection referrals={referrals} />
+            ) : section === "survey" ? (
+              <SurveyAnalyticsContent />
             ) : (
               <UsersSection
                 data={visibleSignups}
@@ -972,6 +977,7 @@ const SECTION_TITLE: Record<AnalyticsSection, string> = {
   referrals: "Referrals",
   "top-referrers": "Top referrers",
   users: "Users",
+  survey: "Survey",
 };
 
 function DashboardHeader({
@@ -999,7 +1005,9 @@ function DashboardHeader({
           <span className="text-white/70">{sessionEmail}</span>
         </p>
       </div>
-      {section === "top-referrers" || section === "users" ? null : (
+      {section === "top-referrers" ||
+      section === "users" ||
+      section === "survey" ? null : (
         <RangePill rangeKey={rangeKey} range={range} />
       )}
     </header>
