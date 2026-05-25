@@ -31,6 +31,44 @@ type FreeformRow = {
   submittedAt: string | null;
 };
 
+type HourPoint = { date: string; count: number };
+
+// Per-hour activity for the live send/fill charts. We bucket in JS over a
+// fixed recent window — cheap at a few thousand rows and avoids DB-specific
+// date_trunc. Keys are UTC "YYYY-MM-DDTHH" to match AnalyticsTimeseriesChart.
+const HOURLY_WINDOW_HOURS = 48;
+
+function hourKeyUTC(d: Date): string {
+  return d.toISOString().slice(0, 13);
+}
+
+function buildHourKeys(cutoff: Date, now: Date): string[] {
+  const start = Date.UTC(
+    cutoff.getUTCFullYear(),
+    cutoff.getUTCMonth(),
+    cutoff.getUTCDate(),
+    cutoff.getUTCHours(),
+  );
+  const keys: string[] = [];
+  for (let t = start; t <= now.getTime(); t += 3_600_000) {
+    keys.push(hourKeyUTC(new Date(t)));
+  }
+  return keys;
+}
+
+function bucketizeHourly(
+  timestamps: Array<Date | null | undefined>,
+  keys: string[],
+): HourPoint[] {
+  const counts = new Map<string, number>();
+  for (const ts of timestamps) {
+    if (!ts) continue;
+    const k = hourKeyUTC(ts);
+    counts.set(k, (counts.get(k) ?? 0) + 1);
+  }
+  return keys.map((date) => ({ date, count: counts.get(date) ?? 0 }));
+}
+
 export async function GET() {
   const session = await getAnalyticsSessionFromCookies();
   if (!session) {
@@ -255,6 +293,57 @@ export async function GET() {
     });
   }
 
+  // 6. Per-hour activity for the live monitoring charts: how many emails we
+  // sent (first invite via `sentAt` + reminder via `reminderSentAt`) and how
+  // many surveys got started / submitted, bucketed by UTC hour over the
+  // recent window.
+  const now = new Date();
+  const cutoff = new Date(now.getTime() - HOURLY_WINDOW_HOURS * 3_600_000);
+  const [sentRows, reminderRows, startedRows, completedRows] =
+    await Promise.all([
+      prisma.surveyInvite.findMany({
+        where: { campaign: SURVEY_CAMPAIGN, sentAt: { gte: cutoff } },
+        select: { sentAt: true },
+      }),
+      prisma.surveyInvite.findMany({
+        where: { campaign: SURVEY_CAMPAIGN, reminderSentAt: { gte: cutoff } },
+        select: { reminderSentAt: true },
+      }),
+      prisma.surveyResponse.findMany({
+        where: {
+          invite: { campaign: SURVEY_CAMPAIGN },
+          startedAt: { gte: cutoff },
+        },
+        select: { startedAt: true },
+      }),
+      prisma.surveyResponse.findMany({
+        where: {
+          invite: { campaign: SURVEY_CAMPAIGN },
+          completedAt: { gte: cutoff },
+        },
+        select: { completedAt: true },
+      }),
+    ]);
+  const hourKeys = buildHourKeys(cutoff, now);
+  const hourly = {
+    windowHours: HOURLY_WINDOW_HOURS,
+    sends: bucketizeHourly(
+      [
+        ...sentRows.map((r) => r.sentAt),
+        ...reminderRows.map((r) => r.reminderSentAt),
+      ],
+      hourKeys,
+    ),
+    started: bucketizeHourly(
+      startedRows.map((r) => r.startedAt),
+      hourKeys,
+    ),
+    completed: bucketizeHourly(
+      completedRows.map((r) => r.completedAt),
+      hourKeys,
+    ),
+  };
+
   return Response.json({
     campaign: SURVEY_CAMPAIGN,
     funnel,
@@ -266,6 +355,7 @@ export async function GET() {
     },
     countries,
     freeform,
+    hourly,
     generatedAt: new Date().toISOString(),
   });
 }

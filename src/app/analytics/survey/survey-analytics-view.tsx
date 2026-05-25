@@ -12,7 +12,10 @@ import {
 } from "@/src/components/ui/card";
 import { Skeleton } from "@/src/components/ui/skeleton";
 
+import { AnalyticsTimeseriesChart } from "../analytics-timeseries-chart";
+
 type FunnelStep = { key: string; label: string; count: number };
+type HourPoint = { date: string; count: number };
 type DistRow = { key: string; label: string; count: number };
 type EngagementRow = { key: string; label: string; count: number };
 type CountryRow = {
@@ -42,6 +45,12 @@ type Payload = {
   };
   countries: CountryRow[];
   freeform: FreeformRow[];
+  hourly: {
+    windowHours: number;
+    sends: HourPoint[];
+    started: HourPoint[];
+    completed: HourPoint[];
+  };
   generatedAt: string;
 };
 
@@ -152,6 +161,8 @@ export function SurveyAnalyticsContent() {
       ) : null}
 
       <FunnelCard data={data} />
+
+      <LiveActivitySection data={data} />
 
       <div className="grid gap-4 lg:grid-cols-2">
         <EngagementCard data={data} startedCount={startedCount} />
@@ -266,6 +277,66 @@ function FunnelRows({ steps }: { steps: FunnelStep[] }) {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// =========================================================================
+// LIVE ACTIVITY (per-hour sends + form fills)
+// =========================================================================
+
+function LiveActivitySection({ data }: { data: Payload | null }) {
+  const windowHours = data?.hourly.windowHours ?? 48;
+  return (
+    <div className="grid gap-4 lg:grid-cols-2">
+      <Card>
+        <CardHeader>
+          <CardTitle>Emails sent · per hour</CardTitle>
+          <CardDescription>
+            First invites + reminders leaving Resend, by UTC hour (last{" "}
+            {windowHours}h). Watch this while the reminder drip runs.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {data ? (
+            <AnalyticsTimeseriesChart
+              signupsByDay={data.hourly.sends}
+              verificationsByDay={[]}
+              bucketType="hour"
+              primaryLabel="sent"
+              primaryLegend="Emails sent"
+            />
+          ) : (
+            <Skeleton className="h-[240px] w-full" />
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Form fills · per hour</CardTitle>
+          <CardDescription>
+            People filling the survey, by UTC hour (last {windowHours}h). Bright
+            bar = submitted, dim bar = started.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {data ? (
+            <AnalyticsTimeseriesChart
+              signupsByDay={data.hourly.started}
+              verificationsByDay={data.hourly.completed}
+              bucketType="hour"
+              showSecondaryBar
+              primaryLabel="started"
+              secondaryLabel="submitted"
+              primaryLegend="Started"
+              secondaryLegend="Submitted"
+            />
+          ) : (
+            <Skeleton className="h-[240px] w-full" />
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
