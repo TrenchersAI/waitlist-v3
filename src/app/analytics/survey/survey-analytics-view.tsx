@@ -407,16 +407,14 @@ function FunnelCard({ data }: { data: Payload | null }) {
       <CardHeader>
         <CardTitle>Funnel</CardTitle>
         <CardDescription>
-          From waitlist verification through to a submitted survey. Open rate
-          is inflated by Apple Mail Privacy Protection, so trust click and
-          submit rates more.
+          From waitlist verification through to a submitted survey.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-2.5">
         {data ? (
           <FunnelRows steps={data.funnel} />
         ) : (
-          Array.from({ length: 7 }).map((_, i) => (
+          Array.from({ length: 5 }).map((_, i) => (
             <Skeleton key={i} className="h-9 w-full" />
           ))
         )}
@@ -447,8 +445,8 @@ function FunnelRows({ steps }: { steps: FunnelStep[] }) {
           top > 0 ? Math.max(2, Math.round((s.count / top) * 100)) : 0;
         return (
           <div key={s.key} className="flex items-center gap-2 sm:gap-3">
-            <div className="flex w-28 shrink-0 items-center gap-1.5 text-[11px] text-white/65 sm:w-44 sm:gap-2 sm:text-xs">
-              <span className="flex size-5 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.03] text-[10px] tabular-nums text-white/40">
+            <div className="flex w-32 shrink-0 items-center gap-1.5 text-[11px] text-white/70 sm:w-44 sm:gap-2 sm:text-xs">
+              <span className="hidden size-5 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.03] text-[10px] tabular-nums text-white/40 sm:flex">
                 {i + 1}
               </span>
               <span className="truncate sm:whitespace-normal">{s.label}</span>

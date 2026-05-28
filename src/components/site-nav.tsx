@@ -25,29 +25,31 @@ export default function SiteNav({ analyticsActions }: Props = {}) {
 
   return (
     <header className="fixed inset-x-0 top-0 z-50 border-b border-white/6 bg-black/55 backdrop-blur-md">
-      <nav className="mx-auto flex w-full max-w-6xl items-center justify-between px-5 py-3.5 md:px-8">
+      <nav className="mx-auto flex w-full max-w-6xl items-center justify-between gap-2 px-4 py-3.5 sm:px-5 md:px-8">
         <Link
           href="/"
-          className="flex items-center gap-2.5 text-white outline-none focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-white/30"
+          className="flex min-w-0 items-center gap-2.5 text-white outline-none focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-white/30"
         >
           <Image
             src={logoMark}
             alt="TrenchersAI logo"
             width={26}
             height={23}
-            className="h-[23px] w-[26px]"
+            className="h-[23px] w-[26px] shrink-0"
             priority
           />
-          <span className="text-[15px] font-medium tracking-wide">
+          <span className="truncate text-[15px] font-medium tracking-wide">
             TrenchersAI
           </span>
         </Link>
 
         {isAnalytics ? (
-          <div className="flex items-center gap-1.5">
+          <div className="flex shrink-0 items-center gap-1.5">
+            {/* The logo on the left already routes home, so on phones we
+                drop this duplicate link to make room for Sign out. */}
             <Link
               href="/"
-              className="rounded-full px-3 py-1.5 text-[13px] font-medium text-white/65 transition-colors hover:bg-white/10 hover:text-white"
+              className="hidden rounded-full px-3 py-1.5 text-[13px] font-medium text-white/65 transition-colors hover:bg-white/10 hover:text-white sm:inline-flex"
             >
               ← Marketing site
             </Link>

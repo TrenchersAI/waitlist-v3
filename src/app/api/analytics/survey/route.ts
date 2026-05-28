@@ -77,12 +77,13 @@ export async function GET() {
 
   const prisma = getPrismaClient();
 
-  // 1. Funnel — top-of-funnel and conversion at each Resend stage.
+  // 1. Funnel — top-of-funnel and conversion at each Resend stage. We skip
+  // the Delivered + Opened rows: delivered is a near-100% no-op once Resend
+  // accepts, and Apple Mail Privacy Protection makes the open count untrust-
+  // worthy. Click + submit are the rates worth watching.
   const [
     totalVerified,
     totalInvited,
-    delivered,
-    opened,
     clicked,
     bounced,
     unsubscribed,
@@ -92,12 +93,6 @@ export async function GET() {
     prisma.waitlistSubscriber.count({ where: { isVerified: true } }),
     prisma.surveyInvite.count({
       where: { campaign: SURVEY_CAMPAIGN, sentAt: { not: null } },
-    }),
-    prisma.surveyInvite.count({
-      where: { campaign: SURVEY_CAMPAIGN, deliveredAt: { not: null } },
-    }),
-    prisma.surveyInvite.count({
-      where: { campaign: SURVEY_CAMPAIGN, openedAt: { not: null } },
     }),
     prisma.surveyInvite.count({
       where: { campaign: SURVEY_CAMPAIGN, clickedAt: { not: null } },
@@ -122,8 +117,6 @@ export async function GET() {
   const funnel: FunnelStep[] = [
     { key: "verifiedWaitlist", label: "Verified waitlist", count: totalVerified },
     { key: "sent", label: "Survey invites sent", count: totalInvited },
-    { key: "delivered", label: "Delivered", count: delivered },
-    { key: "opened", label: "Opened (noisy, see notes)", count: opened },
     { key: "clicked", label: "Clicked the link", count: clicked },
     { key: "started", label: "Started filling", count: started },
     { key: "completed", label: "Submitted", count: completed },
