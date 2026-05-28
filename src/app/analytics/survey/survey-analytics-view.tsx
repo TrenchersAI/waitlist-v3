@@ -160,7 +160,12 @@ export function SurveyAnalyticsContent() {
   );
 
   return (
-    <div className="flex flex-col gap-6">
+    // `min-w-0` + `[&>*]:min-w-0` so every flex item (and the column itself)
+    // can shrink below its content's intrinsic width. Without it, a 7-bar
+    // chart's 392px min-content bursts each card past viewport on phones and
+    // the page can't stay steady — the chart's own overflow-x-auto only
+    // contains scroll if its parent agrees to stay narrow.
+    <div className="flex min-w-0 flex-col gap-6 [&>*]:min-w-0">
       {error ? (
         <Card className="border-amber-400/30 bg-amber-400/10">
           <CardContent className="p-4 text-sm text-amber-100">
@@ -173,7 +178,7 @@ export function SurveyAnalyticsContent() {
 
       <LiveActivitySection data={data} />
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
         <EngagementCard data={data} startedCount={startedCount} />
         <CountriesCard data={data} />
       </div>
@@ -188,7 +193,7 @@ export function SurveyAnalyticsContent() {
         accent="indigo"
       />
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
         <DistributionCard
           title="Monthly trading volume"
           description="Single-select: totals to response count when answered."
@@ -287,7 +292,7 @@ function ColumnChart({
   const minRowPx = sorted.length * colMinPx;
 
   return (
-    <div className="select-none">
+    <div className="min-w-0 select-none">
       <div className="-mx-1 overflow-x-auto px-1 [scrollbar-width:thin]">
         <div style={{ minWidth: minRowPx }}>
           <div className="relative" style={{ height: CHART_H }}>
@@ -487,7 +492,7 @@ function FunnelRows({ steps }: { steps: FunnelStep[] }) {
 function LiveActivitySection({ data }: { data: Payload | null }) {
   const windowHours = data?.hourly.windowHours ?? 48;
   return (
-    <div className="grid gap-4 lg:grid-cols-2">
+    <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
       <Card>
         <CardHeader>
           <CardTitle>Emails sent · per hour</CardTitle>
