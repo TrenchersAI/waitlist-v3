@@ -512,16 +512,16 @@ export default function AnalyticsDashboard({
           className="pointer-events-none absolute left-1/2 top-0 -z-10 h-[460px] w-[min(900px,110vw)] -translate-x-1/2 bg-[radial-gradient(closest-side,rgba(94,104,255,0.22),transparent_72%)] blur-2xl"
         />
         <SiteNav />
-        <main className="flex flex-1 flex-col items-center justify-center px-4 pb-10 pt-14 sm:px-6">
-          <div className="w-full max-w-[440px] space-y-8">
+        <main className="flex flex-1 flex-col items-center justify-start px-4 pb-6 pt-20 sm:justify-center sm:px-6 sm:pb-10 sm:pt-14">
+          <div className="w-full max-w-[440px] space-y-5 sm:space-y-8">
             <div className="text-center">
-              <div className="mx-auto mb-5 flex size-14 items-center justify-center rounded-2xl border border-white/10 bg-black/40 shadow-inner shadow-black/40">
+              <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-2xl border border-white/10 bg-black/40 shadow-inner shadow-black/40 sm:mb-5 sm:size-14">
                 <Image
                   src={logoMark}
                   alt="TrenchersAI"
                   width={28}
                   height={25}
-                  className="h-[25px] w-[28px]"
+                  className="h-[22px] w-[24px] sm:h-[25px] sm:w-[28px]"
                   priority
                 />
               </div>
@@ -530,10 +530,10 @@ export default function AnalyticsDashboard({
                 Team access
                 <span aria-hidden className="h-px w-6 bg-white/15" />
               </p>
-              <h1 className="mt-3 text-balance text-3xl font-medium leading-[1.1] tracking-[-0.02em] text-white sm:text-[2rem]">
+              <h1 className="mt-2 text-balance text-[26px] font-medium leading-[1.1] tracking-[-0.02em] text-white sm:mt-3 sm:text-[2rem]">
                 Internal analytics
               </h1>
-              <p className="mx-auto mt-3 max-w-[40ch] text-pretty text-[15px] leading-[1.65] text-white/60">
+              <p className="mx-auto mt-2 max-w-[40ch] text-pretty text-[13.5px] leading-[1.55] text-white/60 sm:mt-3 sm:text-[15px] sm:leading-[1.65]">
                 Sign in with your{" "}
                 <span className="font-medium text-white/85">@{domain}</span>{" "}
                 email. We will send a one-time code to your inbox. This page is
@@ -543,13 +543,13 @@ export default function AnalyticsDashboard({
 
             {phase === "email" ? (
               <Card className="border-white/10 bg-black/55 shadow-2xl shadow-black/40 ring-1 ring-white/[0.04] backdrop-blur-md">
-                <CardHeader className="space-y-1 p-6 pb-4">
+                <CardHeader className="space-y-1 p-5 pb-3 sm:p-6 sm:pb-4">
                   <CardTitle className="text-lg text-white">Sign in</CardTitle>
                   <CardDescription className="text-white/55">
                     Work email on your verified Trenchers domain.
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4 p-6 pt-5">
+                <CardContent className="space-y-3.5 p-5 pt-4 sm:space-y-4 sm:p-6 sm:pt-5">
                   <label className="sr-only" htmlFor="analytics-admin-email">
                     Work email
                   </label>
@@ -574,7 +574,7 @@ export default function AnalyticsDashboard({
               </Card>
             ) : (
               <Card className="border-white/10 bg-black/55 shadow-2xl shadow-black/40 ring-1 ring-white/[0.04] backdrop-blur-md">
-                <CardHeader className="space-y-1 p-6 pb-4">
+                <CardHeader className="space-y-1 p-5 pb-3 sm:p-6 sm:pb-4">
                   <div className="flex items-center gap-2">
                     <KeyRound className="size-4 text-white/65" aria-hidden />
                     <CardTitle className="text-lg text-white">
@@ -588,7 +588,7 @@ export default function AnalyticsDashboard({
                     </span>
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4 p-6 pt-5">
+                <CardContent className="space-y-3.5 p-5 pt-4 sm:space-y-4 sm:p-6 sm:pt-5">
                   <label className="sr-only" htmlFor="analytics-admin-otp">
                     One-time code
                   </label>
