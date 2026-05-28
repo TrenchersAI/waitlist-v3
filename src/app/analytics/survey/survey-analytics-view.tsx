@@ -787,7 +787,9 @@ function FreeformCard({ rows }: { rows: FreeformRow[] | null }) {
                     </div>
 
                     <blockquote className="border-l-2 border-white/15 pl-3 text-[13.5px] leading-[1.6] text-white/85 transition-colors group-hover:border-white/30">
-                      <p className="whitespace-pre-wrap">{r.freeform}</p>
+                      <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
+                        {r.freeform}
+                      </p>
                     </blockquote>
 
                     {r.country || r.volume || r.telegram ? (

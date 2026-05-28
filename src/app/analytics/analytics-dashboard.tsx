@@ -676,7 +676,7 @@ export default function AnalyticsDashboard({
           collapsed={sidebarCollapsed}
           onCollapsedChange={setSidebarCollapsed}
         />
-        <main className="min-w-0 flex-1">
+        <main className="min-w-0 flex-1 overflow-x-hidden">
           <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 pb-28 pt-6 sm:gap-8 sm:px-6 sm:pb-10 sm:pt-10">
             <DashboardHeader
               sessionEmail={sessionEmail!}
