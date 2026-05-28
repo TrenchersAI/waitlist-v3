@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 
 import {
@@ -69,6 +69,15 @@ function formatDateTime(iso: string | null) {
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
+  });
+}
+
+function formatShortDate(iso: string | null) {
+  if (!iso) return "-";
+  return new Date(iso).toLocaleDateString("en-US", {
+    timeZone: "UTC",
+    month: "short",
+    day: "numeric",
   });
 }
 
@@ -169,13 +178,17 @@ export function SurveyAnalyticsContent() {
         <CountriesCard data={data} />
       </div>
 
+      {/* Tools has ~12 bars; give it the full row so columns have room to
+          breathe instead of fighting the Volume chart for a half-width slot. */}
+      <DistributionCard
+        title="Tools used today"
+        description="Multi-select: sums exceed response count."
+        rows={data?.distributions.tools ?? null}
+        total={startedCount}
+        accent="indigo"
+      />
+
       <div className="grid gap-4 lg:grid-cols-2">
-        <DistributionCard
-          title="Tools used today"
-          description="Multi-select: sums exceed response count."
-          rows={data?.distributions.tools ?? null}
-          total={startedCount}
-        />
         <DistributionCard
           title="Monthly trading volume"
           description="Single-select: totals to response count when answered."
@@ -183,17 +196,17 @@ export function SurveyAnalyticsContent() {
           total={
             data?.distributions.volume.reduce((s, r) => s + r.count, 0) ?? 0
           }
+          accent="sky"
           ordered
         />
+        <DistributionCard
+          title="What an AI agent should help with"
+          description="Multi-select: sums exceed response count."
+          rows={data?.distributions.wants ?? null}
+          total={startedCount}
+          accent="white"
+        />
       </div>
-
-      <DistributionCard
-        title="What an AI agent should help with"
-        description="Multi-select: sums exceed response count."
-        rows={data?.distributions.wants ?? null}
-        total={startedCount}
-        wide
-      />
 
       <FreeformCard rows={data?.freeform ?? null} />
 
@@ -201,6 +214,185 @@ export function SurveyAnalyticsContent() {
         Top-of-funnel: {topOfFunnel} invites sent in this campaign
         {data ? ` · generated ${formatDateTime(data.generatedAt)} UTC` : ""}.
       </p>
+    </div>
+  );
+}
+
+// =========================================================================
+// VERTICAL COLUMN CHART (shared by every category breakdown)
+// =========================================================================
+
+type Accent = "white" | "indigo" | "emerald" | "sky";
+
+// Solid bar fills — literal class strings so Tailwind's scanner keeps them.
+// `bar` is the resting state, `barA` the hover/active highlight, `dot` is the
+// tooltip swatch.
+const ACCENTS: Record<
+  Accent,
+  { bar: string; barA: string; dot: string }
+> = {
+  white: { bar: "bg-white/55", barA: "bg-white", dot: "bg-white" },
+  indigo: { bar: "bg-indigo-400/70", barA: "bg-indigo-300", dot: "bg-indigo-400" },
+  emerald: { bar: "bg-emerald-400/70", barA: "bg-emerald-300", dot: "bg-emerald-400" },
+  sky: { bar: "bg-sky-400/70", barA: "bg-sky-300", dot: "bg-sky-400" },
+};
+
+const CHART_H = 196; // total svg-less chart height in px
+const TOP_RESERVE = 26; // headroom above the tallest bar for its value label
+
+/// Animated vertical column chart. Bars grow on mount, brighten on hover, and
+/// surface label + count + share in a floating tooltip. Long labels truncate
+/// (two lines) with the full text available in the tooltip.
+function ColumnChart({
+  rows,
+  total,
+  accent = "white",
+  ordered = false,
+}: {
+  rows: DistRow[];
+  total: number;
+  accent?: Accent;
+  ordered?: boolean;
+}) {
+  const [active, setActive] = useState<number | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setMounted(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
+
+  const sorted = useMemo(
+    () => (ordered ? rows : [...rows].sort((a, b) => b.count - a.count)),
+    [rows, ordered],
+  );
+
+  if (sorted.length === 0) {
+    return (
+      <div className="flex h-[160px] items-center justify-center text-sm text-white/40">
+        No data yet.
+      </div>
+    );
+  }
+
+  const max = Math.max(1, ...sorted.map((r) => r.count));
+  const barArea = CHART_H - TOP_RESERVE;
+  const a = ACCENTS[accent];
+
+  // Each column needs enough room for the value label (e.g. "116") above the
+  // bar AND a wrapped two-line axis label below (e.g. "Custom/private bots").
+  // We always reserve that width and let the row scroll horizontally if the
+  // parent card is narrower — works the same on phones, tablets, and desktop.
+  const colMinPx = 56;
+  const minRowPx = sorted.length * colMinPx;
+
+  return (
+    <div className="select-none">
+      <div className="-mx-1 overflow-x-auto px-1 [scrollbar-width:thin]">
+        <div style={{ minWidth: minRowPx }}>
+          <div className="relative" style={{ height: CHART_H }}>
+            {/* gridlines only — each bar carries its own value label, so a
+                separate max marker on the left just collided with the tallest
+                column's number. */}
+            {[0, 0.25, 0.5, 0.75, 1].map((t) => (
+              <div
+                key={t}
+                aria-hidden
+                className="absolute inset-x-0 border-t border-white/[0.05]"
+                style={{ bottom: t * barArea }}
+              />
+            ))}
+
+            <div className="flex h-full items-end gap-1.5 sm:gap-2">
+              {sorted.map((r, i) => {
+                const isActive = active === i;
+                const target = r.count > 0 ? Math.max(4, (r.count / max) * barArea) : 0;
+                return (
+                  <div
+                    key={r.key}
+                    className="group flex h-full flex-1 flex-col items-center justify-end"
+                    onMouseEnter={() => setActive(i)}
+                    onMouseLeave={() => setActive((cur) => (cur === i ? null : cur))}
+                  >
+                    <span
+                      className={
+                        "mb-1.5 text-[11px] tabular-nums transition-colors " +
+                        (isActive ? "text-white" : "text-white/65")
+                      }
+                    >
+                      {r.count}
+                    </span>
+                    <div
+                      className="relative flex w-full justify-center"
+                      style={{ height: mounted ? target : 0, transition: "none" }}
+                    >
+                      <div
+                        className={
+                          "w-[60%] min-w-[10px] max-w-[40px] rounded-t-[2px] " +
+                          (isActive ? a.barA : a.bar)
+                        }
+                        style={{
+                          height: mounted ? "100%" : 0,
+                          transition: `height 700ms cubic-bezier(0.22,1,0.36,1) ${i * 35}ms`,
+                        }}
+                      />
+                      {isActive ? (
+                        <div className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 -translate-x-1/2 whitespace-nowrap rounded-md border border-white/12 bg-black/90 px-2.5 py-1.5 text-xs backdrop-blur">
+                          <p className="max-w-[220px] truncate text-[11px] font-medium text-white">
+                            {r.label}
+                          </p>
+                          <p className="mt-0.5 flex items-center gap-1.5 text-[11px] text-white/55">
+                            <span className={"size-1.5 rounded-full " + a.dot} />
+                            <span className="tabular-nums text-white/85">
+                              {r.count}
+                            </span>
+                            <span>· {pct(r.count, total)}</span>
+                          </p>
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="mt-2 flex gap-1.5 border-t border-white/[0.06] pt-2 sm:gap-2">
+            {sorted.map((r, i) => (
+              <div
+                key={r.key}
+                className="flex-1 cursor-default px-0.5 text-center"
+                onMouseEnter={() => setActive(i)}
+                onMouseLeave={() => setActive((cur) => (cur === i ? null : cur))}
+              >
+                <span
+                  title={r.label}
+                  className={
+                    "mx-auto block break-words text-[10px] leading-tight transition-colors " +
+                    (active === i ? "text-white/90" : "text-white/55")
+                  }
+                >
+                  {r.label}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ColumnChartSkeleton() {
+  // Static, decreasing heights so the placeholder reads as a chart.
+  const heights = [88, 72, 60, 50, 40, 30];
+  return (
+    <div className="flex h-[196px] items-end gap-2.5">
+      {heights.map((h, i) => (
+        <div key={i} className="flex-1">
+          <Skeleton className="mx-auto w-[58%] max-w-[40px] rounded-t-[3px]" style={{ height: h }} />
+        </div>
+      ))}
     </div>
   );
 }
@@ -220,7 +412,7 @@ function FunnelCard({ data }: { data: Payload | null }) {
           submit rates more.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-2">
+      <CardContent className="space-y-2.5">
         {data ? (
           <FunnelRows steps={data.funnel} />
         ) : (
@@ -240,7 +432,7 @@ function FunnelRows({ steps }: { steps: FunnelStep[] }) {
   // first row's count (verified waitlist) for context.
   const sent = steps.find((s) => s.key === "sent")?.count ?? 0;
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-2.5">
       {steps.map((s, i) => {
         const prev = steps[i - 1];
         const prevPct =
@@ -254,23 +446,32 @@ function FunnelRows({ steps }: { steps: FunnelStep[] }) {
         const widthPct =
           top > 0 ? Math.max(2, Math.round((s.count / top) * 100)) : 0;
         return (
-          <div key={s.key} className="flex items-center gap-3">
-            <div className="w-44 shrink-0 text-xs text-white/65">{s.label}</div>
-            <div className="relative h-7 flex-1 overflow-hidden rounded-md border border-white/10 bg-black/40">
+          <div key={s.key} className="flex items-center gap-2 sm:gap-3">
+            <div className="flex w-28 shrink-0 items-center gap-1.5 text-[11px] text-white/65 sm:w-44 sm:gap-2 sm:text-xs">
+              <span className="flex size-5 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.03] text-[10px] tabular-nums text-white/40">
+                {i + 1}
+              </span>
+              <span className="truncate sm:whitespace-normal">{s.label}</span>
+            </div>
+            <div className="relative h-8 flex-1 overflow-hidden rounded-lg border border-white/10 bg-black/40">
               <div
                 aria-hidden
-                className="absolute inset-y-0 left-0 bg-indigo-400/35"
+                className="absolute inset-y-0 left-0 rounded-lg bg-indigo-500/40"
                 style={{ width: `${widthPct}%` }}
               />
-              <div className="relative flex h-full items-center px-2.5 text-[12px] font-medium text-white/90">
-                <span className="tabular-nums">{s.count.toLocaleString()}</span>
+              <div className="relative flex h-full items-center px-2.5 text-[12px] text-white/90 sm:px-3">
+                <span className="text-sm font-semibold tabular-nums">
+                  {s.count.toLocaleString()}
+                </span>
                 {prevPct ? (
-                  <span className="ml-2 text-white/45">
-                    · {prevPct} from prev
+                  <span className="ml-2 text-white/55">
+                    · {prevPct}
                   </span>
                 ) : null}
                 {fromSentPct ? (
-                  <span className="ml-2 text-white/35">· {fromSentPct}</span>
+                  <span className="ml-2 hidden text-white/40 sm:inline">
+                    · {fromSentPct}
+                  </span>
                 ) : null}
               </div>
             </div>
@@ -362,40 +563,16 @@ function EngagementCard({
           &quot;started&quot; is where attention died.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-2">
+      <CardContent>
         {data ? (
-          data.engagement.map((r) => {
-            const widthPct =
-              startedCount > 0
-                ? Math.max(2, Math.round((r.count / startedCount) * 100))
-                : 0;
-            return (
-              <div key={r.key} className="flex items-center gap-3">
-                <div className="w-52 shrink-0 text-xs text-white/65">
-                  {r.label}
-                </div>
-                <div className="relative h-6 flex-1 overflow-hidden rounded-md border border-white/10 bg-black/40">
-                  <div
-                    aria-hidden
-                    className="absolute inset-y-0 left-0 bg-emerald-400/30"
-                    style={{ width: `${widthPct}%` }}
-                  />
-                  <div className="relative flex h-full items-center px-2 text-[11.5px] font-medium text-white/85">
-                    <span className="tabular-nums">{r.count}</span>
-                    {startedCount > 0 ? (
-                      <span className="ml-2 text-white/40">
-                        · {pct(r.count, startedCount)}
-                      </span>
-                    ) : null}
-                  </div>
-                </div>
-              </div>
-            );
-          })
+          <ColumnChart
+            rows={data.engagement}
+            total={startedCount}
+            accent="emerald"
+            ordered
+          />
         ) : (
-          Array.from({ length: 7 }).map((_, i) => (
-            <Skeleton key={i} className="h-6 w-full" />
-          ))
+          <ColumnChartSkeleton />
         )}
       </CardContent>
     </Card>
@@ -407,6 +584,8 @@ function EngagementCard({
 // =========================================================================
 
 function CountriesCard({ data }: { data: Payload | null }) {
+  const top = data?.countries.slice(0, 12) ?? [];
+  const max = Math.max(1, ...top.map((c) => c.count));
   return (
     <Card>
       <CardHeader>
@@ -416,28 +595,49 @@ function CountriesCard({ data }: { data: Payload | null }) {
           Top 12 shown.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-2">
+      <CardContent className="space-y-1">
         {data ? (
-          data.countries.length === 0 ? (
+          top.length === 0 ? (
             <p className="text-sm text-white/45">No country data yet.</p>
           ) : (
-            data.countries.slice(0, 12).map((c) => (
-              <div key={c.key} className="flex items-center justify-between gap-3">
-                <span className="text-sm text-white/85">
-                  {c.label}
-                  <span className="ml-2 text-[10px] uppercase tracking-wide text-white/35">
-                    {c.source === "user" ? "user" : "ip"}
+            top.map((c, i) => {
+              const w = Math.max(4, Math.round((c.count / max) * 100));
+              return (
+                <div
+                  key={c.key}
+                  className="relative flex items-center gap-3 overflow-hidden rounded-md px-2.5 py-1.5"
+                >
+                  <div
+                    aria-hidden
+                    className="absolute inset-y-0 left-0 rounded-md bg-gradient-to-r from-white/[0.09] to-transparent"
+                    style={{ width: `${w}%` }}
+                  />
+                  <span className="relative w-4 text-[10px] tabular-nums text-white/30">
+                    {i + 1}
                   </span>
-                </span>
-                <span className="font-mono text-xs tabular-nums text-white/70">
-                  {c.count}
-                </span>
-              </div>
-            ))
+                  <span className="relative flex-1 truncate text-sm text-white/85">
+                    {c.label}
+                  </span>
+                  <span
+                    className={
+                      "relative rounded-full border px-1.5 py-px text-[9px] uppercase tracking-wide " +
+                      (c.source === "user"
+                        ? "border-emerald-400/20 text-emerald-300/70"
+                        : "border-white/10 text-white/35")
+                    }
+                  >
+                    {c.source}
+                  </span>
+                  <span className="relative font-mono text-xs tabular-nums text-white/70">
+                    {c.count}
+                  </span>
+                </div>
+              );
+            })
           )
         ) : (
-          Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="h-5 w-full" />
+          Array.from({ length: 8 }).map((_, i) => (
+            <Skeleton key={i} className="h-7 w-full" />
           ))
         )}
       </CardContent>
@@ -454,54 +654,32 @@ function DistributionCard({
   description,
   rows,
   total,
-  wide,
+  accent = "white",
   ordered,
 }: {
   title: string;
   description: string;
   rows: DistRow[] | null;
   total: number;
-  wide?: boolean;
+  accent?: Accent;
   ordered?: boolean;
 }) {
   return (
-    <Card className={wide ? "lg:col-span-2" : undefined}>
+    <Card>
       <CardHeader>
         <CardTitle>{title}</CardTitle>
         <CardDescription>{description}</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-2">
+      <CardContent>
         {rows ? (
-          (ordered ? rows : [...rows].sort((a, b) => b.count - a.count)).map(
-            (r) => {
-              const widthPct =
-                total > 0 ? Math.max(2, Math.round((r.count / total) * 100)) : 0;
-              return (
-                <div key={r.key} className="flex items-center gap-3">
-                  <div className="w-40 shrink-0 text-xs text-white/70">
-                    {r.label}
-                  </div>
-                  <div className="relative h-5 flex-1 overflow-hidden rounded-md border border-white/10 bg-black/40">
-                    <div
-                      aria-hidden
-                      className="absolute inset-y-0 left-0 bg-white/15"
-                      style={{ width: `${widthPct}%` }}
-                    />
-                    <div className="relative flex h-full items-center px-2 text-[11px] tabular-nums text-white/80">
-                      {r.count}
-                      <span className="ml-2 text-white/35">
-                        · {pct(r.count, total)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              );
-            },
-          )
+          <ColumnChart
+            rows={rows}
+            total={total}
+            accent={accent}
+            ordered={ordered}
+          />
         ) : (
-          Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="h-5 w-full" />
-          ))
+          <ColumnChartSkeleton />
         )}
       </CardContent>
     </Card>
@@ -512,50 +690,126 @@ function DistributionCard({
 // FREEFORM ANSWERS
 // =========================================================================
 
+// Avatar gradients keyed off a stable hash of the author so each card gets a
+// consistent splash of colour without a per-row colour field in the payload.
+const AVATAR_GRADIENTS = [
+  "from-indigo-500 to-violet-600",
+  "from-emerald-500 to-teal-600",
+  "from-sky-500 to-blue-600",
+  "from-amber-500 to-orange-600",
+  "from-rose-500 to-pink-600",
+  "from-fuchsia-500 to-purple-600",
+];
+
+function hashIndex(seed: string, mod: number) {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
+  return h % mod;
+}
+
+function authorOf(r: FreeformRow) {
+  const handle = r.twitter ? `@${r.twitter}` : null;
+  const primary = handle ?? r.email;
+  const secondary = handle ? r.email : null;
+  const seed = r.twitter || r.email || "?";
+  const initial =
+    (r.twitter || r.email || "?").replace(/[^a-zA-Z0-9]/g, "").charAt(0).toUpperCase() ||
+    "?";
+  return { primary, secondary, initial, gradient: AVATAR_GRADIENTS[hashIndex(seed, AVATAR_GRADIENTS.length)] };
+}
+
+function Chip({ children }: { children: ReactNode }) {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[10px] text-white/55">
+      {children}
+    </span>
+  );
+}
+
 function FreeformCard({ rows }: { rows: FreeformRow[] | null }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Long-form answers</CardTitle>
+        <div className="flex items-center justify-between gap-3">
+          <CardTitle>Long-form answers</CardTitle>
+          {rows && rows.length > 0 ? (
+            <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-0.5 text-[11px] tabular-nums text-white/55">
+              {rows.length}
+            </span>
+          ) : null}
+        </div>
         <CardDescription>
           Most recent 200 with usable text. Read these: quotable insight tends
           to live here, not in the multi-selects above.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent>
         {rows ? (
           rows.length === 0 ? (
             <p className="text-sm text-white/45">No long-form answers yet.</p>
           ) : (
-            rows.map((r, i) => (
-              <div
-                key={`${r.email}-${i}`}
-                className="rounded-lg border border-white/10 bg-white/[0.02] p-3"
-              >
-                <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-white/55">
-                  <span className="font-mono text-white/80">{r.email}</span>
-                  {r.country ? <span>{r.country}</span> : null}
-                  {r.twitter ? <span>@{r.twitter}</span> : null}
-                  {r.telegram ? <span>tg: @{r.telegram}</span> : null}
-                  {r.volume ? <span>vol: {r.volume}</span> : null}
-                  {r.submittedAt ? (
-                    <span className="ml-auto text-white/35">
-                      submitted {formatDateTime(r.submittedAt)} UTC
-                    </span>
-                  ) : (
-                    <span className="ml-auto text-amber-300/60">in progress</span>
-                  )}
-                </div>
-                <p className="whitespace-pre-wrap text-[13px] leading-[1.55] text-white/85">
-                  {r.freeform}
-                </p>
-              </div>
-            ))
+            // CSS columns give a masonry feel so variable-length quotes pack
+            // tightly instead of leaving ragged gaps in a fixed grid.
+            <div className="gap-4 sm:columns-2 [&>*]:mb-4">
+              {rows.map((r, i) => {
+                const author = authorOf(r);
+                return (
+                  <figure
+                    key={`${r.email}-${i}`}
+                    className="group break-inside-avoid rounded-xl border border-white/10 bg-gradient-to-b from-white/[0.045] to-white/[0.01] p-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-white/20 hover:shadow-lg hover:shadow-black/30"
+                  >
+                    <div className="mb-3 flex items-center gap-2.5">
+                      <div
+                        className={
+                          "flex size-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br text-[13px] font-semibold text-white shadow-inner ring-1 ring-white/10 " +
+                          author.gradient
+                        }
+                      >
+                        {author.initial}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-[13px] font-medium text-white/90">
+                          {author.primary}
+                        </div>
+                        {author.secondary ? (
+                          <div className="truncate font-mono text-[10px] text-white/40">
+                            {author.secondary}
+                          </div>
+                        ) : null}
+                      </div>
+                      {r.submittedAt ? (
+                        <span className="shrink-0 rounded-full border border-emerald-400/25 bg-emerald-400/10 px-2 py-0.5 text-[10px] font-medium text-white">
+                          {formatShortDate(r.submittedAt)}
+                        </span>
+                      ) : (
+                        <span className="shrink-0 rounded-full border border-amber-300/30 bg-amber-300/10 px-2 py-0.5 text-[10px] font-medium text-white">
+                          in progress
+                        </span>
+                      )}
+                    </div>
+
+                    <blockquote className="border-l-2 border-white/15 pl-3 text-[13.5px] leading-[1.6] text-white/85 transition-colors group-hover:border-white/30">
+                      <p className="whitespace-pre-wrap">{r.freeform}</p>
+                    </blockquote>
+
+                    {r.country || r.volume || r.telegram ? (
+                      <figcaption className="mt-3 flex flex-wrap gap-1.5">
+                        {r.country ? <Chip>{r.country}</Chip> : null}
+                        {r.volume ? <Chip>vol · {r.volume}</Chip> : null}
+                        {r.telegram ? <Chip>tg · @{r.telegram}</Chip> : null}
+                      </figcaption>
+                    ) : null}
+                  </figure>
+                );
+              })}
+            </div>
           )
         ) : (
-          Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-20 w-full" />
-          ))
+          <div className="gap-4 sm:columns-2 [&>*]:mb-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-32 w-full break-inside-avoid rounded-xl" />
+            ))}
+          </div>
         )}
       </CardContent>
     </Card>
