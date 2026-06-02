@@ -17,6 +17,7 @@ import { motion, useReducedMotion } from "motion/react";
 import XIcon from "../icons/x-icon";
 import TelegramIcon from "../icons/telegram-icon";
 import TrenchesDashboardLoader from "./trenches-dashboard-loader";
+import TurnstileWidget, { type TurnstileHandle } from "./turnstile-widget";
 import {
   clearVerifiedSession,
   readStoredVerifiedEmail,
@@ -132,6 +133,17 @@ export default function EmailCapture({
   const prefersReducedMotion = useReducedMotion();
   const fadeUpVariants = prefersReducedMotion ? reducedFadeUp : fadeUp;
   const otpInputRefs = useRef<Array<HTMLInputElement | null>>([]);
+  // Invisible Cloudflare Turnstile token + honeypot. Both are no-ops for a
+  // real user; they exist to make the OTP-request path expensive for bots.
+  const [turnstileToken, setTurnstileToken] = useState("");
+  const [honeypot, setHoneypot] = useState("");
+  const turnstileRef = useRef<TurnstileHandle | null>(null);
+  // Tokens are single-use, so after each submit we drop ours and ask the
+  // widget for a fresh one (covers the resend / change-email cases).
+  const resetTurnstile = useCallback(() => {
+    setTurnstileToken("");
+    turnstileRef.current?.reset();
+  }, []);
   const otp = otpDigits.join("");
   const normalizedEmail = email.trim().toLowerCase();
   const shareUrl =
@@ -214,6 +226,9 @@ export default function EmailCapture({
           ...(otpStep === "request" && incomingRefCode
             ? { ref: incomingRefCode }
             : {}),
+          ...(otpStep === "request"
+            ? { turnstileToken, website: honeypot }
+            : {}),
           ...(otpStep === "verify" ? { otp: otp.trim() } : {}),
         }),
       });
@@ -227,6 +242,10 @@ export default function EmailCapture({
         retryAfterSeconds?: number;
       };
       const message = data.message ?? "Request completed.";
+
+      // The Turnstile token we just sent is now spent; get a fresh one for
+      // any follow-up request (resend, change-email, retry).
+      if (otpStep === "request") resetTurnstile();
 
       if (!response.ok) {
         if (
@@ -359,12 +378,16 @@ export default function EmailCapture({
         body: JSON.stringify({
           email,
           ...(incomingRefCode ? { ref: incomingRefCode } : {}),
+          turnstileToken,
+          website: honeypot,
         }),
       });
       const data = (await response.json()) as {
         message?: string;
         retryAfterSeconds?: number;
       };
+      // Token is single-use; refresh for the next request.
+      resetTurnstile();
       if (typeof data.retryAfterSeconds === "number") {
         setResendCooldown(data.retryAfterSeconds);
       }
@@ -865,6 +888,31 @@ join the trenches:`;
         }
         onSubmit={handleWaitlistSubmit}
       >
+        {/* Honeypot: off-screen, not display:none (bots skip hidden fields),
+           never tabbable, excluded from autofill. A real user never fills it;
+           a non-empty value on the server is treated as a bot. */}
+        <div
+          aria-hidden
+          style={{
+            position: "absolute",
+            left: "-9999px",
+            top: "-9999px",
+            width: 1,
+            height: 1,
+            overflow: "hidden",
+          }}
+        >
+          <label htmlFor="website-url">Leave this field empty</label>
+          <input
+            id="website-url"
+            type="text"
+            name="website"
+            tabIndex={-1}
+            autoComplete="off"
+            value={honeypot}
+            onChange={(event) => setHoneypot(event.target.value)}
+          />
+        </div>
         {otpStep !== "verify" ? (
           <BorderBeam
             size="md"
@@ -980,6 +1028,14 @@ join the trenches:`;
           </>
         )}
       </form>
+      {/* Invisible in interaction-only mode — real users never see it unless
+         Cloudflare needs an active challenge. Renders nothing at all until
+         NEXT_PUBLIC_TURNSTILE_SITE_KEY is set. */}
+      <TurnstileWidget
+        ref={turnstileRef}
+        onToken={setTurnstileToken}
+        onExpire={() => setTurnstileToken("")}
+      />
       <p
         className={`text-sm max-sm:text-xs ${
           submitState.message

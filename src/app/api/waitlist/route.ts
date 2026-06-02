@@ -3,6 +3,12 @@ import {
   sendWaitlistConfirmationEmail,
   sendWaitlistOtpEmail,
 } from "../../../lib/email";
+import {
+  getClientIp,
+  limitOtpRequest,
+  limitOtpVerify,
+} from "../../../lib/rate-limit";
+import { verifyTurnstileToken } from "../../../lib/turnstile";
 
 export const runtime = "nodejs";
 
@@ -10,6 +16,10 @@ type WaitlistBody = {
   email?: string;
   otp?: string;
   ref?: string;
+  /** Cloudflare Turnstile token from the (invisible) widget. */
+  turnstileToken?: string;
+  /** Honeypot. A hidden field real users never fill; bots auto-fill it. */
+  website?: string;
 };
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -74,6 +84,7 @@ export async function POST(request: Request) {
     const email = body.email?.trim().toLowerCase();
     const otp = body.otp?.trim();
     const ref = body.ref?.trim();
+    const ip = getClientIp(request);
 
     if (!email || !EMAIL_REGEX.test(email)) {
       return Response.json(
@@ -96,6 +107,26 @@ export async function POST(request: Request) {
     });
 
     if (otp) {
+      // Cap verify attempts per IP so the 6-digit code can't be brute-forced
+      // within its 10-minute lifetime.
+      const verifyLimit = await limitOtpVerify(ip);
+      if (!verifyLimit.success) {
+        return Response.json(
+          {
+            message: "Too many attempts. Please wait a moment and try again.",
+            requiresOtp: true,
+            verified: false,
+            retryAfterSeconds: verifyLimit.retryAfterSeconds,
+          },
+          {
+            status: 429,
+            headers: {
+              "Retry-After": verifyLimit.retryAfterSeconds.toString(),
+            },
+          },
+        );
+      }
+
       if (!OTP_REGEX.test(otp)) {
         return Response.json(
           { message: "Enter a valid 6-digit code.", requiresOtp: true, verified: false },
@@ -183,6 +214,57 @@ export async function POST(request: Request) {
           referralCount: verifiedSubscriber.referralsMade,
         },
         { status: 200 },
+      );
+    }
+
+    // ---- Bot defenses for the OTP-request path (the path that costs us a
+    // Resend email + a DB write on every call). All three are invisible to a
+    // real user. ----
+
+    // 1) Honeypot: a hidden field humans never see. If it's filled, treat the
+    // caller as a bot and return the normal "code sent" shape WITHOUT writing
+    // a row or sending an email — so the bot believes it succeeded and wastes
+    // its time, while we spend nothing.
+    if (body.website && body.website.trim().length > 0) {
+      return Response.json(
+        {
+          message: "Code sent. Check your inbox and verify to join the waitlist.",
+          requiresOtp: true,
+          verified: false,
+          retryAfterSeconds: Math.ceil(OTP_RESEND_COOLDOWN_MS / 1000),
+        },
+        { status: 200 },
+      );
+    }
+
+    // 2) Cloudflare Turnstile (no-op until TURNSTILE_SECRET_KEY is set).
+    const turnstile = await verifyTurnstileToken(body.turnstileToken, ip);
+    if (!turnstile.ok) {
+      return Response.json(
+        {
+          message: "Couldn't verify you're human. Please refresh and try again.",
+          requiresOtp: false,
+          verified: false,
+        },
+        { status: 403 },
+      );
+    }
+
+    // 3) Per-IP rate limit (no-op until Upstash/KV is configured). This is the
+    // fix for the unique-email bypass of the existing per-email cooldown.
+    const requestLimit = await limitOtpRequest(ip);
+    if (!requestLimit.success) {
+      return Response.json(
+        {
+          message: `Too many requests. Please wait ${requestLimit.retryAfterSeconds}s and try again.`,
+          requiresOtp: false,
+          verified: false,
+          retryAfterSeconds: requestLimit.retryAfterSeconds,
+        },
+        {
+          status: 429,
+          headers: { "Retry-After": requestLimit.retryAfterSeconds.toString() },
+        },
       );
     }
 
