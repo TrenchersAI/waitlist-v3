@@ -43,7 +43,7 @@ export default function AboutUsPage() {
             Telegram
           </a>
           <a
-            href="https://discord.gg/jakcSkCr"
+            href="https://discord.gg/nsX9auArx"
             target="_blank"
             rel="noreferrer"
             className="transition-colors hover:text-white"

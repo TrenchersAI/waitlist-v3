@@ -74,7 +74,7 @@ export default function SiteFooter() {
               Telegram
             </a>
             <a
-              href="https://discord.gg/jakcSkCr"
+              href="https://discord.gg/nsX9auArx"
               target="_blank"
               rel="noreferrer"
               className={FOOTER_LINK_CLASS}
