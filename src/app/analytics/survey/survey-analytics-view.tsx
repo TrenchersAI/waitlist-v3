@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import Link from "next/link";
 
 import {
@@ -729,92 +735,285 @@ function Chip({ children }: { children: ReactNode }) {
   );
 }
 
+// One survey response, rendered as a quotable card. Extracted so the grid
+// can map cleanly and each card can carry its own staggered entrance.
+function FreeformQuote({ r, index }: { r: FreeformRow; index: number }) {
+  const author = authorOf(r);
+  return (
+    <figure
+      // Stagger the entrance but cap the delay so a full page doesn't take
+      // a noticeable beat to finish painting. Cards remount per page (the
+      // grid is keyed on page), so this replays on every page change.
+      style={{ animationDelay: `${Math.min(index, 11) * 35}ms` }}
+      className="quote-enter group break-inside-avoid rounded-xl border border-white/10 bg-gradient-to-b from-white/[0.045] to-white/[0.01] p-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-white/20 hover:shadow-lg hover:shadow-black/30"
+    >
+      <div className="mb-3 flex items-center gap-2.5">
+        <div
+          className={
+            "flex size-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br text-[13px] font-semibold text-white shadow-inner ring-1 ring-white/10 " +
+            author.gradient
+          }
+        >
+          {author.initial}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-[13px] font-medium text-white/90">
+            {author.primary}
+          </div>
+          {author.secondary ? (
+            <div className="truncate font-mono text-[10px] text-white/40">
+              {author.secondary}
+            </div>
+          ) : null}
+        </div>
+        {r.submittedAt ? (
+          <span className="shrink-0 rounded-full border border-emerald-400/25 bg-emerald-400/10 px-2 py-0.5 text-[10px] font-medium text-white">
+            {formatShortDate(r.submittedAt)}
+          </span>
+        ) : (
+          <span className="shrink-0 rounded-full border border-amber-300/30 bg-amber-300/10 px-2 py-0.5 text-[10px] font-medium text-white">
+            in progress
+          </span>
+        )}
+      </div>
+
+      <blockquote className="border-l-2 border-white/15 pl-3 text-[13.5px] leading-[1.6] text-white/85 transition-colors group-hover:border-white/30">
+        <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
+          {r.freeform}
+        </p>
+      </blockquote>
+
+      {r.country || r.volume || r.telegram ? (
+        <figcaption className="mt-3 flex flex-wrap gap-1.5">
+          {r.country ? <Chip>{r.country}</Chip> : null}
+          {r.volume ? <Chip>vol · {r.volume}</Chip> : null}
+          {r.telegram ? <Chip>tg · @{r.telegram}</Chip> : null}
+        </figcaption>
+      ) : null}
+    </figure>
+  );
+}
+
+const FREEFORM_PAGE_SIZES = [12, 24, 48];
+
+// Build a compact page-number strip with ellipses: always first + last, plus
+// a window around the current page. Values are 0-indexed page numbers; the
+// string "…" marks a gap. e.g. [0, "…", 4, 5, 6, "…", 20].
+function pageStrip(current: number, total: number): (number | "…")[] {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i);
+  const nums = new Set<number>([0, total - 1, current]);
+  for (let d = 1; d <= 1; d++) {
+    if (current - d >= 0) nums.add(current - d);
+    if (current + d <= total - 1) nums.add(current + d);
+  }
+  const sorted = [...nums].sort((a, b) => a - b);
+  const out: (number | "…")[] = [];
+  let prev = -1;
+  for (const n of sorted) {
+    if (prev >= 0 && n - prev > 1) out.push("…");
+    out.push(n);
+    prev = n;
+  }
+  return out;
+}
+
+function PagerButton({
+  children,
+  onClick,
+  disabled,
+  active,
+  ariaLabel,
+}: {
+  children: ReactNode;
+  onClick?: () => void;
+  disabled?: boolean;
+  active?: boolean;
+  ariaLabel?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={ariaLabel}
+      aria-current={active ? "page" : undefined}
+      className={
+        "inline-flex h-8 min-w-8 items-center justify-center rounded-lg border px-2 text-[12px] tabular-nums transition-colors disabled:cursor-not-allowed disabled:opacity-35 " +
+        (active
+          ? "border-white/25 bg-white/15 font-semibold text-white"
+          : "border-white/10 bg-white/[0.03] text-white/70 hover:border-white/20 hover:bg-white/10 hover:text-white")
+      }
+    >
+      {children}
+    </button>
+  );
+}
+
 function FreeformCard({ rows }: { rows: FreeformRow[] | null }) {
+  const [pageSize, setPageSize] = useState(FREEFORM_PAGE_SIZES[0]);
+  const [rawPage, setRawPage] = useState(0); // 0-indexed; clamped below
+  const scrollAnchor = useRef<HTMLDivElement | null>(null);
+  const firstRender = useRef(true);
+
+  const total = rows?.length ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+  // Clamp during render rather than via a setState effect: when the row set
+  // loads late or the page size shrinks (jumping off the old last page), the
+  // stored `page` can fall out of range for a frame. Deriving the safe page
+  // keeps the view correct without an extra render pass.
+  const page = Math.min(rawPage, totalPages - 1);
+
+  const start = page * pageSize;
+  const visible = useMemo(
+    () => (rows ? rows.slice(start, start + pageSize) : null),
+    [rows, start, pageSize],
+  );
+
+  const goTo = (next: number) => {
+    setRawPage(Math.max(0, Math.min(next, totalPages - 1)));
+  };
+
+  // On a page change, pull the card header back into view so the reader
+  // always lands at the top of the new page rather than mid-scroll. Skip
+  // the very first paint so we don't yank the page on load.
+  useEffect(() => {
+    if (firstRender.current) {
+      firstRender.current = false;
+      return;
+    }
+    scrollAnchor.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [page]);
+
+  const rangeStart = total === 0 ? 0 : start + 1;
+  const rangeEnd = Math.min(start + pageSize, total);
+
   return (
     <Card>
+      <div ref={scrollAnchor} className="scroll-mt-6" />
       <CardHeader>
-        <div className="flex items-center justify-between gap-3">
-          <CardTitle>Long-form answers</CardTitle>
-          {rows && rows.length > 0 ? (
-            <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-0.5 text-[11px] tabular-nums text-white/55">
-              {rows.length}
-            </span>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <CardTitle>Long-form answers</CardTitle>
+            {rows && total > 0 ? (
+              <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-0.5 text-[11px] tabular-nums text-white/55">
+                {total.toLocaleString()}
+              </span>
+            ) : null}
+          </div>
+          {rows && total > FREEFORM_PAGE_SIZES[0] ? (
+            <label className="flex items-center gap-2 text-[11px] text-white/45">
+              Per page
+              <select
+                value={pageSize}
+                onChange={(e) => {
+                  setPageSize(Number(e.target.value));
+                  setRawPage(0);
+                }}
+                className="h-8 rounded-lg border border-white/12 bg-white/[0.04] px-2 text-[12px] text-white/85 outline-none focus:border-white/25"
+              >
+                {FREEFORM_PAGE_SIZES.map((s) => (
+                  <option key={s} value={s} className="bg-neutral-900">
+                    {s}
+                  </option>
+                ))}
+              </select>
+            </label>
           ) : null}
         </div>
         <CardDescription>
-          Most recent 200 with usable text. Read these: quotable insight tends
-          to live here, not in the multi-selects above.
+          Every survey with usable long-form text, newest first. Read these:
+          quotable insight tends to live here, not in the multi-selects above.
         </CardDescription>
       </CardHeader>
       <CardContent>
-        {rows ? (
-          rows.length === 0 ? (
-            <p className="text-sm text-white/45">No long-form answers yet.</p>
-          ) : (
-            // CSS columns give a masonry feel so variable-length quotes pack
-            // tightly instead of leaving ragged gaps in a fixed grid.
-            <div className="gap-4 sm:columns-2 [&>*]:mb-4">
-              {rows.map((r, i) => {
-                const author = authorOf(r);
-                return (
-                  <figure
-                    key={`${r.email}-${i}`}
-                    className="group break-inside-avoid rounded-xl border border-white/10 bg-gradient-to-b from-white/[0.045] to-white/[0.01] p-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-white/20 hover:shadow-lg hover:shadow-black/30"
-                  >
-                    <div className="mb-3 flex items-center gap-2.5">
-                      <div
-                        className={
-                          "flex size-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br text-[13px] font-semibold text-white shadow-inner ring-1 ring-white/10 " +
-                          author.gradient
-                        }
-                      >
-                        {author.initial}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate text-[13px] font-medium text-white/90">
-                          {author.primary}
-                        </div>
-                        {author.secondary ? (
-                          <div className="truncate font-mono text-[10px] text-white/40">
-                            {author.secondary}
-                          </div>
-                        ) : null}
-                      </div>
-                      {r.submittedAt ? (
-                        <span className="shrink-0 rounded-full border border-emerald-400/25 bg-emerald-400/10 px-2 py-0.5 text-[10px] font-medium text-white">
-                          {formatShortDate(r.submittedAt)}
-                        </span>
-                      ) : (
-                        <span className="shrink-0 rounded-full border border-amber-300/30 bg-amber-300/10 px-2 py-0.5 text-[10px] font-medium text-white">
-                          in progress
-                        </span>
-                      )}
-                    </div>
-
-                    <blockquote className="border-l-2 border-white/15 pl-3 text-[13.5px] leading-[1.6] text-white/85 transition-colors group-hover:border-white/30">
-                      <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
-                        {r.freeform}
-                      </p>
-                    </blockquote>
-
-                    {r.country || r.volume || r.telegram ? (
-                      <figcaption className="mt-3 flex flex-wrap gap-1.5">
-                        {r.country ? <Chip>{r.country}</Chip> : null}
-                        {r.volume ? <Chip>vol · {r.volume}</Chip> : null}
-                        {r.telegram ? <Chip>tg · @{r.telegram}</Chip> : null}
-                      </figcaption>
-                    ) : null}
-                  </figure>
-                );
-              })}
-            </div>
-          )
-        ) : (
+        {!rows ? (
           <div className="gap-4 sm:columns-2 [&>*]:mb-4">
             {Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} className="h-32 w-full break-inside-avoid rounded-xl" />
+              <Skeleton
+                key={i}
+                className="h-32 w-full break-inside-avoid rounded-xl"
+              />
             ))}
           </div>
+        ) : total === 0 ? (
+          <p className="text-sm text-white/45">No long-form answers yet.</p>
+        ) : (
+          <>
+            {/* CSS columns give a masonry feel so variable-length quotes pack
+                tightly instead of leaving ragged gaps in a fixed grid. Keyed
+                on `page` so the whole grid remounts and replays its staggered
+                entrance on every page change. */}
+            <div key={page} className="gap-4 sm:columns-2 [&>*]:mb-4">
+              {visible?.map((r, i) => (
+                <FreeformQuote key={`${start}-${r.email}-${i}`} r={r} index={i} />
+              ))}
+            </div>
+
+            {totalPages > 1 ? (
+              <nav
+                aria-label="Long-form answers pages"
+                className="mt-6 flex flex-col items-center justify-between gap-3 border-t border-white/[0.07] pt-4 sm:flex-row"
+              >
+                <p className="order-2 text-[11px] tabular-nums text-white/40 sm:order-1">
+                  Showing{" "}
+                  <span className="text-white/70">
+                    {rangeStart.toLocaleString()}–{rangeEnd.toLocaleString()}
+                  </span>{" "}
+                  of <span className="text-white/70">{total.toLocaleString()}</span>
+                </p>
+                <div className="order-1 flex items-center gap-1.5 sm:order-2">
+                  <PagerButton
+                    onClick={() => goTo(0)}
+                    disabled={page === 0}
+                    ariaLabel="First page"
+                  >
+                    «
+                  </PagerButton>
+                  <PagerButton
+                    onClick={() => goTo(page - 1)}
+                    disabled={page === 0}
+                    ariaLabel="Previous page"
+                  >
+                    ‹
+                  </PagerButton>
+                  {pageStrip(page, totalPages).map((p, i) =>
+                    p === "…" ? (
+                      <span
+                        key={`gap-${i}`}
+                        className="px-1 text-[12px] text-white/30"
+                      >
+                        …
+                      </span>
+                    ) : (
+                      <PagerButton
+                        key={p}
+                        onClick={() => goTo(p)}
+                        active={p === page}
+                        ariaLabel={`Page ${p + 1}`}
+                      >
+                        {p + 1}
+                      </PagerButton>
+                    ),
+                  )}
+                  <PagerButton
+                    onClick={() => goTo(page + 1)}
+                    disabled={page >= totalPages - 1}
+                    ariaLabel="Next page"
+                  >
+                    ›
+                  </PagerButton>
+                  <PagerButton
+                    onClick={() => goTo(totalPages - 1)}
+                    disabled={page >= totalPages - 1}
+                    ariaLabel="Last page"
+                  >
+                    »
+                  </PagerButton>
+                </div>
+              </nav>
+            ) : null}
+          </>
         )}
       </CardContent>
     </Card>

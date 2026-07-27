@@ -191,6 +191,27 @@ input.hero-waitlist-email:autofill:focus {
   }
 }
 
+/**
+ * Entrance for survey long-form answer cards. The masonry grid remounts on
+ * every page change (keyed on the page index), so each card replays this
+ * fade-and-rise; per-card `animation-delay` set inline staggers the reveal.
+ * Neutralized by the reduced-motion block below.
+ */
+@keyframes quote-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.quote-enter {
+  animation: quote-enter 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .feature-strip-track {
     animation: none;

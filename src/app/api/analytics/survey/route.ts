@@ -234,17 +234,18 @@ export async function GET() {
     .map(([k, v]) => ({ key: k, label: k, count: v.count, source: v.source }))
     .sort((a, b) => b.count - a.count);
 
-  // 5. Freeform answers — show the most recent N submitted, with the
-  // user's other context so reviewers don't context-switch back to the
-  // table. Empty/short answers are excluded so the page doesn't fill
-  // with `""`.
+  // 5. Freeform answers — every submitted long-form answer, newest first,
+  // with the user's other context so reviewers don't context-switch back
+  // to the table. Empty/short answers are excluded so the page doesn't
+  // fill with `""`. No row cap: the survey analytics tab paginates these
+  // client-side, so the reviewer can page through the complete set rather
+  // than only the most recent slice.
   const freeformAnswers = await prisma.surveyAnswer.findMany({
     where: {
       questionKey: "freeform",
       response: { invite: { campaign: SURVEY_CAMPAIGN } },
     },
     orderBy: { answeredAt: "desc" },
-    take: 200,
     select: {
       valueJson: true,
       answeredAt: true,
