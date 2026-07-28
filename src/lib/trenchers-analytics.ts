@@ -76,25 +76,33 @@ async function loadVolume(): Promise<TradingDay[]> {
   const pool = getTrenchersPool();
   if (!pool) return [];
 
-  // Live bot trade volume (paper bots excluded via the join).
+  // Live bot trade volume. Paper trades are excluded PER-TRADE by their
+  // synthetic signature ('paper-buy:' / 'paper-sell:') — real on-chain fills
+  // carry a base58 signature. This is immune to a bot later flipping its
+  // `paper_mode` flag (a bots-join on the *current* flag would retroactively
+  // re-label all of that bot's historical trades). `NOT LIKE 'paper%'` also
+  // drops any NULL-signature row, which we don't want to count as live either.
   const botRows = await pool.query<{ date: string; bot: string }>(
-    `SELECT to_char(date(t.created_at), 'YYYY-MM-DD') AS date,
-            sum(t.sol_amount) / 1e9 AS bot
-       FROM bot_trades t
-       JOIN bots b ON b.id = t.bot_id
-      WHERE b.paper_mode = false
-        AND t.created_at >= $1::date
+    `SELECT to_char(date(created_at), 'YYYY-MM-DD') AS date,
+            sum(sol_amount) / 1e9 AS bot
+       FROM bot_trades
+      WHERE status = 'confirmed'
+        AND signature NOT LIKE 'paper%'
+        AND created_at >= $1::date
       GROUP BY 1`,
     [TRADING_FLOOR_ISO],
   );
 
   // Manual swaps — all SOL-quoted today; the SOL notional is the input on a
-  // buy, the output on a sell.
+  // buy, the output on a sell. Same paper guard for safety (manual paper fills,
+  // if ever recorded here, would carry a synthetic signature too).
   const manualRows = await pool.query<{ date: string; manual: string }>(
     `SELECT to_char(date(created_at), 'YYYY-MM-DD') AS date,
             sum(CASE WHEN side = 'buy' THEN input_amount ELSE output_amount END) AS manual
        FROM trades
       WHERE quote_mint LIKE 'So111%'
+        AND status = 'confirmed'
+        AND signature NOT LIKE 'paper%'
         AND created_at >= $1::date
       GROUP BY 1`,
     [TRADING_FLOOR_ISO],
@@ -108,7 +116,9 @@ async function loadVolume(): Promise<TradingDay[]> {
 }
 
 /** Trading REVENUE per day (SOL) from the canonical `fee_ledger`, split by
- *  `kind` (bot vs manual). Only SOL-denominated fees (all fees today). */
+ *  `kind` (bot vs manual). Only SOL-denominated fees, and only REAL fills —
+ *  paper bots write fee_ledger rows too (with a synthetic 'paper%' signature),
+ *  which are fake revenue and must be excluded per-trade. */
 async function loadRevenue(): Promise<TradingDay[]> {
   const pool = getTrenchersPool();
   if (!pool) return [];
@@ -119,6 +129,7 @@ async function loadRevenue(): Promise<TradingDay[]> {
             sum(fee_lamports) / 1e9 AS sol
        FROM fee_ledger
       WHERE fee_token = 'SOL'
+        AND signature NOT LIKE 'paper%'
         AND created_at >= $1::date
       GROUP BY 1, 2`,
     [TRADING_FLOOR_ISO],
