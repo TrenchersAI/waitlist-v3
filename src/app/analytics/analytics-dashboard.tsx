@@ -13,6 +13,7 @@ import {
 } from "@/src/app/analytics/analytics-sidebar";
 import { AnalyticsTimeseriesChart } from "@/src/app/analytics/analytics-timeseries-chart";
 import { SurveyAnalyticsContent } from "@/src/app/analytics/survey/survey-analytics-view";
+import { TradingAnalyticsContent } from "@/src/app/analytics/trading-analytics-view";
 import {
   ReferrersStrip,
   type ReferralsPayload,
@@ -689,7 +690,9 @@ export default function AnalyticsDashboard({
 
             {section === "top-referrers" ||
             section === "users" ||
-            section === "survey" ? null : (
+            section === "survey" ||
+            section === "volume" ||
+            section === "revenue" ? null : (
               <InPageNav
                 activeRangeKey={rangeKey}
                 onPickRange={applyRange}
@@ -715,6 +718,10 @@ export default function AnalyticsDashboard({
               <TopReferrersSection referrals={referrals} />
             ) : section === "survey" ? (
               <SurveyAnalyticsContent />
+            ) : section === "volume" ? (
+              <TradingAnalyticsContent metric="volume" />
+            ) : section === "revenue" ? (
+              <TradingAnalyticsContent metric="revenue" />
             ) : (
               <UsersSection
                 data={visibleSignups}
@@ -974,6 +981,8 @@ function UsersSection(props: React.ComponentProps<typeof SignupsTable>) {
 
 const SECTION_TITLE: Record<AnalyticsSection, string> = {
   dashboard: "Dashboard",
+  volume: "Trading volume",
+  revenue: "Trading revenue",
   referrals: "Referrals",
   "top-referrers": "Top referrers",
   users: "Users",
@@ -1007,7 +1016,9 @@ function DashboardHeader({
       </div>
       {section === "top-referrers" ||
       section === "users" ||
-      section === "survey" ? null : (
+      section === "survey" ||
+      section === "volume" ||
+      section === "revenue" ? null : (
         <RangePill rangeKey={rangeKey} range={range} />
       )}
     </header>
