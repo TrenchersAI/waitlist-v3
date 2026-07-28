@@ -5,8 +5,10 @@ import {
   ChevronsLeft,
   ChevronsRight,
   ClipboardList,
+  Coins,
   LayoutDashboard,
   Share2,
+  TrendingUp,
   Trophy,
   Users,
 } from "lucide-react";
@@ -18,7 +20,9 @@ export type AnalyticsSection =
   | "referrals"
   | "top-referrers"
   | "users"
-  | "survey";
+  | "survey"
+  | "volume"
+  | "revenue";
 
 type ItemDef = {
   id: AnalyticsSection;
@@ -28,6 +32,8 @@ type ItemDef = {
 
 const ITEMS: ReadonlyArray<ItemDef> = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { id: "volume", label: "Trading volume", icon: TrendingUp },
+  { id: "revenue", label: "Trading revenue", icon: Coins },
   { id: "referrals", label: "Referrals", icon: Share2 },
   { id: "top-referrers", label: "Top referrers", icon: Trophy },
   { id: "users", label: "Users", icon: Users },
