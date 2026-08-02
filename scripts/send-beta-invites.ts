@@ -286,15 +286,36 @@ async function main() {
       );
 
       try {
-        const result = await resend.batch.send(
+        // Retry transient send failures before giving up. Resend returns a
+        // 500 "Internal server error" occasionally, and treating that as a
+        // permanent failure is wrong: it says nothing about the recipient.
+        //
+        // This is not hypothetical. Batch 10 of this very wave hit one, and
+        // the original code stamped all 40 recipients failedAt, which
+        // excluded them from every future run. Forty real people would have
+        // silently never received their invite because a server hiccuped.
+        let result = await resend.batch.send(
           payload as unknown as Parameters<typeof resend.batch.send>[0],
         );
+        for (let attempt = 1; attempt < 3 && result.error; attempt++) {
+          console.warn(
+            `  batch ${n}: send error (attempt ${attempt}) - ${result.error.message}`,
+          );
+          await sleep(2000 * attempt);
+          result = await resend.batch.send(
+            payload as unknown as Parameters<typeof resend.batch.send>[0],
+          );
+        }
+
         if (result.error) {
-          console.warn(`  batch ${n}: send error - ${result.error.message}`);
-          await prisma.betaInvite.updateMany({
-            where: { id: { in: mailable.map((m) => m.id) } },
-            data: { failedAt: new Date(), failReason: result.error.message },
-          });
+          // Still failing after retries. Leave the rows PENDING rather than
+          // stamping failedAt, so a later run picks them up. Only a rejection
+          // that is actually about the recipient deserves to be terminal, and
+          // we cannot tell that apart here, so the safe default is to retry
+          // later rather than to drop someone permanently.
+          console.warn(
+            `  batch ${n}: send failed after retries, leaving ${mailable.length} pending - ${result.error.message}`,
+          );
           sendFailed += mailable.length;
         } else {
           const ids = result.data?.data ?? [];
