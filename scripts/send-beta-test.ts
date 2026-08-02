@@ -21,6 +21,33 @@ import {
   buildBetaInviteText,
 } from "../src/lib/email";
 import { BETA_CAMPAIGN } from "../src/lib/beta-invite";
+import { getTrenchersPool } from "../src/lib/trenchers-db";
+
+/// Confirms each test recipient is actually on the terminal's
+/// login_whitelist before we tell them their access is open.
+///
+/// The bulk sender already refuses to mail anyone without accessGrantedAt.
+/// This script bypassed that because it deliberately touches no BetaInvite
+/// rows, which meant it could happily send "your access is open" to someone
+/// who would then hit a 403 and the "your spot is reserved" card. Same
+/// promise, same check.
+///
+/// Returns null when TRENCHERS_DATABASE_URL is unset, which is a refusal to
+/// guess rather than a pass.
+async function checkBetaAccess(
+  emails: string[],
+): Promise<Map<string, boolean> | null> {
+  const pool = getTrenchersPool();
+  if (!pool) return null;
+  const values = emails.map((e) => e.trim().toLowerCase());
+  const res = await pool.query<{ value: string }>(
+    `SELECT value FROM login_whitelist
+      WHERE enabled = TRUE AND kind = 'email' AND value = ANY($1::text[])`,
+    [values],
+  );
+  const allowed = new Set(res.rows.map((r) => r.value));
+  return new Map(values.map((v) => [v, allowed.has(v)]));
+}
 
 function parseArgs() {
   const args = process.argv.slice(2);
@@ -88,6 +115,36 @@ async function main() {
   if (!apiKey || !fromEmail) {
     console.error("RESEND_API_KEY and RESEND_FROM_EMAIL must be set.");
     process.exit(1);
+  }
+
+  // Gate the send on real beta access unless explicitly overridden.
+  const force = process.argv.includes("--force");
+  const access = await checkBetaAccess(to);
+  if (access === null) {
+    console.error(
+      "\nCannot verify beta access: TRENCHERS_DATABASE_URL is not set.\n" +
+        "This email tells the recipient their access is open, so sending\n" +
+        "without checking risks pointing them at a 403. Set the variable, or\n" +
+        "pass --force if you accept that risk.",
+    );
+    if (!force) process.exit(4);
+  } else {
+    const denied = to.filter(
+      (r) => !access.get(r.trim().toLowerCase()),
+    );
+    console.log("\nBeta access check:");
+    for (const r of to) {
+      const ok = access.get(r.trim().toLowerCase());
+      console.log(`  ${r.padEnd(34)} ${ok ? "on whitelist" : "NOT on whitelist"}`);
+    }
+    if (denied.length > 0) {
+      console.error(
+        `\n${denied.length} recipient(s) are not on login_whitelist. They would\n` +
+          "get a 403 and the waitlist card. Grant them access first, or pass\n" +
+          "--force to send anyway.",
+      );
+      if (!force) process.exit(4);
+    }
   }
 
   const resend = new Resend(apiKey);
