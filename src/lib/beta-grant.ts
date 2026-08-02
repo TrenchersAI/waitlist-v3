@@ -122,14 +122,34 @@ export async function grantBatch(
 /// as a refusal rather than a pass.
 export async function verifyAccess(
   emails: string[],
+  attempts = 3,
 ): Promise<Set<string> | null> {
   const pool = getTrenchersPool();
   if (!pool) return null;
   const values = emails.map((e) => e.trim().toLowerCase());
-  const res = await pool.query<{ value: string }>(
-    `SELECT value FROM login_whitelist
-      WHERE enabled = TRUE AND kind = 'email' AND value = ANY($1::text[])`,
-    [values],
-  );
-  return new Set(res.rows.map((r) => r.value));
+
+  // Retry transient connection failures. A send sleeps minutes between
+  // batches, so the first query after a gap can land on a connection the
+  // pooler has already dropped and fail with ETIMEDOUT. Without this, one
+  // stale connection ends a multi-hour run.
+  let lastError: Error | null = null;
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    try {
+      const res = await pool.query<{ value: string }>(
+        `SELECT value FROM login_whitelist
+          WHERE enabled = TRUE AND kind = 'email' AND value = ANY($1::text[])`,
+        [values],
+      );
+      return new Set(res.rows.map((r) => r.value));
+    } catch (err) {
+      lastError = err as Error;
+      if (attempt < attempts) await new Promise((r) => setTimeout(r, 500 * attempt));
+    }
+  }
+
+  // Exhausted retries. Return null rather than throwing: null means "could
+  // not verify", and the caller already treats that as a refusal to send
+  // rather than a pass, which is the safe reading.
+  console.error(`[beta-grant] verifyAccess failed: ${lastError?.message}`);
+  return null;
 }
