@@ -13,6 +13,7 @@ import {
 } from "@/src/app/analytics/analytics-sidebar";
 import { AnalyticsTimeseriesChart } from "@/src/app/analytics/analytics-timeseries-chart";
 import { SurveyAnalyticsContent } from "@/src/app/analytics/survey/survey-analytics-view";
+import { BetaAnalyticsContent } from "@/src/app/analytics/beta/beta-analytics-view";
 import { TradingAnalyticsContent } from "@/src/app/analytics/trading-analytics-view";
 import {
   ReferrersStrip,
@@ -691,6 +692,7 @@ export default function AnalyticsDashboard({
             {section === "top-referrers" ||
             section === "users" ||
             section === "survey" ||
+            section === "beta" ||
             section === "volume" ||
             section === "revenue" ? null : (
               <InPageNav
@@ -718,6 +720,8 @@ export default function AnalyticsDashboard({
               <TopReferrersSection referrals={referrals} />
             ) : section === "survey" ? (
               <SurveyAnalyticsContent />
+            ) : section === "beta" ? (
+              <BetaAnalyticsContent />
             ) : section === "volume" ? (
               <TradingAnalyticsContent metric="volume" />
             ) : section === "revenue" ? (
@@ -987,6 +991,7 @@ const SECTION_TITLE: Record<AnalyticsSection, string> = {
   "top-referrers": "Top referrers",
   users: "Users",
   survey: "Survey",
+  beta: "Beta access",
 };
 
 function DashboardHeader({
@@ -1017,6 +1022,7 @@ function DashboardHeader({
       {section === "top-referrers" ||
       section === "users" ||
       section === "survey" ||
+      section === "beta" ||
       section === "volume" ||
       section === "revenue" ? null : (
         <RangePill rangeKey={rangeKey} range={range} />

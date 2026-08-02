@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
+import { BETA_CAMPAIGN } from "@/src/lib/beta-invite";
 import { getPrismaClient } from "@/src/lib/prisma";
 
 export const runtime = "nodejs";
@@ -79,23 +80,32 @@ function verifySignature(params: {
   return false;
 }
 
-function extractInviteIdFromTags(
+/// Resend hands tags back either as the array we sent or as a flattened
+/// object, depending on the event type. Handle both shapes.
+function extractTagValue(
   tags: NonNullable<ResendEvent["data"]>["tags"] | undefined,
+  name: string,
 ): string | null {
   if (!tags) return null;
   if (Array.isArray(tags)) {
     for (const t of tags) {
-      if (t && typeof t === "object" && t.name === "inviteId") {
+      if (t && typeof t === "object" && t.name === name) {
         return typeof t.value === "string" ? t.value : null;
       }
     }
     return null;
   }
   if (typeof tags === "object") {
-    const v = (tags as Record<string, string>).inviteId;
+    const v = (tags as Record<string, string>)[name];
     return typeof v === "string" ? v : null;
   }
   return null;
+}
+
+function extractInviteIdFromTags(
+  tags: NonNullable<ResendEvent["data"]>["tags"] | undefined,
+): string | null {
+  return extractTagValue(tags, "inviteId");
 }
 
 export async function POST(request: Request) {
@@ -163,19 +173,29 @@ export async function POST(request: Request) {
   // tag we attached when sending — useful when Resend retries and the
   // message id we stored is the most recent of multiple sends.
   const inviteIdFromTag = extractInviteIdFromTags(evt.data?.tags);
-  const invite = await prisma.surveyInvite.findFirst({
-    where: inviteIdFromTag
-      ? { OR: [{ resendMsgId }, { id: inviteIdFromTag }] }
-      : { resendMsgId },
-    select: {
-      id: true,
-      deliveredAt: true,
-      openedAt: true,
-      clickedAt: true,
-      bouncedAt: true,
-      complainedAt: true,
-    },
-  });
+
+  // Which campaign this event belongs to. Both campaigns tag their sends,
+  // so we route to the right table instead of guessing. Untagged events
+  // fall through to the survey table, which is where all pre-existing
+  // (untagged) traffic came from.
+  const campaign = extractTagValue(evt.data?.tags, "campaign");
+  const isBeta = campaign === BETA_CAMPAIGN;
+
+  const where = inviteIdFromTag
+    ? { OR: [{ resendMsgId }, { id: inviteIdFromTag }] }
+    : { resendMsgId };
+  const select = {
+    id: true,
+    deliveredAt: true,
+    openedAt: true,
+    clickedAt: true,
+    bouncedAt: true,
+    complainedAt: true,
+  } as const;
+
+  const invite = isBeta
+    ? await prisma.betaInvite.findFirst({ where, select })
+    : await prisma.surveyInvite.findFirst({ where, select });
   if (!invite) {
     return Response.json({ ok: true });
   }
@@ -205,10 +225,11 @@ export async function POST(request: Request) {
   }
 
   if (Object.keys(data).length > 0) {
-    await prisma.surveyInvite.update({
-      where: { id: invite.id },
-      data,
-    });
+    if (isBeta) {
+      await prisma.betaInvite.update({ where: { id: invite.id }, data });
+    } else {
+      await prisma.surveyInvite.update({ where: { id: invite.id }, data });
+    }
   }
 
   return Response.json({ ok: true });
