@@ -213,13 +213,24 @@ async function main() {
       process.exit(2);
     }
 
-    // 2. grant access to exactly this batch
+    // 2. grant access to exactly this batch, skipping anyone already
+    //    granted by an earlier run or by the standalone grant script. The
+    //    verify step below still covers everyone either way, so skipping
+    //    only avoids redundant writes and drops the dependency on the ops
+    //    API for runs where access was provisioned ahead of time.
     const emails = chunk.map((c) => c.subscriber.email);
-    const grant = await grantBatch(emails, `${BETA_CAMPAIGN} ${wave}`);
-    if (grant.failed.length > 0) {
-      grantFailed += grant.failed.length;
-      for (const f of grant.failed.slice(0, 3)) {
-        console.warn(`  grant failed: ${f.email} - ${f.error}`);
+    const needGrant = chunk
+      .filter((c) => c.accessGrantedAt === null)
+      .map((c) => c.subscriber.email);
+    let grantedNow = 0;
+    if (needGrant.length > 0) {
+      const grant = await grantBatch(needGrant, `${BETA_CAMPAIGN} ${wave}`);
+      grantedNow = grant.granted.length;
+      if (grant.failed.length > 0) {
+        grantFailed += grant.failed.length;
+        for (const f of grant.failed.slice(0, 3)) {
+          console.warn(`  grant failed: ${f.email} - ${f.error}`);
+        }
       }
     }
 
@@ -309,7 +320,7 @@ async function main() {
     }
 
     console.log(
-      `  batch ${n}/${batches}: granted ${grant.granted.length}, verified ${mailable.length}` +
+      `  batch ${n}/${batches}: granted ${grantedNow}, verified ${mailable.length}` +
         `${skipped > 0 ? `, skipped ${skipped} unverified` : ""}` +
         ` | running total sent ${sentCount}`,
     );
