@@ -6,6 +6,7 @@ import {
   ChevronsRight,
   ClipboardList,
   Coins,
+  Scale,
   KeyRound,
   LayoutDashboard,
   Share2,
@@ -24,7 +25,8 @@ export type AnalyticsSection =
   | "survey"
   | "beta"
   | "volume"
-  | "revenue";
+  | "revenue"
+  | "platform-accounting";
 
 type ItemDef = {
   id: AnalyticsSection;
@@ -36,6 +38,7 @@ const ITEMS: ReadonlyArray<ItemDef> = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { id: "volume", label: "Trading volume", icon: TrendingUp },
   { id: "revenue", label: "Trading revenue", icon: Coins },
+  { id: "platform-accounting", label: "Platform accounting", icon: Scale },
   { id: "referrals", label: "Referrals", icon: Share2 },
   { id: "top-referrers", label: "Top referrers", icon: Trophy },
   { id: "users", label: "Users", icon: Users },
