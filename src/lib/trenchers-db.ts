@@ -30,7 +30,7 @@ export function getTrenchersPool(): Pool | null {
     // via the explicit `ssl` option below — still encrypted, just no chain
     // verification (acceptable for a read-only analytics reader).
     const noSslMode = connectionString.replace(/[?&]sslmode=[^&]*/i, "");
-    globalForTrenchers.trenchersPool = new Pool({
+    const pool = new Pool({
       connectionString: noSslMode,
       ssl: { rejectUnauthorized: false },
       // Read-only analytics: a tiny pool is plenty and stays friendly to the
@@ -38,7 +38,26 @@ export function getTrenchersPool(): Pool | null {
       max: 3,
       idleTimeoutMillis: 30_000,
       connectionTimeoutMillis: 10_000,
+      keepAlive: true,
     });
+
+    // `pg.Pool` emits 'error' when an IDLE pooled client dies — the Supabase
+    // pooler drops connections it considers stale, which surfaces as
+    // `read ETIMEDOUT`. In Node an 'error' event with no listener is
+    // rethrown, so this crashes the whole process rather than the query.
+    //
+    // That is not theoretical: it killed a live send mid-campaign. The
+    // sender sleeps minutes between batches, the connection went idle, the
+    // pooler dropped it, and the unhandled event took the process down
+    // between batch 11 and 12 with no other symptom.
+    //
+    // An idle-client failure is recoverable by definition: the pool discards
+    // that client and the next query opens a fresh one. Log it and carry on.
+    pool.on("error", (err) => {
+      console.error("[trenchers-db] idle client error (recovering):", err.message);
+    });
+
+    globalForTrenchers.trenchersPool = pool;
   }
   return globalForTrenchers.trenchersPool;
 }

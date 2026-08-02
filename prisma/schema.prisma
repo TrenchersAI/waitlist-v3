@@ -135,6 +135,21 @@ model BetaInvite {
   complainedAt DateTime?
   unsubscribedAt DateTime?
 
+  /// Second send: the "signup issue" reminder, mailed to invitees who had
+  /// not signed in. Tracked on separate columns rather than a second row
+  /// because `subscriberId` is unique per subscriber, and separate columns
+  /// keep the first send's delivery stats intact rather than overwriting
+  /// them. Same reason SurveyInvite carries its own `reminderSentAt`.
+  /// Not unique: a unique index here would buy nothing (Resend ids are
+  /// already distinct) and adding one to a populated table triggers a
+  /// data-loss warning for no benefit. A plain index is all the webhook
+  /// lookup needs.
+  reminderSentAt      DateTime?
+  reminderResendMsgId String?
+  reminderDeliveredAt DateTime?
+  reminderBouncedAt   DateTime?
+  reminderComplainedAt DateTime?
+
   /// When beta access was actually provisioned for this address.
   accessGrantedAt DateTime?
   /// First observed sign-in on beta.trenchers.ai with this email. The
@@ -150,6 +165,8 @@ model BetaInvite {
   @@index([clickedAt])
   @@index([accessGrantedAt])
   @@index([activatedAt])
+  @@index([reminderSentAt])
+  @@index([reminderResendMsgId])
 }
 
 /// Raw audit log of Resend webhook events. We also fold the relevant

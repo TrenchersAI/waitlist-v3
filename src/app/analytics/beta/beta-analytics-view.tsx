@@ -91,6 +91,22 @@ type Payload = {
     webhookHealthy: boolean;
     totalEvents: number;
   };
+  reminder: {
+    sent: number;
+    delivered: number;
+    bounced: number;
+    complained: number;
+    pending: number;
+    recovered: number;
+    deliveryRate: number;
+    bounceRate: number;
+    complaintRate: number;
+    recoveryRate: number;
+    bounceLimit: number;
+    complaintLimit: number;
+    bouncePause: number;
+    complaintPause: number;
+  };
   tracking: { opens: boolean; clicks: boolean };
   accessSource: "terminal" | "local";
 };
@@ -287,6 +303,81 @@ export function BetaAnalyticsContent() {
           <Timeline points={data.series} />
         </Panel>
       </div>
+
+      {/* Second send */}
+      <Panel
+        title="Signup issue mail"
+        hint="Second send, to invitees who had not signed in. Tracked separately from the invite."
+      >
+        <div className="grid min-w-0 gap-5 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
+          <div className="grid min-w-0 grid-cols-2 gap-3 sm:grid-cols-3">
+            <Mini label="Sent" value={data.reminder.sent} />
+            <Mini
+              label="Delivered"
+              value={data.reminder.delivered}
+              caption={
+                data.reminder.sent > 0
+                  ? pct(data.reminder.deliveryRate)
+                  : "awaiting send"
+              }
+            />
+            <Mini label="Still queued" value={data.reminder.pending} />
+            <Mini
+              label="Bounced"
+              value={data.reminder.bounced}
+              caption={data.reminder.sent > 0 ? pct(data.reminder.bounceRate) : undefined}
+              tone={data.reminder.bounced > 0 ? BAD : undefined}
+            />
+            <Mini
+              label="Spam reports"
+              value={data.reminder.complained}
+              caption={
+                data.reminder.sent > 0 ? pct(data.reminder.complaintRate, 3) : undefined
+              }
+              tone={data.reminder.complained > 0 ? BAD : undefined}
+            />
+            <Mini
+              label="Recovered"
+              value={data.reminder.recovered}
+              caption={
+                data.reminder.sent > 0 ? pct(data.reminder.recoveryRate) : undefined
+              }
+              tone={data.reminder.recovered > 0 ? OK : undefined}
+            />
+          </div>
+
+          <div className="grid gap-6 sm:grid-cols-2">
+            <RateGauge
+              label="Bounce rate"
+              rate={data.reminder.bounceRate}
+              pause={data.reminder.bouncePause}
+              limit={data.reminder.bounceLimit}
+              count={data.reminder.bounced}
+              denom={data.reminder.sent}
+              measured={r.webhookHealthy && data.reminder.sent > 0}
+            />
+            <RateGauge
+              label="Complaint rate"
+              rate={data.reminder.complaintRate}
+              pause={data.reminder.complaintPause}
+              limit={data.reminder.complaintLimit}
+              count={data.reminder.complained}
+              denom={data.reminder.sent}
+              precision={3}
+              measured={r.webhookHealthy && data.reminder.sent > 0}
+            />
+          </div>
+        </div>
+
+        <p className="mt-4 border-t border-white/5 pt-3 text-[12px] leading-relaxed text-white/45">
+          <strong className="text-white/70">Recovered</strong> counts people who
+          had not signed in when this went out and have since. It is the only
+          number that says whether the send was worth making. Audience is
+          recomputed at send time from the terminal, so anyone who signs in
+          before their batch is dropped rather than being told their account is
+          still waiting.
+        </p>
+      </Panel>
 
       {/* Waves */}
       <Panel
@@ -547,6 +638,36 @@ function Kpi({
         </div>
       ) : null}
       <div className="mt-1.5 text-[11px] text-white/35">{sub}</div>
+    </div>
+  );
+}
+
+/// Compact figure for dense grids, where a full Kpi card would waste space.
+function Mini({
+  label,
+  value,
+  caption,
+  tone,
+}: {
+  label: string;
+  value: number;
+  caption?: string;
+  tone?: string;
+}) {
+  return (
+    <div className="min-w-0 rounded-lg border border-white/8 bg-white/[0.02] px-3 py-2.5">
+      <div className="text-[10px] uppercase tracking-wider text-white/40">
+        {label}
+      </div>
+      <div
+        className="mt-0.5 text-xl leading-none tabular-nums"
+        style={{ color: tone ?? "rgb(255 255 255)" }}
+      >
+        {nf.format(value)}
+      </div>
+      {caption ? (
+        <div className="mt-1 text-[10px] text-white/35">{caption}</div>
+      ) : null}
     </div>
   );
 }

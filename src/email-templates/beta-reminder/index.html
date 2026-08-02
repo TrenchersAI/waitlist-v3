@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Your Trenchers access is still open</title>
+  </head>
+  <!--
+    Second touch for invitees who have not signed in yet.
+
+    Framed as a reminder that carries the incident notice, rather than as an
+    apology on its own. The ordering is the point: an apology-only email
+    gives someone no reason to act, while a reminder gives them one and the
+    fix removes the obstacle. Most recipients never hit the bug at all, and
+    to them a pure incident notice is confusing noise.
+
+    Same austere shell as the invite for the same reasons: no images, no
+    <style> block, no tables, no padded CTA button, two links, destination
+    URL as its own anchor text. This is the second message to the same
+    people inside a day, so anything campaign-shaped is what turns a useful
+    nudge into a spam complaint.
+
+    {{RECIPIENT_EMAIL}} is functional, not personalization. The access gate
+    matches the Privy email exactly, and Apple or X sign-in resolves to no
+    email at all. Anyone who failed to sign in this morning is precisely the
+    person most likely to have tried the wrong method, so the instruction is
+    repeated here even though the invite already carried it.
+  -->
+  <body style="margin:0;padding:0;background:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;">
+    <div style="max-width:520px;margin:0 auto;padding:36px 24px 32px;color:#1a1a1a;font-size:16px;line-height:1.6;">
+      <p style="margin:0 0 18px;">Hello,</p>
+
+      <p style="margin:0 0 18px;">
+        A quick reminder that your early access to Trenchers is open and waiting.
+      </p>
+
+      <p style="margin:0 0 22px;">
+        We also noticed that some users were not able to sign in earlier today. That was a fault on our side. We found it and fixed it fast, so if you tried and could not get in, please try again.
+      </p>
+
+      <p style="margin:0 0 26px;">
+        Your access is here:<br />
+        <a href="{{ACCESS_URL}}" style="font-size:19px;font-weight:600;color:#1a1a1a;text-decoration:underline;">{{ACCESS_URL}}</a>
+      </p>
+
+      <p style="margin:0 0 18px;">
+        Sign in with <strong>{{RECIPIENT_EMAIL}}</strong> using email or Google. Signing in through X or Apple will not resolve your access.
+      </p>
+
+      <p style="margin:0 0 28px;">
+        If anything else blocks you, reply to this email. It reaches the team directly, and we act on it.
+      </p>
+
+      <p style="margin:0 0 6px;color:#555;">Thank you,</p>
+      <p style="margin:0 0 28px;color:#555;">Trenchers</p>
+
+      <p style="margin:0;color:#8a8a8a;font-size:13px;line-height:1.5;">
+        You are receiving this because you joined the Trenchers waitlist. If you would prefer not to hear from us, you can <a href="{{UNSUBSCRIBE_URL}}" style="color:#8a8a8a;">unsubscribe</a>.
+      </p>
+    </div>
+  </body>
+</html>

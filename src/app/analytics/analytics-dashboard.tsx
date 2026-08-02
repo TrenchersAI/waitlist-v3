@@ -13,6 +13,7 @@ import {
 } from "@/src/app/analytics/analytics-sidebar";
 import { AnalyticsTimeseriesChart } from "@/src/app/analytics/analytics-timeseries-chart";
 import { SurveyAnalyticsContent } from "@/src/app/analytics/survey/survey-analytics-view";
+import { AccountingContent } from "@/src/app/analytics/accounting-view";
 import { BetaAnalyticsContent } from "@/src/app/analytics/beta/beta-analytics-view";
 import { TradingAnalyticsContent } from "@/src/app/analytics/trading-analytics-view";
 import {
@@ -694,7 +695,8 @@ export default function AnalyticsDashboard({
             section === "survey" ||
             section === "beta" ||
             section === "volume" ||
-            section === "revenue" ? null : (
+            section === "revenue" ||
+            section === "platform-accounting" ? null : (
               <InPageNav
                 activeRangeKey={rangeKey}
                 onPickRange={applyRange}
@@ -726,6 +728,8 @@ export default function AnalyticsDashboard({
               <TradingAnalyticsContent metric="volume" />
             ) : section === "revenue" ? (
               <TradingAnalyticsContent metric="revenue" />
+            ) : section === "platform-accounting" ? (
+              <AccountingContent />
             ) : (
               <UsersSection
                 data={visibleSignups}
@@ -992,6 +996,7 @@ const SECTION_TITLE: Record<AnalyticsSection, string> = {
   users: "Users",
   survey: "Survey",
   beta: "Beta access",
+  "platform-accounting": "Platform accounting",
 };
 
 function DashboardHeader({
@@ -1024,7 +1029,8 @@ function DashboardHeader({
       section === "survey" ||
       section === "beta" ||
       section === "volume" ||
-      section === "revenue" ? null : (
+      section === "revenue" ||
+      section === "platform-accounting" ? null : (
         <RangePill rangeKey={rangeKey} range={range} />
       )}
     </header>

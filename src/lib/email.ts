@@ -535,8 +535,60 @@ export function buildBetaInviteText(params: BetaInviteCopy) {
     "X and Apple will not work.",
     "",
     "You joined the waitlist early, so you are in the first group through the",
-    "door. It is still rough in places. Reply to this email and it reaches us",
-    "directly.",
+    "door. Your feedback is greatly appreciated and will help us shape this to",
+    "perfection. Just reply to this email and it comes straight to us.",
+    "",
+    "Thank you,",
+    "Trenchers",
+    "",
+    "---",
+    "You are receiving this because you joined the Trenchers waitlist.",
+    `Unsubscribe: ${params.unsubscribeUrl}`,
+  ].join("\n");
+}
+
+/// Subject for the second touch: a reminder that carries the incident
+/// notice.
+///
+/// Reminder-led rather than apology-led, because most recipients never hit
+/// the bug and "the sign-in issue is fixed" means nothing to them. Stating
+/// that their access is still open gives every recipient a reason to act,
+/// and the fix inside removes the obstacle for the subset who were blocked.
+export const BETA_REMINDER_SUBJECT = "Your Trenchers access is still open";
+
+export async function buildBetaReminderHtml(params: BetaInviteCopy) {
+  const templatePath = join(
+    process.cwd(),
+    "src/email-templates/beta-reminder/index.html",
+  );
+  const templateHtml = await readFile(templatePath, "utf-8");
+  return templateHtml
+    .replace(/<!--[\s\S]*?-->/g, "")
+    .replaceAll("{{ACCESS_URL}}", params.accessUrl)
+    .replaceAll("{{UNSUBSCRIBE_URL}}", params.unsubscribeUrl)
+    .replaceAll("{{RECIPIENT_EMAIL}}", escapeHtml(params.recipientEmail))
+    .trim();
+}
+
+export function buildBetaReminderText(params: BetaInviteCopy) {
+  return [
+    "Hello,",
+    "",
+    "A quick reminder that your early access to Trenchers is open and",
+    "waiting.",
+    "",
+    "We also noticed that some users were not able to sign in earlier today.",
+    "That was a fault on our side. We found it and fixed it fast, so if you",
+    "tried and could not get in, please try again.",
+    "",
+    "Your access is here:",
+    params.accessUrl,
+    "",
+    `Sign in with ${params.recipientEmail} using email or Google. Signing in`,
+    "through X or Apple will not resolve your access.",
+    "",
+    "If anything else blocks you, reply to this email. It reaches the team",
+    "directly, and we act on it.",
     "",
     "Thank you,",
     "Trenchers",
