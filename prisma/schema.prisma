@@ -22,6 +22,7 @@ model WaitlistSubscriber {
   createdAt    DateTime             @default(now())
   updatedAt    DateTime             @updatedAt
   surveyInvite SurveyInvite?
+  betaInvite   BetaInvite?
 
   @@index([referredById])
   // Analytics aggregates date-bucket by createdAt / verifiedAt on every
@@ -93,6 +94,62 @@ model SurveyAnswer {
 
   @@unique([responseId, questionKey])
   @@index([questionKey])
+}
+
+/// One row per (campaign, subscriber) for the beta-access invite. Created
+/// up-front by the segmentation step so the send is resumable and so every
+/// recipient has a stable token before a single email goes out.
+///
+/// Kept separate from SurveyInvite rather than adding columns to it: the
+/// two campaigns have different audiences and different suppression rules,
+/// and a bounce on the beta invite must not silently rewrite survey
+/// analytics.
+model BetaInvite {
+  id           String   @id @default(cuid())
+  campaign     String   @default("beta-access-v1")
+  subscriberId String   @unique
+  subscriber   WaitlistSubscriber @relation(fields: [subscriberId], references: [id], onDelete: Cascade)
+
+  /// Send wave from src/lib/beta-invite.ts. Stored (not recomputed) so the
+  /// record of which cohort we mailed survives later list changes.
+  wave         String
+
+  /// Opaque per-recipient token. Backs the tracked "open the terminal"
+  /// link, so a click is attributable first-party without Resend's
+  /// click-tracking rewrite (which is itself a Promotions-tab signal).
+  token        String   @unique
+
+  resendMsgId  String?  @unique
+  sentAt       DateTime?
+  /// Terminal failure at send time (Resend rejected it). Distinct from a
+  /// bounce, which happens after acceptance.
+  failedAt     DateTime?
+  failReason   String?
+
+  deliveredAt  DateTime?
+  openedAt     DateTime?
+  /// First time the recipient hit the tokenized invite link. This is the
+  /// real engagement signal for this campaign since open tracking is off.
+  clickedAt    DateTime?
+  bouncedAt    DateTime?
+  complainedAt DateTime?
+  unsubscribedAt DateTime?
+
+  /// When beta access was actually provisioned for this address.
+  accessGrantedAt DateTime?
+  /// First observed sign-in on beta.trenchers.ai with this email. The
+  /// bottom of the funnel: invited -> delivered -> clicked -> signed in.
+  activatedAt  DateTime?
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([campaign])
+  @@index([wave])
+  @@index([sentAt])
+  @@index([clickedAt])
+  @@index([accessGrantedAt])
+  @@index([activatedAt])
 }
 
 /// Raw audit log of Resend webhook events. We also fold the relevant

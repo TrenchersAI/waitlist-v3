@@ -484,6 +484,81 @@ export function buildSurveyInviteText(params: {
   ].join("\n");
 }
 
+export type BetaInviteCopy = {
+  accessUrl: string;
+  unsubscribeUrl: string;
+  recipientEmail: string;
+};
+
+/// Subject for the beta invite. Deliberately plain and declarative.
+///
+/// Avoided on purpose: brackets, ALL CAPS, emoji, exclamation marks, and the
+/// words free / exclusive / limited / hurry / act now, all of which push a
+/// message toward Promotions or a spam-score penalty. Also avoided: "invite"
+/// and "invitation", which are overwhelmingly used by bulk senders. A short
+/// possessive statement of fact reads like a human wrote it.
+export const BETA_INVITE_SUBJECT = "Your Trenchers access is open";
+
+export async function buildBetaInviteHtml(params: BetaInviteCopy) {
+  const templatePath = join(
+    process.cwd(),
+    "src/email-templates/beta-invite/index.html",
+  );
+  const templateHtml = await readFile(templatePath, "utf-8");
+
+  return (
+    templateHtml
+      // The template carries a long rationale comment explaining why the
+      // markup is as austere as it is. That is for whoever edits it next,
+      // not for the recipient, so strip it: we neither ship our own
+      // deliverability notes to 10k inboxes nor pay for the bytes.
+      .replace(/<!--[\s\S]*?-->/g, "")
+      .replaceAll("{{ACCESS_URL}}", params.accessUrl)
+      .replaceAll("{{UNSUBSCRIBE_URL}}", params.unsubscribeUrl)
+      .replaceAll("{{RECIPIENT_EMAIL}}", escapeHtml(params.recipientEmail))
+      .trim()
+  );
+}
+
+/// Plain-text alternative. Kept in sync with the HTML wording, since a text part
+/// that diverges from the HTML part is itself a spam-filter signal, and
+/// HTML-only mail scores worse than multipart regardless.
+export function buildBetaInviteText(params: BetaInviteCopy) {
+  return [
+    "Hello,",
+    "",
+    "You are in. Your early access to Trenchers is now open.",
+    "",
+    params.accessUrl,
+    "",
+    `Sign in with ${params.recipientEmail} using email or Google.`,
+    "X and Apple will not work.",
+    "",
+    "You joined the waitlist early, so you are in the first group through the",
+    "door. It is still rough in places. Reply to this email and it reaches us",
+    "directly.",
+    "",
+    "Thank you,",
+    "Trenchers",
+    "",
+    "---",
+    "You are receiving this because you joined the Trenchers waitlist.",
+    `Unsubscribe: ${params.unsubscribeUrl}`,
+  ].join("\n");
+}
+
+/// The recipient's own address is interpolated into the HTML body. It comes
+/// from our database rather than user input at send time, but escaping it
+/// costs nothing and stops a stored `<` in an address from breaking the
+/// markup for that one recipient.
+function escapeHtml(value: string) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
+
 async function buildOtpEmailHtml(otp: string) {
   const templatePath = join(
     process.cwd(),

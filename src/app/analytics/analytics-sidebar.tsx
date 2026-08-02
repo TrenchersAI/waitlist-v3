@@ -6,6 +6,7 @@ import {
   ChevronsRight,
   ClipboardList,
   Coins,
+  KeyRound,
   LayoutDashboard,
   Share2,
   TrendingUp,
@@ -21,6 +22,7 @@ export type AnalyticsSection =
   | "top-referrers"
   | "users"
   | "survey"
+  | "beta"
   | "volume"
   | "revenue";
 
@@ -38,6 +40,7 @@ const ITEMS: ReadonlyArray<ItemDef> = [
   { id: "top-referrers", label: "Top referrers", icon: Trophy },
   { id: "users", label: "Users", icon: Users },
   { id: "survey", label: "Survey", icon: ClipboardList },
+  { id: "beta", label: "Beta access", icon: KeyRound },
 ];
 
 type Props = {
