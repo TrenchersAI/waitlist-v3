@@ -193,6 +193,44 @@ export async function POST(request: Request) {
     complainedAt: true,
   } as const;
 
+  // The beta campaign sends twice to the same row (invite, then the signup
+  // issue reminder), so a message id alone does not say which send an event
+  // belongs to. Check the reminder id first: if it matches, fold the event
+  // onto the reminder columns so the two sends keep independent delivery
+  // stats instead of the second overwriting the first.
+  if (isBeta) {
+    const reminderRow = await prisma.betaInvite.findFirst({
+      where: { reminderResendMsgId: resendMsgId },
+      select: {
+        id: true,
+        reminderDeliveredAt: true,
+        reminderBouncedAt: true,
+        reminderComplainedAt: true,
+      },
+    });
+    if (reminderRow) {
+      const rdata: Record<string, Date> = {};
+      switch (evt.type) {
+        case "email.delivered":
+          if (!reminderRow.reminderDeliveredAt) rdata.reminderDeliveredAt = occurredAt;
+          break;
+        case "email.bounced":
+        case "email.failed":
+          if (!reminderRow.reminderBouncedAt) rdata.reminderBouncedAt = occurredAt;
+          break;
+        case "email.complained":
+          if (!reminderRow.reminderComplainedAt) rdata.reminderComplainedAt = occurredAt;
+          break;
+        default:
+          break;
+      }
+      if (Object.keys(rdata).length > 0) {
+        await prisma.betaInvite.update({ where: { id: reminderRow.id }, data: rdata });
+      }
+      return Response.json({ ok: true });
+    }
+  }
+
   const invite = isBeta
     ? await prisma.betaInvite.findFirst({ where, select })
     : await prisma.surveyInvite.findFirst({ where, select });
