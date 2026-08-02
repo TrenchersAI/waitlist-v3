@@ -1,28 +1,29 @@
-// Paced, resumable, wave-by-wave sender for the beta-access invite.
+// Paced, resumable, just-in-time sender for the beta-access invite.
 //
-// Safety model, in priority order:
+// Each batch is small and self-contained:
 //
-//   1. ABORT ON REPUTATION. Before every batch we recompute live bounce and
-//      complaint rates from BetaInvite and stop if either crosses the
-//      threshold. The binding limits are Resend's own AUP, not Google's:
-//      bounce < 4% and complaint < 0.08%, and Resend states an account
-//      "may be shutdown without warning" above them. Their 0.08% complaint
-//      ceiling is nearly 4x stricter than Gmail's 0.30%, so it is what we
-//      gate on.
-//   2. ONE WAVE AT A TIME. The wave must be named explicitly. There is no
-//      "send to everyone" mode, on purpose - see src/lib/beta-invite.ts for
-//      why the tail of this list is dangerous.
-//   3. RESUMABLE + IDEMPOTENT. sentAt is stamped per recipient, so a crash
-//      or a re-run continues rather than double-sending.
-//   4. DRY-RUN BY DEFAULT. Nothing leaves the building without --send.
+//   1. check live bounce and complaint rates, abort if either has turned
+//   2. take the next N pending recipients
+//   3. GRANT those N beta access, and no one else
+//   4. READ THE WHITELIST BACK to confirm the grant actually landed
+//   5. mail only the addresses that verified
+//   6. sleep, so the wave spreads across the target window
 //
-// Pacing: Resend allows 10 req/s per team and 100 emails per batch call,
-// which is a theoretical 1,000 emails/second. That is a hazard, not a
-// feature. We cap at ~1,000/hour by sleeping between batches so bounce
-// webhooks have time to land and be counted by the next batch's gate.
+// Access is provisioned per batch rather than per wave on purpose. The email
+// asserts "your access is open", so that has to be true at the moment it is
+// sent, and an abort must never leave people holding access they were never
+// told about.
+//
+// Pacing exists because a burst is a hazard, not a feature. Resend allows 10
+// req/s and 100 emails per batch call, which is a theoretical 1,000 emails a
+// second. Spreading a wave over several hours keeps daily volume to any one
+// mailbox provider modest and gives bounce webhooks time to land and be
+// counted by the next batch's gate.
 //
 //   pnpm exec tsx scripts/send-beta-invites.ts --wave wave-1-completed
-//   pnpm exec tsx scripts/send-beta-invites.ts --wave wave-1-completed --send --limit 500
+//   pnpm exec tsx scripts/send-beta-invites.ts --wave wave-1-completed --send
+//   ... --send --batch 40 --hours 6      (spread the wave over ~6 hours)
+//   ... --send --batch 40 --per-hour 250 (or set the hourly rate directly)
 
 import "dotenv/config";
 
@@ -34,66 +35,55 @@ import {
   buildBetaInviteText,
 } from "../src/lib/email";
 import { BETA_CAMPAIGN, WAVE_ORDER, type InviteWave } from "../src/lib/beta-invite";
+import { grantBatch, verifyAccess } from "../src/lib/beta-grant";
 import { getPrismaClient } from "../src/lib/prisma";
 
-/// Resend's published ceilings. Crossing either risks the account, so we
-/// stop well before: the pause thresholds below are deliberately set at
-/// half of Resend's limit to leave room to investigate.
+/// Resend's published ceilings. Crossing either risks the account outright,
+/// so we pause at half of each to leave room to investigate.
 const RESEND_BOUNCE_LIMIT = 0.04;
 const RESEND_COMPLAINT_LIMIT = 0.0008;
 const BOUNCE_PAUSE_AT = 0.02;
 const COMPLAINT_PAUSE_AT = 0.0004;
 
-/// Do not evaluate rates until we have enough delivered mail for them to
-/// mean anything. At n=100, a single complaint reads as 1% and would abort
-/// a healthy send.
-const MIN_SAMPLE_FOR_RATE_GATE = 500;
+/// Rates are meaningless on tiny samples: at n=100 a single complaint reads
+/// as 1% and would abort a perfectly healthy send.
+const MIN_SAMPLE_FOR_RATE_GATE = 400;
 
-const BATCH_SIZE = 100; // Resend's hard max per batch call.
-const TARGET_PER_HOUR = 1000;
-const SLEEP_MS_BETWEEN_BATCHES = Math.ceil(
-  (3600 * 1000) / (TARGET_PER_HOUR / BATCH_SIZE),
-);
+/// Small by default. Resend permits 100 per call, but smaller batches mean
+/// finer-grained aborts and a smaller population exposed to any single
+/// mistake.
+const DEFAULT_BATCH = 40;
+const MAX_BATCH = 100;
+const DEFAULT_HOURS = 6;
 
 function parseArgs() {
   const args = process.argv.slice(2);
-  const send = args.includes("--send");
-
-  const readValue = (flag: string) => {
-    const idx = args.findIndex((a) => a === flag || a.startsWith(`${flag}=`));
-    if (idx === -1) return undefined;
-    const a = args[idx];
-    return a.includes("=") ? a.split("=").slice(1).join("=") : args[idx + 1];
+  const read = (flag: string) => {
+    const i = args.findIndex((a) => a === flag || a.startsWith(`${flag}=`));
+    if (i === -1) return undefined;
+    const a = args[i];
+    return a.includes("=") ? a.split("=").slice(1).join("=") : args[i + 1];
   };
-
-  const wave = readValue("--wave") as InviteWave | undefined;
-  const limitRaw = readValue("--limit");
-  const limit = limitRaw ? Number(limitRaw) : Infinity;
-  return { send, wave, limit };
+  const num = (v: string | undefined) => (v ? Number(v) : undefined);
+  return {
+    send: args.includes("--send"),
+    wave: read("--wave") as InviteWave | undefined,
+    batch: Math.min(MAX_BATCH, Math.max(1, num(read("--batch")) ?? DEFAULT_BATCH)),
+    limit: num(read("--limit")) ?? Infinity,
+    hours: num(read("--hours")),
+    perHour: num(read("--per-hour")),
+  };
 }
 
-function sleep(ms: number) {
-  return new Promise((r) => setTimeout(r, ms));
-}
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-/// Live reputation snapshot across everything already sent in this
-/// campaign. Rates are computed against messages Resend accepted, which is
-/// the denominator Resend itself uses.
-async function reputationSnapshot() {
+async function reputation() {
   const prisma = getPrismaClient();
   const [sent, bounced, complained, unsubscribed] = await Promise.all([
-    prisma.betaInvite.count({
-      where: { campaign: BETA_CAMPAIGN, sentAt: { not: null } },
-    }),
-    prisma.betaInvite.count({
-      where: { campaign: BETA_CAMPAIGN, bouncedAt: { not: null } },
-    }),
-    prisma.betaInvite.count({
-      where: { campaign: BETA_CAMPAIGN, complainedAt: { not: null } },
-    }),
-    prisma.betaInvite.count({
-      where: { campaign: BETA_CAMPAIGN, unsubscribedAt: { not: null } },
-    }),
+    prisma.betaInvite.count({ where: { campaign: BETA_CAMPAIGN, sentAt: { not: null } } }),
+    prisma.betaInvite.count({ where: { campaign: BETA_CAMPAIGN, bouncedAt: { not: null } } }),
+    prisma.betaInvite.count({ where: { campaign: BETA_CAMPAIGN, complainedAt: { not: null } } }),
+    prisma.betaInvite.count({ where: { campaign: BETA_CAMPAIGN, unsubscribedAt: { not: null } } }),
   ]);
   return {
     sent,
@@ -105,64 +95,29 @@ async function reputationSnapshot() {
   };
 }
 
-type GateResult = { ok: true } | { ok: false; reason: string };
-
-function evaluateGate(snap: Awaited<ReturnType<typeof reputationSnapshot>>): GateResult {
-  if (snap.sent < MIN_SAMPLE_FOR_RATE_GATE) return { ok: true };
-  if (snap.bounceRate >= BOUNCE_PAUSE_AT) {
-    return {
-      ok: false,
-      reason:
-        `bounce rate ${(snap.bounceRate * 100).toFixed(2)}% >= pause threshold ` +
-        `${(BOUNCE_PAUSE_AT * 100).toFixed(2)}% (Resend hard limit ${(
-          RESEND_BOUNCE_LIMIT * 100
-        ).toFixed(0)}%)`,
-    };
+function gate(s: Awaited<ReturnType<typeof reputation>>): string | null {
+  if (s.sent < MIN_SAMPLE_FOR_RATE_GATE) return null;
+  if (s.bounceRate >= BOUNCE_PAUSE_AT) {
+    return `bounce rate ${(s.bounceRate * 100).toFixed(2)}% at or above the ${(
+      BOUNCE_PAUSE_AT * 100
+    ).toFixed(2)}% pause threshold (Resend suspends at ${(RESEND_BOUNCE_LIMIT * 100).toFixed(0)}%)`;
   }
-  if (snap.complaintRate >= COMPLAINT_PAUSE_AT) {
-    return {
-      ok: false,
-      reason:
-        `complaint rate ${(snap.complaintRate * 100).toFixed(3)}% >= pause threshold ` +
-        `${(COMPLAINT_PAUSE_AT * 100).toFixed(3)}% (Resend hard limit ${(
-          RESEND_COMPLAINT_LIMIT * 100
-        ).toFixed(2)}%)`,
-    };
+  if (s.complaintRate >= COMPLAINT_PAUSE_AT) {
+    return `complaint rate ${(s.complaintRate * 100).toFixed(3)}% at or above the ${(
+      COMPLAINT_PAUSE_AT * 100
+    ).toFixed(3)}% pause threshold (Resend suspends at ${(
+      RESEND_COMPLAINT_LIMIT * 100
+    ).toFixed(2)}%)`;
   }
-  return { ok: true };
-}
-
-/// Warns loudly if the webhook has never recorded an event. Without it,
-/// bounced/complained stay 0 forever and the gate above is decorative  - 
-/// which is exactly what happened on the previous 10,474-email survey send.
-async function assertWebhookAlive(sentSoFar: number) {
-  const prisma = getPrismaClient();
-  const events = await prisma.emailEvent.count();
-  if (events === 0 && sentSoFar > 0) {
-    throw new Error(
-      "No EmailEvent rows exist but mail has already been sent. The Resend " +
-        "webhook is not delivering, so bounce and complaint gating cannot " +
-        "work. Configure the webhook (and RESEND_WEBHOOK_SECRET) before " +
-        "sending more.",
-    );
-  }
-  if (events === 0) {
-    console.warn(
-      "\n  WARNING: zero EmailEvent rows. If the Resend webhook is not\n" +
-        "  configured, this send will be unmonitored and the abort gate\n" +
-        "  will never fire. Verify the webhook before a large wave.\n",
-    );
-  }
+  return null;
 }
 
 async function main() {
-  const { send, wave, limit } = parseArgs();
+  const { send, wave, batch, limit, hours, perHour } = parseArgs();
   const prisma = getPrismaClient();
 
   if (!wave || !WAVE_ORDER.includes(wave)) {
-    console.error(
-      `--wave is required and must be one of:\n  ${WAVE_ORDER.join("\n  ")}`,
-    );
+    console.error(`--wave is required, one of:\n  ${WAVE_ORDER.join("\n  ")}`);
     process.exit(1);
   }
 
@@ -173,65 +128,14 @@ async function main() {
     process.exit(1);
   }
 
-  const siteUrl = (
-    process.env.NEXT_PUBLIC_SITE_URL ?? "https://trenchers.ai"
-  ).replace(/\/$/, "");
+  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.trenchers.ai").replace(/\/$/, "");
   const accessUrl = process.env.BETA_ACCESS_URL ?? "https://beta.trenchers.ai";
   const replyTo = process.env.RESEND_REPLY_TO ?? "team@trenchers.ai";
 
-  const snap = await reputationSnapshot();
-  console.log(`\nBeta invite sender - ${BETA_CAMPAIGN} - ${new Date().toISOString()}`);
-  console.log(`Mode:            ${send ? "LIVE SEND" : "dry-run (use --send)"}`);
-  console.log(`Wave:            ${wave}`);
-  console.log(
-    `Already sent:    ${snap.sent} (bounced ${snap.bounced}, complained ${snap.complained}, unsub ${snap.unsubscribed})`,
-  );
-  if (snap.sent > 0) {
-    console.log(
-      `Rates:           bounce ${(snap.bounceRate * 100).toFixed(2)}%, complaint ${(
-        snap.complaintRate * 100
-      ).toFixed(3)}%`,
-    );
-  }
-
-  if (send) await assertWebhookAlive(snap.sent);
-
-  const gate = evaluateGate(snap);
-  if (!gate.ok) {
-    console.error(`\nABORT: ${gate.reason}`);
-    console.error("Investigate before sending anything further.");
-    process.exit(2);
-  }
-
-  // Nobody gets an email saying "your access is open" unless access has
-  // actually been provisioned. The terminal is default-deny, so sending
-  // first would land the recipient on a "you're not on the list" screen  - 
-  // the single worst outcome available here, and one that generates
-  // support load and spam complaints in equal measure.
-  const ungranted = await prisma.betaInvite.count({
-    where: {
-      campaign: BETA_CAMPAIGN,
-      wave,
-      sentAt: null,
-      unsubscribedAt: null,
-      accessGrantedAt: null,
-    },
-  });
-  if (ungranted > 0) {
-    console.error(
-      `\nABORT: ${ungranted} recipients in ${wave} have no accessGrantedAt.\n` +
-        `Run scripts/grant-beta-access.ts --wave ${wave} --grant first.`,
-    );
-    process.exit(3);
-  }
-
-  // Pending = in this wave, access granted, never sent, never failed, not
-  // suppressed.
   const pending = await prisma.betaInvite.findMany({
     where: {
       campaign: BETA_CAMPAIGN,
       wave,
-      accessGrantedAt: { not: null },
       sentAt: null,
       failedAt: null,
       unsubscribedAt: null,
@@ -243,143 +147,191 @@ async function main() {
     take: Number.isFinite(limit) ? limit : undefined,
   });
 
-  console.log(`Pending in wave: ${pending.length}`);
+  const batches = Math.ceil(pending.length / batch);
+  // Pacing: an explicit hourly rate wins; otherwise spread the whole wave
+  // across the target window.
+  const ratePerHour = perHour ?? pending.length / (hours ?? DEFAULT_HOURS);
+  const gapMs = ratePerHour > 0 ? Math.round((3600_000 * batch) / ratePerHour) : 0;
+  const etaHours = (batches * gapMs) / 3600_000;
+
+  const snap = await reputation();
+  console.log(`\nBeta invite sender - ${BETA_CAMPAIGN} - ${new Date().toISOString()}`);
+  console.log(`Mode:          ${send ? "LIVE SEND" : "dry-run (use --send)"}`);
+  console.log(`Wave:          ${wave}`);
+  console.log(`Pending:       ${pending.length}`);
+  console.log(`Batch size:    ${batch}  (${batches} batches)`);
+  console.log(`Pace:          ~${Math.round(ratePerHour)}/hour, ${(gapMs / 60000).toFixed(1)} min between batches`);
+  console.log(`Est. duration: ~${etaHours.toFixed(1)} hours`);
+  console.log(`Campaign sent so far: ${snap.sent} (bounced ${snap.bounced}, complained ${snap.complained})`);
+
   if (pending.length === 0) {
-    console.log("\nNothing to send. Exiting.");
+    console.log("\nNothing pending. Exiting.");
     return;
   }
 
+  const blocked = gate(snap);
+  if (blocked) {
+    console.error(`\nABORT before starting: ${blocked}`);
+    process.exit(2);
+  }
+
+  if (send) {
+    const events = await prisma.emailEvent.count();
+    if (events === 0) {
+      console.error(
+        "\nABORT: no webhook events have ever been recorded, so bounce and " +
+          "complaint gating cannot work. Verify with scripts/verify-webhook.ts.",
+      );
+      process.exit(3);
+    }
+  }
+
   if (!send) {
-    console.log("\nDry-run. First 5 recipients:");
+    console.log("\nDry-run. First 5 pending:");
     for (const p of pending.slice(0, 5)) console.log(`  ${p.subscriber.email}`);
-    console.log(
-      `\nWould send ${pending.length} in ${Math.ceil(
-        pending.length / BATCH_SIZE,
-      )} batches of ${BATCH_SIZE}, ~${(
-        (pending.length / TARGET_PER_HOUR) * 60
-      ).toFixed(0)} minutes at ${TARGET_PER_HOUR}/hour.`,
-    );
-    console.log("Run with --send to actually email.");
+    console.log("\nPer batch: grant access, verify it landed, then mail only the verified.");
+    console.log("Re-run with --send to go live.");
     return;
   }
 
   const resend = new Resend(apiKey!);
   let sentCount = 0;
-  let failedCount = 0;
+  let grantFailed = 0;
+  let sendFailed = 0;
 
-  for (let i = 0; i < pending.length; i += BATCH_SIZE) {
-    // Re-gate before every batch so a complaint spike mid-wave stops the
-    // rest of the run rather than only the next wave.
-    const live = await reputationSnapshot();
-    const liveGate = evaluateGate(live);
-    if (!liveGate.ok) {
-      console.error(`\nABORT mid-wave: ${liveGate.reason}`);
-      console.error(`Stopped after ${sentCount} sends in this run.`);
+  for (let i = 0; i < pending.length; i += batch) {
+    const n = Math.floor(i / batch) + 1;
+    const chunk = pending.slice(i, i + batch);
+    const started = Date.now();
+
+    // 1. reputation gate, re-read every batch so a spike stops the rest
+    const live = await reputation();
+    const stop = gate(live);
+    if (stop) {
+      console.error(`\nABORT mid-wave at batch ${n}: ${stop}`);
+      console.error(`Sent ${sentCount} in this run before stopping.`);
       process.exit(2);
     }
 
-    const batch = pending.slice(i, i + BATCH_SIZE);
-    const payload = await Promise.all(
-      batch.map(async (row) => {
-        const unsubscribeUrl = `${siteUrl}/api/survey/unsubscribe?token=${row.token}&c=beta`;
-        const copy = {
-          accessUrl,
-          unsubscribeUrl,
-          recipientEmail: row.subscriber.email,
-        };
-        return {
-          from: fromEmail!,
-          to: row.subscriber.email,
-          subject: BETA_INVITE_SUBJECT,
-          html: await buildBetaInviteHtml(copy),
-          text: buildBetaInviteText(copy),
-          replyTo,
-          headers: {
-            // RFC 8058. Required by Gmail and Yahoo for bulk senders, and
-            // a complaint-rate reducer regardless: someone who can leave
-            // in one click does not reach for the spam button.
-            "List-Unsubscribe": `<${unsubscribeUrl}>`,
-            "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
-          },
-          tags: [
-            { name: "campaign", value: BETA_CAMPAIGN },
-            { name: "inviteId", value: row.id },
-            { name: "wave", value: wave },
-          ],
-          // Both trackers off. The open pixel and the click-tracking URL
-          // rewrite (which repoints links at a Resend-controlled domain
-          // whose reputation is pooled across tenants) are two of the
-          // clearest bulk-marketing signals available. Activation is
-          // measured server-side from beta sign-ins instead.
-          settings: { tracking: { open: false, click: false } },
-        };
-      }),
-    );
-
-    const batchNo = Math.floor(i / BATCH_SIZE) + 1;
-    const totalBatches = Math.ceil(pending.length / BATCH_SIZE);
-    try {
-      const result = await resend.batch.send(
-        payload as unknown as Parameters<typeof resend.batch.send>[0],
-      );
-      if (result.error) {
-        console.warn(`  batch ${batchNo}: error - ${result.error.message}`);
-        await prisma.betaInvite.updateMany({
-          where: { id: { in: batch.map((b) => b.id) } },
-          data: { failedAt: new Date(), failReason: result.error.message },
-        });
-        failedCount += batch.length;
-      } else {
-        const ids = result.data?.data ?? [];
-        await Promise.all(
-          batch.map(async (row, idx) => {
-            try {
-              await prisma.betaInvite.update({
-                where: { id: row.id },
-                data: {
-                  sentAt: new Date(),
-                  resendMsgId: ids[idx]?.id ?? undefined,
-                },
-              });
-              sentCount++;
-            } catch (err) {
-              console.warn(
-                `    ${row.subscriber.email}: db update failed - ${
-                  (err as Error).message
-                }`,
-              );
-              failedCount++;
-            }
-          }),
-        );
+    // 2. grant access to exactly this batch
+    const emails = chunk.map((c) => c.subscriber.email);
+    const grant = await grantBatch(emails, `${BETA_CAMPAIGN} ${wave}`);
+    if (grant.failed.length > 0) {
+      grantFailed += grant.failed.length;
+      for (const f of grant.failed.slice(0, 3)) {
+        console.warn(`  grant failed: ${f.email} - ${f.error}`);
       }
-    } catch (err) {
-      console.warn(`  batch ${batchNo}: threw - ${(err as Error).message}`);
-      failedCount += batch.length;
+    }
+
+    // 3. read the whitelist back. The email claims access is open, so we
+    //    confirm that is true rather than trusting the 2xx.
+    const verified = await verifyAccess(emails);
+    if (verified === null) {
+      console.error(
+        "\nABORT: cannot reach the terminal to verify access. Refusing to " +
+          "promise access we have not confirmed.",
+      );
+      process.exit(4);
+    }
+
+    const mailable = chunk.filter((c) =>
+      verified.has(c.subscriber.email.trim().toLowerCase()),
+    );
+    const skipped = chunk.length - mailable.length;
+
+    if (mailable.length > 0) {
+      await prisma.betaInvite.updateMany({
+        where: { id: { in: mailable.map((m) => m.id) } },
+        data: { accessGrantedAt: new Date() },
+      });
+
+      const payload = await Promise.all(
+        mailable.map(async (row) => {
+          const unsubscribeUrl = `${siteUrl}/api/survey/unsubscribe?token=${row.token}&c=beta`;
+          const copy = {
+            accessUrl,
+            unsubscribeUrl,
+            recipientEmail: row.subscriber.email,
+          };
+          return {
+            from: fromEmail!,
+            to: row.subscriber.email,
+            subject: BETA_INVITE_SUBJECT,
+            html: await buildBetaInviteHtml(copy),
+            text: buildBetaInviteText(copy),
+            replyTo,
+            headers: {
+              "List-Unsubscribe": `<${unsubscribeUrl}>`,
+              "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+            },
+            tags: [
+              { name: "campaign", value: BETA_CAMPAIGN },
+              { name: "inviteId", value: row.id },
+              { name: "wave", value: wave },
+            ],
+            settings: { tracking: { open: false, click: false } },
+          };
+        }),
+      );
+
+      try {
+        const result = await resend.batch.send(
+          payload as unknown as Parameters<typeof resend.batch.send>[0],
+        );
+        if (result.error) {
+          console.warn(`  batch ${n}: send error - ${result.error.message}`);
+          await prisma.betaInvite.updateMany({
+            where: { id: { in: mailable.map((m) => m.id) } },
+            data: { failedAt: new Date(), failReason: result.error.message },
+          });
+          sendFailed += mailable.length;
+        } else {
+          const ids = result.data?.data ?? [];
+          await Promise.all(
+            mailable.map(async (row, idx) => {
+              try {
+                await prisma.betaInvite.update({
+                  where: { id: row.id },
+                  data: { sentAt: new Date(), resendMsgId: ids[idx]?.id ?? undefined },
+                });
+                sentCount++;
+              } catch (err) {
+                sendFailed++;
+                console.warn(`    ${row.subscriber.email}: db update failed - ${(err as Error).message}`);
+              }
+            }),
+          );
+        }
+      } catch (err) {
+        sendFailed += mailable.length;
+        console.warn(`  batch ${n}: threw - ${(err as Error).message}`);
+      }
     }
 
     console.log(
-      `  batch ${batchNo}/${totalBatches} done - sent ${sentCount}, failed ${failedCount}`,
+      `  batch ${n}/${batches}: granted ${grant.granted.length}, verified ${mailable.length}` +
+        `${skipped > 0 ? `, skipped ${skipped} unverified` : ""}` +
+        ` | running total sent ${sentCount}`,
     );
 
-    if (i + BATCH_SIZE < pending.length) {
-      await sleep(SLEEP_MS_BETWEEN_BATCHES);
+    if (i + batch < pending.length) {
+      // Subtract the work already done so pacing measures wall clock, not
+      // sleep, and a slow batch does not stretch the whole schedule.
+      const elapsed = Date.now() - started;
+      const wait = Math.max(0, gapMs - elapsed);
+      if (wait > 0) await sleep(wait);
     }
   }
 
-  const final = await reputationSnapshot();
-  console.log(`\nWave ${wave} run complete. Sent ${sentCount}, failed ${failedCount}.`);
+  const final = await reputation();
+  console.log(`\nWave ${wave} run complete.`);
+  console.log(`  sent ${sentCount}, grant failures ${grantFailed}, send failures ${sendFailed}`);
   console.log(
-    `Campaign totals: sent ${final.sent}, bounced ${final.bounced} (${(
+    `  campaign totals: sent ${final.sent}, bounced ${final.bounced} (${(
       final.bounceRate * 100
-    ).toFixed(2)}%), complained ${final.complained} (${(
-      final.complaintRate * 100
-    ).toFixed(3)}%).`,
+    ).toFixed(2)}%), complained ${final.complained} (${(final.complaintRate * 100).toFixed(3)}%)`,
   );
-  console.log(
-    "\nWait for bounce/complaint webhooks to settle (a few hours) before " +
-      "starting the next wave.",
-  );
+  console.log("\nLet the webhooks settle before starting the next wave.");
 }
 
 main()
@@ -388,5 +340,5 @@ main()
     process.exit(1);
   })
   .finally(async () => {
-    await new Promise((r) => setTimeout(r, 250));
+    await sleep(250);
   });
