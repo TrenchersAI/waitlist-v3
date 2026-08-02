@@ -113,6 +113,10 @@ export async function GET() {
       unsubscribedAt: true,
       failedAt: true,
       activatedAt: true,
+      reminderSentAt: true,
+      reminderDeliveredAt: true,
+      reminderBouncedAt: true,
+      reminderComplainedAt: true,
       subscriber: { select: { email: true } },
     },
   });
@@ -326,6 +330,40 @@ export async function GET() {
 
   const rate = (n: number, d: number) => (d > 0 ? n / d : 0);
 
+  // --- second send: the signup-issue reminder ---------------------------
+  // Reported separately rather than folded into the totals. The two sends
+  // went to different audiences for different reasons, so a single blended
+  // bounce rate would describe neither of them. `recovered` is the number
+  // that justifies the send existing at all: people who had not signed in
+  // when they were mailed, and have since.
+  let rSent = 0,
+    rDelivered = 0,
+    rBounced = 0,
+    rComplained = 0,
+    rRecovered = 0;
+  for (const r of rows) {
+    if (!r.reminderSentAt) continue;
+    rSent++;
+    if (r.reminderDeliveredAt) rDelivered++;
+    if (r.reminderBouncedAt) rBounced++;
+    if (r.reminderComplainedAt) rComplained++;
+    const email = r.subscriber.email.trim().toLowerCase();
+    if (signedIn ? signedIn.has(email) : r.activatedAt !== null) rRecovered++;
+  }
+  // Everyone still eligible for the reminder: mailed the invite, reachable,
+  // not yet reminded, not signed in.
+  const rPending = rows.filter(
+    (r) =>
+      r.sentAt &&
+      !r.reminderSentAt &&
+      !r.unsubscribedAt &&
+      !r.bouncedAt &&
+      !r.complainedAt &&
+      !(signedIn
+        ? signedIn.has(r.subscriber.email.trim().toLowerCase())
+        : r.activatedAt !== null),
+  ).length;
+
   return Response.json({
     campaign: BETA_CAMPAIGN,
     generatedAt: new Date().toISOString(),
@@ -366,6 +404,25 @@ export async function GET() {
       complaintPause: 0.0004,
       webhookHealthy: events.length > 0,
       totalEvents: events.length,
+    },
+    // Second send, reported on its own terms. Blending it into the totals
+    // would average two different audiences mailed for two different
+    // reasons, and describe neither.
+    reminder: {
+      sent: rSent,
+      delivered: rDelivered,
+      bounced: rBounced,
+      complained: rComplained,
+      pending: rPending,
+      recovered: rRecovered,
+      deliveryRate: rate(rDelivered, rSent),
+      bounceRate: rate(rBounced, rSent),
+      complaintRate: rate(rComplained, rSent),
+      recoveryRate: rate(rRecovered, rSent),
+      bounceLimit: 0.04,
+      complaintLimit: 0.0008,
+      bouncePause: 0.02,
+      complaintPause: 0.0004,
     },
     // Open and click tracking are switched off on this campaign. Surfacing
     // that explicitly stops a permanent 0 from being read as "nobody
