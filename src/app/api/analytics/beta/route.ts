@@ -10,50 +10,20 @@ import {
 
 export const runtime = "nodejs";
 
-/// Cross-references our invite list against the terminal's own database.
-///
-/// `accessGrantedAt` on BetaInvite only records that our grant script got a
-/// 2xx back. The authority on who can actually sign in is `login_whitelist`
-/// in the terminal's Postgres, and the authority on who actually DID sign in
-/// is its `users` table. Reading both means the dashboard reports reality
-/// rather than our own optimistic bookkeeping, and a divergence between
-/// "granted" and "whitelisted" is exactly the bug you would want to see.
-///
-/// Returns null when TRENCHERS_DATABASE_URL is unset (local dev) or the
-/// query fails, so the tab degrades to our own columns instead of erroring.
-async function crossReferenceTerminal(emails: string[]) {
-  const pool = getTrenchersPool();
-  if (!pool || emails.length === 0) return null;
-  try {
-    const [whitelisted, signedIn] = await Promise.all([
-      pool.query<{ value: string }>(
-        `SELECT value FROM login_whitelist
-          WHERE enabled = TRUE AND kind = 'email' AND value = ANY($1::text[])`,
-        [emails],
-      ),
-      pool.query<{ email: string }>(
-        `SELECT lower(email) AS email FROM users
-          WHERE email IS NOT NULL AND lower(email) = ANY($1::text[])`,
-        [emails],
-      ),
-    ]);
-    return {
-      whitelisted: new Set(whitelisted.rows.map((r) => r.value)),
-      signedIn: new Set(signedIn.rows.map((r) => r.email)),
-    };
-  } catch (err) {
-    console.error("[analytics/beta] terminal cross-reference failed:", err);
-    return null;
-  }
-}
+// One payload powers the whole Beta access tab. Every number here is either
+// a count from our own table or a fact read from a system of record
+// (Resend's webhook events, the terminal's whitelist). Nothing is estimated.
 
-// One payload for the whole "Beta access" tab: the delivery funnel, the
-// per-wave rollout table, reputation rates against Resend's limits, and a
-// daily send timeline.
+export type FunnelStep = {
+  key: string;
+  label: string;
+  count: number;
+  /// What this stage measures, shown on hover. Several of these numbers look
+  /// similar but mean very different things.
+  note: string;
+};
 
-export type BetaFunnelStep = { key: string; label: string; count: number };
-
-export type BetaWaveRow = {
+export type WaveRow = {
   wave: InviteWave;
   label: string;
   total: number;
@@ -63,13 +33,61 @@ export type BetaWaveRow = {
   bounced: number;
   complained: number;
   unsubscribed: number;
+  failed: number;
   activated: number;
 };
 
-export type BetaDayPoint = { date: string; sent: number };
+export type SeriesPoint = {
+  bucket: string;
+  sent: number;
+  delivered: number;
+  bounced: number;
+  complained: number;
+};
 
-function dayKeyUTC(d: Date) {
-  return d.toISOString().slice(0, 10);
+export type DomainRow = {
+  domain: string;
+  total: number;
+  sent: number;
+  delivered: number;
+  bounced: number;
+  complained: number;
+  unsubscribed: number;
+  activated: number;
+};
+
+export type EventRow = {
+  type: string;
+  email: string | null;
+  occurredAt: string;
+  detail: string | null;
+};
+
+function domainOf(email: string) {
+  return email.slice(email.lastIndexOf("@") + 1).toLowerCase();
+}
+
+/// Pulls the recipient address out of a stored Resend payload. Shape is
+/// `{ data: { to: ["a@b.com"] } }`, but `to` has been seen as a bare string
+/// too, so handle both rather than trusting one.
+function recipientFromPayload(payload: unknown): string | null {
+  const data = (payload as { data?: { to?: unknown } })?.data;
+  if (!data) return null;
+  if (Array.isArray(data.to)) {
+    const first = data.to[0];
+    return typeof first === "string" ? first : null;
+  }
+  return typeof data.to === "string" ? data.to : null;
+}
+
+/// Bounce classification. Permanent bounces are the ones that destroy
+/// reputation and must be suppressed; transient ones are mailbox-full style
+/// noise that resolves itself.
+function bounceDetail(payload: unknown): string | null {
+  const b = (payload as { data?: { bounce?: { type?: string; subType?: string } } })
+    ?.data?.bounce;
+  if (!b) return null;
+  return [b.type, b.subType].filter(Boolean).join(" / ") || null;
 }
 
 export async function GET() {
@@ -81,197 +99,278 @@ export async function GET() {
   const prisma = getPrismaClient();
   const where = { campaign: BETA_CAMPAIGN };
 
-  const [
-    total,
-    granted,
-    sent,
-    delivered,
-    clicked,
-    bounced,
-    complained,
-    unsubscribed,
-    activated,
-    failed,
-  ] = await Promise.all([
-    prisma.betaInvite.count({ where }),
-    prisma.betaInvite.count({ where: { ...where, accessGrantedAt: { not: null } } }),
-    prisma.betaInvite.count({ where: { ...where, sentAt: { not: null } } }),
-    prisma.betaInvite.count({ where: { ...where, deliveredAt: { not: null } } }),
-    prisma.betaInvite.count({ where: { ...where, clickedAt: { not: null } } }),
-    prisma.betaInvite.count({ where: { ...where, bouncedAt: { not: null } } }),
-    prisma.betaInvite.count({ where: { ...where, complainedAt: { not: null } } }),
-    prisma.betaInvite.count({ where: { ...where, unsubscribedAt: { not: null } } }),
-    prisma.betaInvite.count({ where: { ...where, activatedAt: { not: null } } }),
-    prisma.betaInvite.count({ where: { ...where, failedAt: { not: null } } }),
-  ]);
-
-  // Pull every invite email once, so the terminal cross-reference and the
-  // per-wave bucketing both work off the same list.
-  const inviteRows = await prisma.betaInvite.findMany({
+  const rows = await prisma.betaInvite.findMany({
     where,
-    select: { wave: true, subscriber: { select: { email: true } } },
+    select: {
+      wave: true,
+      accessGrantedAt: true,
+      sentAt: true,
+      deliveredAt: true,
+      openedAt: true,
+      clickedAt: true,
+      bouncedAt: true,
+      complainedAt: true,
+      unsubscribedAt: true,
+      failedAt: true,
+      activatedAt: true,
+      subscriber: { select: { email: true } },
+    },
   });
-  const emails = inviteRows.map((r) => r.subscriber.email.trim().toLowerCase());
-  const terminal = await crossReferenceTerminal(emails);
 
-  // Per-wave live counts from the terminal, when reachable.
-  const liveWhitelistedByWave = new Map<string, number>();
-  const liveSignedInByWave = new Map<string, number>();
-  if (terminal) {
-    for (const r of inviteRows) {
-      const e = r.subscriber.email.trim().toLowerCase();
-      if (terminal.whitelisted.has(e)) {
-        liveWhitelistedByWave.set(
-          r.wave,
-          (liveWhitelistedByWave.get(r.wave) ?? 0) + 1,
-        );
-      }
-      if (terminal.signedIn.has(e)) {
-        liveSignedInByWave.set(r.wave, (liveSignedInByWave.get(r.wave) ?? 0) + 1);
-      }
+  const emails = rows.map((r) => r.subscriber.email.trim().toLowerCase());
+
+  // --- terminal cross-reference -----------------------------------------
+  // accessGrantedAt records that our grant call returned 2xx. login_whitelist
+  // records who can actually sign in. Those can diverge, and only the second
+  // one is true, so prefer it whenever the terminal is reachable.
+  let whitelisted: Set<string> | null = null;
+  let signedIn: Set<string> | null = null;
+  const pool = getTrenchersPool();
+  if (pool && emails.length > 0) {
+    try {
+      const [wl, us] = await Promise.all([
+        pool.query<{ value: string }>(
+          `SELECT value FROM login_whitelist
+            WHERE enabled = TRUE AND kind = 'email' AND value = ANY($1::text[])`,
+          [emails],
+        ),
+        pool.query<{ email: string }>(
+          `SELECT lower(email) AS email FROM users
+            WHERE email IS NOT NULL AND lower(email) = ANY($1::text[])`,
+          [emails],
+        ),
+      ]);
+      whitelisted = new Set(wl.rows.map((r) => r.value));
+      signedIn = new Set(us.rows.map((r) => r.email));
+    } catch (err) {
+      console.error("[analytics/beta] terminal cross-reference failed:", err);
     }
   }
 
-  const liveWhitelisted = terminal ? terminal.whitelisted.size : null;
-  const liveSignedIn = terminal ? terminal.signedIn.size : null;
+  const hasAccess = (e: string) =>
+    whitelisted ? whitelisted.has(e) : false;
+  const hasSignedIn = (e: string) => (signedIn ? signedIn.has(e) : false);
 
-  // The funnel the team actually cares about: who we decided to invite,
-  // who can actually sign in, who got the mail, and who came back and used
-  // it. "Has access" prefers the terminal's own whitelist over our local
-  // bookkeeping whenever we can reach it.
-  const funnel: BetaFunnelStep[] = [
-    { key: "prepared", label: "Prepared", count: total },
+  // --- totals ------------------------------------------------------------
+  let total = 0,
+    granted = 0,
+    sent = 0,
+    delivered = 0,
+    opened = 0,
+    clicked = 0,
+    bounced = 0,
+    complained = 0,
+    unsubscribed = 0,
+    failed = 0,
+    activated = 0;
+
+  const waveMap = new Map<string, WaveRow>();
+  for (const w of WAVE_ORDER) {
+    waveMap.set(w, {
+      wave: w,
+      label: WAVE_LABELS[w],
+      total: 0,
+      granted: 0,
+      sent: 0,
+      delivered: 0,
+      bounced: 0,
+      complained: 0,
+      unsubscribed: 0,
+      failed: 0,
+      activated: 0,
+    });
+  }
+
+  const domainMap = new Map<string, DomainRow>();
+
+  for (const r of rows) {
+    const email = r.subscriber.email.trim().toLowerCase();
+    const dom = domainOf(email);
+    const localGranted = r.accessGrantedAt !== null;
+    const g = whitelisted ? hasAccess(email) : localGranted;
+    const a = signedIn ? hasSignedIn(email) : r.activatedAt !== null;
+
+    total++;
+    if (g) granted++;
+    if (r.sentAt) sent++;
+    if (r.deliveredAt) delivered++;
+    if (r.openedAt) opened++;
+    if (r.clickedAt) clicked++;
+    if (r.bouncedAt) bounced++;
+    if (r.complainedAt) complained++;
+    if (r.unsubscribedAt) unsubscribed++;
+    if (r.failedAt) failed++;
+    if (a) activated++;
+
+    const wr = waveMap.get(r.wave);
+    if (wr) {
+      wr.total++;
+      if (g) wr.granted++;
+      if (r.sentAt) wr.sent++;
+      if (r.deliveredAt) wr.delivered++;
+      if (r.bouncedAt) wr.bounced++;
+      if (r.complainedAt) wr.complained++;
+      if (r.unsubscribedAt) wr.unsubscribed++;
+      if (r.failedAt) wr.failed++;
+      if (a) wr.activated++;
+    }
+
+    let dr = domainMap.get(dom);
+    if (!dr) {
+      dr = {
+        domain: dom,
+        total: 0,
+        sent: 0,
+        delivered: 0,
+        bounced: 0,
+        complained: 0,
+        unsubscribed: 0,
+        activated: 0,
+      };
+      domainMap.set(dom, dr);
+    }
+    dr.total++;
+    if (r.sentAt) dr.sent++;
+    if (r.deliveredAt) dr.delivered++;
+    if (r.bouncedAt) dr.bounced++;
+    if (r.complainedAt) dr.complained++;
+    if (r.unsubscribedAt) dr.unsubscribed++;
+    if (a) dr.activated++;
+  }
+
+  const funnel: FunnelStep[] = [
+    {
+      key: "prepared",
+      label: "Prepared",
+      count: total,
+      note: "Graded as mailable and given an invite row",
+    },
     {
       key: "granted",
       label: "Has beta access",
-      count: liveWhitelisted ?? granted,
+      count: granted,
+      note: whitelisted
+        ? "Enabled in the terminal's login_whitelist right now"
+        : "Local record only, terminal not reachable",
     },
-    { key: "sent", label: "Email sent", count: sent },
-    { key: "delivered", label: "Delivered", count: delivered },
+    {
+      key: "sent",
+      label: "Email sent",
+      count: sent,
+      note: "Accepted by Resend for delivery",
+    },
+    {
+      key: "delivered",
+      label: "Delivered",
+      count: delivered,
+      note: "Confirmed accepted by the recipient's mail server",
+    },
     {
       key: "activated",
-      label: "Signed in to beta",
-      count: liveSignedIn ?? activated,
+      label: "Signed in",
+      count: activated,
+      note: signedIn
+        ? "Exists in the terminal's users table"
+        : "Local record only, terminal not reachable",
     },
   ];
 
-  // Per-wave rollout state. Grouped queries rather than one row-scan so
-  // this stays cheap as the table grows.
-  const groupTotals = await prisma.betaInvite.groupBy({
-    by: ["wave"],
-    where,
-    _count: { _all: true },
+  // --- time series from webhook events ----------------------------------
+  // Bucketed by hour so the pacing of a live send is visible. Reads
+  // EmailEvent rather than the folded columns so delivery_delayed and
+  // failed show up too.
+  const events = await prisma.emailEvent.findMany({
+    select: { type: true, occurredAt: true, payload: true },
+    orderBy: { occurredAt: "asc" },
   });
-  const countBy = async (extra: Record<string, unknown>) =>
-    prisma.betaInvite.groupBy({
-      by: ["wave"],
-      where: { ...where, ...extra },
-      _count: { _all: true },
-    });
-  const [
-    gGranted,
-    gSent,
-    gDelivered,
-    gBounced,
-    gComplained,
-    gUnsub,
-    gActivated,
-  ] = await Promise.all([
-    countBy({ accessGrantedAt: { not: null } }),
-    countBy({ sentAt: { not: null } }),
-    countBy({ deliveredAt: { not: null } }),
-    countBy({ bouncedAt: { not: null } }),
-    countBy({ complainedAt: { not: null } }),
-    countBy({ unsubscribedAt: { not: null } }),
-    countBy({ activatedAt: { not: null } }),
-  ]);
 
-  const asMap = (rows: { wave: string; _count: { _all: number } }[]) =>
-    new Map(rows.map((r) => [r.wave, r._count._all]));
-  const mTotal = asMap(groupTotals);
-  const mGranted = asMap(gGranted);
-  const mSent = asMap(gSent);
-  const mDelivered = asMap(gDelivered);
-  const mBounced = asMap(gBounced);
-  const mComplained = asMap(gComplained);
-  const mUnsub = asMap(gUnsub);
-  const mActivated = asMap(gActivated);
+  const seriesMap = new Map<string, SeriesPoint>();
+  const eventTypeCounts = new Map<string, number>();
+  const bounceReasons = new Map<string, number>();
 
-  const waves: BetaWaveRow[] = WAVE_ORDER.map((wave) => ({
-    wave,
-    label: WAVE_LABELS[wave],
-    total: mTotal.get(wave) ?? 0,
-    granted: terminal
-      ? (liveWhitelistedByWave.get(wave) ?? 0)
-      : (mGranted.get(wave) ?? 0),
-    sent: mSent.get(wave) ?? 0,
-    delivered: mDelivered.get(wave) ?? 0,
-    bounced: mBounced.get(wave) ?? 0,
-    complained: mComplained.get(wave) ?? 0,
-    unsubscribed: mUnsub.get(wave) ?? 0,
-    activated: terminal
-      ? (liveSignedInByWave.get(wave) ?? 0)
-      : (mActivated.get(wave) ?? 0),
-  }));
-
-  // Daily send volume, so the ramp is visible and a day that overshot the
-  // pacing plan is obvious.
-  const sentRows = await prisma.betaInvite.findMany({
-    where: { ...where, sentAt: { not: null } },
-    select: { sentAt: true },
-  });
-  const dayCounts = new Map<string, number>();
-  for (const r of sentRows) {
-    if (!r.sentAt) continue;
-    const k = dayKeyUTC(r.sentAt);
-    dayCounts.set(k, (dayCounts.get(k) ?? 0) + 1);
+  for (const e of events) {
+    eventTypeCounts.set(e.type, (eventTypeCounts.get(e.type) ?? 0) + 1);
+    if (e.type === "email.bounced") {
+      const d = bounceDetail(e.payload) ?? "unspecified";
+      bounceReasons.set(d, (bounceReasons.get(d) ?? 0) + 1);
+    }
+    const bucket = e.occurredAt.toISOString().slice(0, 13); // YYYY-MM-DDTHH
+    let p = seriesMap.get(bucket);
+    if (!p) {
+      p = { bucket, sent: 0, delivered: 0, bounced: 0, complained: 0 };
+      seriesMap.set(bucket, p);
+    }
+    if (e.type === "email.sent") p.sent++;
+    else if (e.type === "email.delivered") p.delivered++;
+    else if (e.type === "email.bounced" || e.type === "email.failed") p.bounced++;
+    else if (e.type === "email.complained") p.complained++;
   }
-  const timeline: BetaDayPoint[] = [...dayCounts.entries()]
-    .sort((a, b) => a[0].localeCompare(b[0]))
-    .map(([date, count]) => ({ date, sent: count }));
 
-  // Rates are measured against accepted sends, the same denominator Resend
-  // uses. The limits shipped alongside them are Resend's own AUP ceilings,
-  // which bind tighter than Gmail's 0.30% and are what would actually get
-  // the account suspended.
-  const bounceRate = sent > 0 ? bounced / sent : 0;
-  const complaintRate = sent > 0 ? complained / sent : 0;
+  const series = [...seriesMap.values()].sort((a, b) =>
+    a.bucket.localeCompare(b.bucket),
+  );
 
-  // Zero recorded events means the Resend webhook is not delivering, which
-  // makes every rate above a floor of zero rather than a measurement. The
-  // UI surfaces this instead of showing a reassuring 0.00%.
-  const emailEvents = await prisma.emailEvent.count();
+  const recentEvents: EventRow[] = events
+    .slice(-40)
+    .reverse()
+    .map((e) => ({
+      type: e.type,
+      email: recipientFromPayload(e.payload),
+      occurredAt: e.occurredAt.toISOString(),
+      detail: bounceDetail(e.payload),
+    }));
+
+  const domains = [...domainMap.values()]
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 12);
+
+  const rate = (n: number, d: number) => (d > 0 ? n / d : 0);
 
   return Response.json({
     campaign: BETA_CAMPAIGN,
+    generatedAt: new Date().toISOString(),
     funnel,
-    waves,
-    timeline,
+    waves: WAVE_ORDER.map((w) => waveMap.get(w)!),
+    series,
+    domains,
+    recentEvents,
+    eventTypes: [...eventTypeCounts.entries()]
+      .map(([type, count]) => ({ type, count }))
+      .sort((a, b) => b.count - a.count),
+    bounceReasons: [...bounceReasons.entries()]
+      .map(([reason, count]) => ({ reason, count }))
+      .sort((a, b) => b.count - a.count),
     totals: {
       total,
-      granted: liveWhitelisted ?? granted,
+      granted,
       sent,
       delivered,
+      opened,
       clicked,
       bounced,
       complained,
       unsubscribed,
-      activated: liveSignedIn ?? activated,
       failed,
+      activated,
+      pending: total - sent,
     },
-    // Where the access numbers came from. `terminal` means we read the
-    // login_whitelist and users tables directly; `local` means we fell back
-    // to our own accessGrantedAt column, which only records that the grant
-    // API returned 2xx and can drift from reality.
-    accessSource: terminal ? ("terminal" as const) : ("local" as const),
-    localGranted: granted,
     reputation: {
-      bounceRate,
-      complaintRate,
+      bounceRate: rate(bounced, sent),
+      complaintRate: rate(complained, sent),
+      deliveryRate: rate(delivered, sent),
+      unsubscribeRate: rate(unsubscribed, sent),
+      activationRate: rate(activated, delivered),
       bounceLimit: 0.04,
       complaintLimit: 0.0008,
-      webhookHealthy: emailEvents > 0,
-      emailEvents,
+      bouncePause: 0.02,
+      complaintPause: 0.0004,
+      webhookHealthy: events.length > 0,
+      totalEvents: events.length,
     },
+    // Open and click tracking are switched off on this campaign. Surfacing
+    // that explicitly stops a permanent 0 from being read as "nobody
+    // engaged" rather than "we chose not to measure this".
+    tracking: { opens: false, clicks: false },
+    accessSource: whitelisted ? ("terminal" as const) : ("local" as const),
   });
 }
