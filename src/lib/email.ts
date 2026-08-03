@@ -599,6 +599,57 @@ export function buildBetaReminderText(params: BetaInviteCopy) {
   ].join("\n");
 }
 
+/// Subject for the activation nudge, sent only to people who have already
+/// signed in. Taken from the closing line of the body: short, not in
+/// marketing register, and the most memorable thing in the email.
+export const BETA_NUDGE_SUBJECT = "You're early. Make it count.";
+
+export async function buildBetaNudgeHtml(params: BetaInviteCopy) {
+  const templatePath = join(
+    process.cwd(),
+    "src/email-templates/beta-nudge/index.html",
+  );
+  const templateHtml = await readFile(templatePath, "utf-8");
+  return templateHtml
+    .replace(/<!--[\s\S]*?-->/g, "")
+    .replaceAll("{{ACCESS_URL}}", params.accessUrl)
+    .replaceAll("{{UNSUBSCRIBE_URL}}", params.unsubscribeUrl)
+    .trim();
+}
+
+export function buildBetaNudgeText(params: BetaInviteCopy) {
+  return [
+    "Hi,",
+    "",
+    "You have early access to Trenchers, and we want you to actively test",
+    "the platform.",
+    "",
+    "Users are already trading both manually and through AI agents, testing",
+    "different strategies, and sharing feedback that is directly shaping",
+    "what we ship next.",
+    "",
+    "If you haven't spawned a bot yet, start there. Deploy one, explore the",
+    "platform, and experience the full trading workflow.",
+    "",
+    params.accessUrl,
+    "",
+    "Once you've tested it, tell us what worked, what didn't, and what you",
+    "want improved. You can reach us anytime through the Support button",
+    "inside Trenchers for issues or feedback, or simply reply to this email.",
+    "",
+    "Users who actively trade, test agents, and provide meaningful feedback",
+    "will be prioritized for upcoming early-user rewards and access.",
+    "",
+    "You're early. Make it count.",
+    "",
+    "Trenchers",
+    "",
+    "---",
+    "You are receiving this because you joined the Trenchers waitlist.",
+    `Unsubscribe: ${params.unsubscribeUrl}`,
+  ].join("\n");
+}
+
 /// The recipient's own address is interpolated into the HTML body. It comes
 /// from our database rather than user input at send time, but escaping it
 /// costs nothing and stops a stored `<` in an address from breaking the

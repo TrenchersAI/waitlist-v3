@@ -17,9 +17,38 @@ import { Resend } from "resend";
 
 import {
   BETA_INVITE_SUBJECT,
+  BETA_NUDGE_SUBJECT,
+  BETA_REMINDER_SUBJECT,
   buildBetaInviteHtml,
   buildBetaInviteText,
+  buildBetaNudgeHtml,
+  buildBetaNudgeText,
+  buildBetaReminderHtml,
+  buildBetaReminderText,
 } from "../src/lib/email";
+
+/// Which of the three campaign emails to render. Selecting by flag keeps
+/// one test path rather than a script per template, so the beta-access
+/// check below cannot be accidentally skipped by a newer variant.
+type Variant = "invite" | "reminder" | "nudge";
+
+const VARIANTS = {
+  invite: {
+    subject: BETA_INVITE_SUBJECT,
+    html: buildBetaInviteHtml,
+    text: buildBetaInviteText,
+  },
+  reminder: {
+    subject: BETA_REMINDER_SUBJECT,
+    html: buildBetaReminderHtml,
+    text: buildBetaReminderText,
+  },
+  nudge: {
+    subject: BETA_NUDGE_SUBJECT,
+    html: buildBetaNudgeHtml,
+    text: buildBetaNudgeText,
+  },
+} as const;
 import { BETA_CAMPAIGN } from "../src/lib/beta-invite";
 import { getTrenchersPool } from "../src/lib/trenchers-db";
 
@@ -57,9 +86,11 @@ function parseArgs() {
     const a = args[idx];
     return a.includes("=") ? a.split("=").slice(1).join("=") : args[idx + 1];
   };
+  const variant = (readValue("--variant") ?? "invite") as Variant;
   return {
     send: args.includes("--send"),
     preview: args.includes("--preview"),
+    variant: variant in VARIANTS ? variant : ("invite" as Variant),
     to: (readValue("--to") ?? "")
       .split(",")
       .map((s) => s.trim())
@@ -68,7 +99,8 @@ function parseArgs() {
 }
 
 async function main() {
-  const { send, preview, to } = parseArgs();
+  const { send, preview, to, variant } = parseArgs();
+  const tpl = VARIANTS[variant];
 
   const siteUrl = (
     process.env.NEXT_PUBLIC_SITE_URL ?? "https://trenchers.ai"
@@ -80,7 +112,8 @@ async function main() {
   console.log("\nBeta invite - test render");
   console.log(`From:       ${fromEmail ?? "(RESEND_FROM_EMAIL unset)"}`);
   console.log(`Reply-To:   ${replyTo}`);
-  console.log(`Subject:    ${BETA_INVITE_SUBJECT}`);
+  console.log(`Variant:    ${variant}`);
+  console.log(`Subject:    ${tpl.subject}`);
   console.log(`Access URL: ${accessUrl}`);
 
   if (preview || to.length === 0) {
@@ -90,8 +123,8 @@ async function main() {
       unsubscribeUrl: `${siteUrl}/api/survey/unsubscribe?token=PREVIEW_TOKEN&c=beta`,
       recipientEmail: "you@example.com",
     };
-    const html = await buildBetaInviteHtml(copy);
-    const text = buildBetaInviteText(copy);
+    const html = await tpl.html(copy);
+    const text = tpl.text(copy);
 
     const outPath = "/tmp/beta-invite-preview.html";
     await writeFile(outPath, html, "utf-8");
@@ -159,9 +192,9 @@ async function main() {
     const result = await resend.emails.send({
       from: fromEmail,
       to: recipient,
-      subject: BETA_INVITE_SUBJECT,
-      html: await buildBetaInviteHtml(copy),
-      text: buildBetaInviteText(copy),
+      subject: tpl.subject,
+      html: await tpl.html(copy),
+      text: tpl.text(copy),
       replyTo,
       headers: {
         "List-Unsubscribe": `<${copy.unsubscribeUrl}>`,
@@ -171,7 +204,7 @@ async function main() {
       // the webhook's campaign router ignores them.
       tags: [
         { name: "campaign", value: `${BETA_CAMPAIGN}-test` },
-        { name: "kind", value: "test" },
+        { name: "kind", value: `test-${variant}` },
       ],
       ...({ settings: { tracking: { open: false, click: false } } } as object),
     });
