@@ -19,6 +19,9 @@ import {
 import { Skeleton } from "@/src/components/ui/skeleton";
 
 import { AnalyticsTimeseriesChart } from "../analytics-timeseries-chart";
+// Shared with the Bots table. These used to live here; they were lifted out so
+// there is exactly one pager implementation to keep correct.
+import { PagerButton, pageStrip } from "../analytics-pagination";
 
 type FunnelStep = { key: string; label: string; count: number };
 type HourPoint = { date: string; count: number };
@@ -795,59 +798,6 @@ function FreeformQuote({ r, index }: { r: FreeformRow; index: number }) {
 }
 
 const FREEFORM_PAGE_SIZES = [12, 24, 48];
-
-// Build a compact page-number strip with ellipses: always first + last, plus
-// a window around the current page. Values are 0-indexed page numbers; the
-// string "…" marks a gap. e.g. [0, "…", 4, 5, 6, "…", 20].
-function pageStrip(current: number, total: number): (number | "…")[] {
-  if (total <= 7) return Array.from({ length: total }, (_, i) => i);
-  const nums = new Set<number>([0, total - 1, current]);
-  for (let d = 1; d <= 1; d++) {
-    if (current - d >= 0) nums.add(current - d);
-    if (current + d <= total - 1) nums.add(current + d);
-  }
-  const sorted = [...nums].sort((a, b) => a - b);
-  const out: (number | "…")[] = [];
-  let prev = -1;
-  for (const n of sorted) {
-    if (prev >= 0 && n - prev > 1) out.push("…");
-    out.push(n);
-    prev = n;
-  }
-  return out;
-}
-
-function PagerButton({
-  children,
-  onClick,
-  disabled,
-  active,
-  ariaLabel,
-}: {
-  children: ReactNode;
-  onClick?: () => void;
-  disabled?: boolean;
-  active?: boolean;
-  ariaLabel?: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      aria-label={ariaLabel}
-      aria-current={active ? "page" : undefined}
-      className={
-        "inline-flex h-8 min-w-8 items-center justify-center rounded-lg border px-2 text-[12px] tabular-nums transition-colors disabled:cursor-not-allowed disabled:opacity-35 " +
-        (active
-          ? "border-white/25 bg-white/15 font-semibold text-white"
-          : "border-white/10 bg-white/[0.03] text-white/70 hover:border-white/20 hover:bg-white/10 hover:text-white")
-      }
-    >
-      {children}
-    </button>
-  );
-}
 
 function FreeformCard({ rows }: { rows: FreeformRow[] | null }) {
   const [pageSize, setPageSize] = useState(FREEFORM_PAGE_SIZES[0]);

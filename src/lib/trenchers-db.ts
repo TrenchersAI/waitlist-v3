@@ -30,9 +30,14 @@ export function getTrenchersPool(): Pool | null {
     // via the explicit `ssl` option below — still encrypted, just no chain
     // verification (acceptable for a read-only analytics reader).
     const noSslMode = connectionString.replace(/[?&]sslmode=[^&]*/i, "");
+    // A local Postgres (dev, or the throwaway container `scripts/verify-pulse.ts`
+    // runs against) is not built with SSL support, and forcing it there fails
+    // outright with "The server does not support SSL connections". Remote stays
+    // encrypted; only a loopback host opts out.
+    const isLocal = /@(localhost|127\.0\.0\.1|\[::1\])[:/]/i.test(noSslMode);
     const pool = new Pool({
       connectionString: noSslMode,
-      ssl: { rejectUnauthorized: false },
+      ssl: isLocal ? false : { rejectUnauthorized: false },
       // Read-only analytics: a tiny pool is plenty and stays friendly to the
       // Supabase pooler.
       max: 3,
