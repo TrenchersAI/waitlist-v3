@@ -15,6 +15,8 @@ import { AnalyticsTimeseriesChart } from "@/src/app/analytics/analytics-timeseri
 import { SurveyAnalyticsContent } from "@/src/app/analytics/survey/survey-analytics-view";
 import { AccountingContent } from "@/src/app/analytics/accounting-view";
 import { BetaAnalyticsContent } from "@/src/app/analytics/beta/beta-analytics-view";
+import { BotsAnalyticsContent } from "@/src/app/analytics/bots-view";
+import { PulseAnalyticsContent } from "@/src/app/analytics/pulse-view";
 import { TradingAnalyticsContent } from "@/src/app/analytics/trading-analytics-view";
 import {
   ReferrersStrip,
@@ -694,6 +696,8 @@ export default function AnalyticsDashboard({
             section === "users" ||
             section === "survey" ||
             section === "beta" ||
+            section === "bots" ||
+            section === "pulse" ||
             section === "volume" ||
             section === "revenue" ||
             section === "platform-accounting" ? null : (
@@ -724,6 +728,10 @@ export default function AnalyticsDashboard({
               <SurveyAnalyticsContent />
             ) : section === "beta" ? (
               <BetaAnalyticsContent />
+            ) : section === "bots" ? (
+              <BotsAnalyticsContent />
+            ) : section === "pulse" ? (
+              <PulseAnalyticsContent />
             ) : section === "volume" ? (
               <TradingAnalyticsContent metric="volume" />
             ) : section === "revenue" ? (
@@ -989,6 +997,8 @@ function UsersSection(props: React.ComponentProps<typeof SignupsTable>) {
 
 const SECTION_TITLE: Record<AnalyticsSection, string> = {
   dashboard: "Dashboard",
+  pulse: "Live pulse",
+  bots: "Bots",
   volume: "Trading volume",
   revenue: "Trading revenue",
   referrals: "Referrals",
@@ -1028,6 +1038,8 @@ function DashboardHeader({
       section === "users" ||
       section === "survey" ||
       section === "beta" ||
+      section === "bots" ||
+      section === "pulse" ||
       section === "volume" ||
       section === "revenue" ||
       section === "platform-accounting" ? null : (
