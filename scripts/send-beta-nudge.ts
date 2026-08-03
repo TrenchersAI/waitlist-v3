@@ -39,11 +39,25 @@ function parseArgs() {
   const num = (v: string | undefined) => (v ? Number(v) : undefined);
   return {
     send: args.includes("--send"),
+    trackOpens: args.includes("--track-opens"),
     batch: Math.min(100, Math.max(1, num(read("--batch")) ?? DEFAULT_BATCH)),
     minutes: num(read("--minutes")) ?? DEFAULT_MINUTES,
     limit: num(read("--limit")) ?? Infinity,
   };
 }
+
+/// Open tracking is OFF by default and must be opted into per run with
+/// --track-opens.
+///
+/// The 1x1 pixel is a recognisable bulk-marketing signal, and the resulting
+/// number is not trustworthy anyway: Apple Mail Privacy Protection prefetches
+/// images for a large share of recipients, which inflates opens without a
+/// human having read anything. We measure sign-ins instead, which is a real
+/// action rather than a proxy for one.
+///
+/// It exists as a flag because an open rate, even a noisy one, is the only
+/// way to tell "delivered but never seen" apart from "seen and ignored", and
+/// that distinction matters when a wave underperforms.
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -71,7 +85,7 @@ function gate(s: Awaited<ReturnType<typeof reputation>>): string | null {
 }
 
 async function main() {
-  const { send, batch, minutes, limit } = parseArgs();
+  const { send, trackOpens, batch, minutes, limit } = parseArgs();
   const prisma = getPrismaClient();
 
   const apiKey = process.env.RESEND_API_KEY;
@@ -122,6 +136,7 @@ async function main() {
 
   const snap = await reputation();
   console.log(`\nBeta activation nudge - ${new Date().toISOString()}`);
+  console.log(`Open tracking: ${trackOpens ? "ON" : "off"}`);
   console.log(`Mode:        ${send ? "LIVE SEND" : "dry-run (use --send)"}`);
   console.log(`Reachable invitees: ${candidates.length}`);
   console.log(`SIGNED IN (audience): ${pending.length}`);
@@ -168,7 +183,7 @@ async function main() {
           { name: "inviteId", value: row.id },
           { name: "kind", value: "nudge" },
         ],
-        settings: { tracking: { open: false, click: false } },
+        settings: { tracking: { open: trackOpens, click: false } },
       };
     }));
 

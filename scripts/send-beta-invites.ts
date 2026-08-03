@@ -67,6 +67,7 @@ function parseArgs() {
   const num = (v: string | undefined) => (v ? Number(v) : undefined);
   return {
     send: args.includes("--send"),
+    trackOpens: args.includes("--track-opens"),
     wave: read("--wave") as InviteWave | undefined,
     batch: Math.min(MAX_BATCH, Math.max(1, num(read("--batch")) ?? DEFAULT_BATCH)),
     limit: num(read("--limit")) ?? Infinity,
@@ -74,6 +75,19 @@ function parseArgs() {
     perHour: num(read("--per-hour")),
   };
 }
+
+/// Open tracking is OFF by default and must be opted into per run with
+/// --track-opens.
+///
+/// The 1x1 pixel is a recognisable bulk-marketing signal, and the resulting
+/// number is not trustworthy anyway: Apple Mail Privacy Protection prefetches
+/// images for a large share of recipients, which inflates opens without a
+/// human having read anything. We measure sign-ins instead, which is a real
+/// action rather than a proxy for one.
+///
+/// It exists as a flag because an open rate, even a noisy one, is the only
+/// way to tell "delivered but never seen" apart from "seen and ignored", and
+/// that distinction matters when a wave underperforms.
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -113,7 +127,7 @@ function gate(s: Awaited<ReturnType<typeof reputation>>): string | null {
 }
 
 async function main() {
-  const { send, wave, batch, limit, hours, perHour } = parseArgs();
+  const { send, trackOpens, wave, batch, limit, hours, perHour } = parseArgs();
   const prisma = getPrismaClient();
 
   if (!wave || !WAVE_ORDER.includes(wave)) {
@@ -156,6 +170,7 @@ async function main() {
 
   const snap = await reputation();
   console.log(`\nBeta invite sender - ${BETA_CAMPAIGN} - ${new Date().toISOString()}`);
+  console.log(`Open tracking: ${trackOpens ? "ON" : "off"}`);
   console.log(`Mode:          ${send ? "LIVE SEND" : "dry-run (use --send)"}`);
   console.log(`Wave:          ${wave}`);
   console.log(`Pending:       ${pending.length}`);
@@ -280,7 +295,7 @@ async function main() {
               { name: "inviteId", value: row.id },
               { name: "wave", value: wave },
             ],
-            settings: { tracking: { open: false, click: false } },
+            settings: { tracking: { open: trackOpens, click: false } },
           };
         }),
       );

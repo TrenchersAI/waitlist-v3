@@ -134,6 +134,11 @@ model BetaInvite {
   bouncedAt    DateTime?
   complainedAt DateTime?
   unsubscribedAt DateTime?
+  /// Resend dropped the send because the address is on its suppression
+  /// list, usually from a prior hard bounce on any campaign. Distinct from
+  /// a bounce: the message never left, so it costs no reputation, but the
+  /// person is unreachable and should stop appearing in pending counts.
+  suppressedAt DateTime?
 
   /// Second send: the "signup issue" reminder, mailed to invitees who had
   /// not signed in. Tracked on separate columns rather than a second row
@@ -147,6 +152,7 @@ model BetaInvite {
   reminderSentAt      DateTime?
   reminderResendMsgId String?
   reminderDeliveredAt DateTime?
+  reminderOpenedAt    DateTime?
   reminderBouncedAt   DateTime?
   reminderComplainedAt DateTime?
 
@@ -156,6 +162,7 @@ model BetaInvite {
   nudgeSentAt      DateTime?
   nudgeResendMsgId String?
   nudgeDeliveredAt DateTime?
+  nudgeOpenedAt    DateTime?
   nudgeBouncedAt   DateTime?
   nudgeComplainedAt DateTime?
 

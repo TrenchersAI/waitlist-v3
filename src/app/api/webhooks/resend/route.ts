@@ -27,7 +27,8 @@ type ResendEventType =
   | "email.clicked"
   | "email.bounced"
   | "email.complained"
-  | "email.failed";
+  | "email.failed"
+  | "email.suppressed";
 
 type ResendEvent = {
   type: ResendEventType;
@@ -204,6 +205,7 @@ export async function POST(request: Request) {
       select: {
         id: true,
         reminderDeliveredAt: true,
+        reminderOpenedAt: true,
         reminderBouncedAt: true,
         reminderComplainedAt: true,
       },
@@ -213,6 +215,9 @@ export async function POST(request: Request) {
       switch (evt.type) {
         case "email.delivered":
           if (!reminderRow.reminderDeliveredAt) rdata.reminderDeliveredAt = occurredAt;
+          break;
+        case "email.opened":
+          if (!reminderRow.reminderOpenedAt) rdata.reminderOpenedAt = occurredAt;
           break;
         case "email.bounced":
         case "email.failed":
@@ -226,6 +231,41 @@ export async function POST(request: Request) {
       }
       if (Object.keys(rdata).length > 0) {
         await prisma.betaInvite.update({ where: { id: reminderRow.id }, data: rdata });
+      }
+      return Response.json({ ok: true });
+    }
+
+    const nudgeRow = await prisma.betaInvite.findFirst({
+      where: { nudgeResendMsgId: resendMsgId },
+      select: {
+        id: true,
+        nudgeDeliveredAt: true,
+        nudgeOpenedAt: true,
+        nudgeBouncedAt: true,
+        nudgeComplainedAt: true,
+      },
+    });
+    if (nudgeRow) {
+      const ndata: Record<string, Date> = {};
+      switch (evt.type) {
+        case "email.delivered":
+          if (!nudgeRow.nudgeDeliveredAt) ndata.nudgeDeliveredAt = occurredAt;
+          break;
+        case "email.opened":
+          if (!nudgeRow.nudgeOpenedAt) ndata.nudgeOpenedAt = occurredAt;
+          break;
+        case "email.bounced":
+        case "email.failed":
+          if (!nudgeRow.nudgeBouncedAt) ndata.nudgeBouncedAt = occurredAt;
+          break;
+        case "email.complained":
+          if (!nudgeRow.nudgeComplainedAt) ndata.nudgeComplainedAt = occurredAt;
+          break;
+        default:
+          break;
+      }
+      if (Object.keys(ndata).length > 0) {
+        await prisma.betaInvite.update({ where: { id: nudgeRow.id }, data: ndata });
       }
       return Response.json({ ok: true });
     }
@@ -256,9 +296,15 @@ export async function POST(request: Request) {
     case "email.complained":
       if (!invite.complainedAt) data.complainedAt = occurredAt;
       break;
+    case "email.suppressed":
+      // Resend refused to send because the address is on its suppression
+      // list. The message never left, so it costs no reputation, but the
+      // person is unreachable and must stop showing up as pending.
+      if (isBeta) data.suppressedAt = occurredAt;
+      break;
     default:
-      // sent / delivery_delayed — already covered by sentAt or no signal
-      // needed for the funnel.
+      // sent / delivery_delayed are covered by sentAt or carry no signal
+      // the funnel needs.
       break;
   }
 

@@ -113,10 +113,17 @@ export async function GET() {
       unsubscribedAt: true,
       failedAt: true,
       activatedAt: true,
+      suppressedAt: true,
       reminderSentAt: true,
       reminderDeliveredAt: true,
+      reminderOpenedAt: true,
       reminderBouncedAt: true,
       reminderComplainedAt: true,
+      nudgeSentAt: true,
+      nudgeDeliveredAt: true,
+      nudgeOpenedAt: true,
+      nudgeBouncedAt: true,
+      nudgeComplainedAt: true,
       subscriber: { select: { email: true } },
     },
   });
@@ -330,6 +337,44 @@ export async function GET() {
 
   const rate = (n: number, d: number) => (d > 0 ? n / d : 0);
 
+  // --- per-send comparison ----------------------------------------------
+  // One row per message rather than one blended campaign total. The three
+  // sends went to different audiences for different reasons, so an averaged
+  // bounce or open rate would describe none of them, and a problem caused
+  // by one send would be diluted by the other two.
+  type SendRow = {
+    key: string;
+    label: string;
+    audience: string;
+    sent: number;
+    delivered: number;
+    opened: number;
+    bounced: number;
+    complained: number;
+    unsubscribed: number;
+    openTracked: boolean;
+  };
+
+  let iSent = 0, iDelivered = 0, iOpened = 0, iBounced = 0, iComplained = 0, iUnsub = 0;
+  let nSent = 0, nDelivered = 0, nOpened = 0, nBounced = 0, nComplained = 0;
+  for (const r of rows) {
+    if (r.sentAt) {
+      iSent++;
+      if (r.deliveredAt) iDelivered++;
+      if (r.openedAt) iOpened++;
+      if (r.bouncedAt) iBounced++;
+      if (r.complainedAt) iComplained++;
+      if (r.unsubscribedAt) iUnsub++;
+    }
+    if (r.nudgeSentAt) {
+      nSent++;
+      if (r.nudgeDeliveredAt) nDelivered++;
+      if (r.nudgeOpenedAt) nOpened++;
+      if (r.nudgeBouncedAt) nBounced++;
+      if (r.nudgeComplainedAt) nComplained++;
+    }
+  }
+
   // --- second send: the signup-issue reminder ---------------------------
   // Reported separately rather than folded into the totals. The two sends
   // went to different audiences for different reasons, so a single blended
@@ -338,6 +383,7 @@ export async function GET() {
   // when they were mailed, and have since.
   let rSent = 0,
     rDelivered = 0,
+    rOpened = 0,
     rBounced = 0,
     rComplained = 0,
     rRecovered = 0;
@@ -345,6 +391,7 @@ export async function GET() {
     if (!r.reminderSentAt) continue;
     rSent++;
     if (r.reminderDeliveredAt) rDelivered++;
+    if (r.reminderOpenedAt) rOpened++;
     if (r.reminderBouncedAt) rBounced++;
     if (r.reminderComplainedAt) rComplained++;
     const email = r.subscriber.email.trim().toLowerCase();
@@ -405,6 +452,36 @@ export async function GET() {
       webhookHealthy: events.length > 0,
       totalEvents: events.length,
     },
+    sends: [
+      {
+        key: "invite",
+        label: "Beta invite",
+        audience: "Wave 1, survey completers",
+        sent: iSent, delivered: iDelivered, opened: iOpened,
+        bounced: iBounced, complained: iComplained, unsubscribed: iUnsub,
+        openTracked: iOpened > 0,
+      },
+      {
+        key: "reminder",
+        label: "Signup issue mail",
+        audience: "Invitees who had not signed in",
+        sent: rSent, delivered: rDelivered, opened: rOpened,
+        bounced: rBounced, complained: rComplained, unsubscribed: 0,
+        openTracked: rOpened > 0,
+      },
+      {
+        key: "nudge",
+        label: "Activation nudge",
+        audience: "Users who have signed in",
+        sent: nSent, delivered: nDelivered, opened: nOpened,
+        bounced: nBounced, complained: nComplained, unsubscribed: 0,
+        openTracked: nOpened > 0,
+      },
+    ] satisfies SendRow[],
+    // True only if ANY send ever recorded an open. Open tracking is off by
+    // default, so a flat zero means "not measured", not "nobody read it",
+    // and the UI has to say which.
+    openTrackingEverUsed: iOpened + rOpened + nOpened > 0,
     // Second send, reported on its own terms. Blending it into the totals
     // would average two different audiences mailed for two different
     // reasons, and describe neither.
@@ -413,6 +490,7 @@ export async function GET() {
       delivered: rDelivered,
       bounced: rBounced,
       complained: rComplained,
+      opened: rOpened,
       pending: rPending,
       recovered: rRecovered,
       deliveryRate: rate(rDelivered, rSent),

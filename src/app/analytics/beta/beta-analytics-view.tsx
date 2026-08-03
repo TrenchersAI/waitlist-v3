@@ -91,9 +91,23 @@ type Payload = {
     webhookHealthy: boolean;
     totalEvents: number;
   };
+  sends: {
+    key: string;
+    label: string;
+    audience: string;
+    sent: number;
+    delivered: number;
+    opened: number;
+    bounced: number;
+    complained: number;
+    unsubscribed: number;
+    openTracked: boolean;
+  }[];
+  openTrackingEverUsed: boolean;
   reminder: {
     sent: number;
     delivered: number;
+    opened: number;
     bounced: number;
     complained: number;
     pending: number;
@@ -303,6 +317,78 @@ export function BetaAnalyticsContent() {
           <Timeline points={data.series} />
         </Panel>
       </div>
+
+      {/* Per-send comparison */}
+      <Panel
+        title="Email performance by send"
+        hint="Each message on its own terms. Blending three audiences into one rate would describe none of them."
+      >
+        <div className="min-w-0 overflow-x-auto">
+          <table className="w-full min-w-[760px] text-sm">
+            <thead>
+              <tr className="border-b border-white/10 text-left text-[11px] uppercase tracking-wider text-white/40">
+                <th className="py-2 pr-3 font-medium">Send</th>
+                <th className="py-2 pr-3 text-right font-medium">Sent</th>
+                <th className="py-2 pr-3 text-right font-medium">Delivered</th>
+                <th className="py-2 pr-3 text-right font-medium">Opened</th>
+                <th className="py-2 pr-3 text-right font-medium">Bounced</th>
+                <th className="py-2 pr-3 text-right font-medium">Spam</th>
+                <th className="py-2 text-right font-medium">Unsub</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.sends.map((s) => (
+                <tr key={s.key} className="border-b border-white/5 last:border-0">
+                  <td className="py-2.5 pr-3">
+                    <div className="text-white">{s.label}</div>
+                    <div className="text-[11px] text-white/35">{s.audience}</div>
+                  </td>
+                  <Num v={s.sent} dim={s.sent === 0} />
+                  <td className="py-2.5 pr-3 text-right tabular-nums text-white/85">
+                    {nf.format(s.delivered)}
+                    {s.sent > 0 ? (
+                      <span className="ml-1.5 text-[11px] text-white/35">
+                        {pct(s.delivered / s.sent, 0)}
+                      </span>
+                    ) : null}
+                  </td>
+                  <td className="py-2.5 pr-3 text-right">
+                    {s.openTracked ? (
+                      <span className="tabular-nums text-white">
+                        {nf.format(s.opened)}
+                        {s.delivered > 0 ? (
+                          <span className="ml-1.5 text-[11px] text-white/35">
+                            {pct(s.opened / s.delivered, 0)}
+                          </span>
+                        ) : null}
+                      </span>
+                    ) : (
+                      <span className="text-[11px] text-white/25">not tracked</span>
+                    )}
+                  </td>
+                  <Num v={s.bounced} tone={s.bounced > 0 ? BAD : undefined} dim={s.bounced === 0} />
+                  <Num v={s.complained} tone={s.complained > 0 ? BAD : undefined} dim={s.complained === 0} />
+                  <Num v={s.unsubscribed} dim={s.unsubscribed === 0} last />
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {!data.openTrackingEverUsed ? (
+          <div className="mt-4 rounded-lg border border-white/10 bg-white/[0.03] p-3 text-[12px] leading-relaxed text-white/50">
+            <strong className="text-white/75">Opens are not being measured.</strong>{" "}
+            Open tracking is off on every send so far, so the column reads
+            &quot;not tracked&quot; rather than zero. It works by embedding a 1x1
+            pixel, which is a recognisable bulk-marketing signal, and the number
+            it produces is inflated by Apple Mail Privacy Protection prefetching
+            images without a human reading anything. Pass{" "}
+            <code className="text-white/75">--track-opens</code> to any sender to
+            enable it for that run, and this column fills in from the next send
+            onward. It cannot be backfilled for messages already delivered.
+          </div>
+        ) : null}
+      </Panel>
 
       {/* Second send */}
       <Panel
