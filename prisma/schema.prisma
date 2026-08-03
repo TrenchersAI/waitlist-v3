@@ -150,6 +150,15 @@ model BetaInvite {
   reminderBouncedAt   DateTime?
   reminderComplainedAt DateTime?
 
+  /// Third send: the activation nudge, to people who have already signed
+  /// in. Own columns for the same reason the reminder has them: three sends
+  /// on one row must keep independent delivery stats.
+  nudgeSentAt      DateTime?
+  nudgeResendMsgId String?
+  nudgeDeliveredAt DateTime?
+  nudgeBouncedAt   DateTime?
+  nudgeComplainedAt DateTime?
+
   /// When beta access was actually provisioned for this address.
   accessGrantedAt DateTime?
   /// First observed sign-in on beta.trenchers.ai with this email. The
@@ -167,6 +176,8 @@ model BetaInvite {
   @@index([activatedAt])
   @@index([reminderSentAt])
   @@index([reminderResendMsgId])
+  @@index([nudgeSentAt])
+  @@index([nudgeResendMsgId])
 }
 
 /// Raw audit log of Resend webhook events. We also fold the relevant
