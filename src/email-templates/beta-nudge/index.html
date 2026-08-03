@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>You're early. Make it count.</title>
+  </head>
+  <!--
+    Third touch, and the only one that goes to people who have ALREADY
+    signed in. Its job is activation rather than acquisition: get someone
+    who opened an account to actually deploy a bot and report back.
+
+    Two things the earlier templates carry are deliberately absent. There is
+    no "sign in with this address" instruction, because every recipient is
+    already through the gate and repeating it would be noise. And there is
+    no reassurance about access being open, for the same reason.
+
+    Same austere shell as the invite and reminder: no images, no <style>
+    block, no tables, no padded CTA button, destination URL as its own
+    anchor text. This is the third message to some of these people inside a
+    day, so it has to keep reading as a note from the team rather than a
+    campaign.
+
+    Copy is the founders' own, kept intact. The link sits with the
+    "deploy one" instruction rather than at the end, because that paragraph
+    is the actual ask and a link stranded below the fold gets missed.
+  -->
+  <body style="margin:0;padding:0;background:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;">
+    <div style="max-width:520px;margin:0 auto;padding:36px 24px 32px;color:#1a1a1a;font-size:16px;line-height:1.6;">
+      <p style="margin:0 0 18px;">Hi,</p>
+
+      <p style="margin:0 0 18px;">
+        You have early access to Trenchers, and we want you to actively test the platform.
+      </p>
+
+      <p style="margin:0 0 18px;">
+        Users are already trading both manually and through AI agents, testing different strategies, and sharing feedback that is directly shaping what we ship next.
+      </p>
+
+      <p style="margin:0 0 22px;">
+        If you haven't spawned a bot yet, start there. Deploy one, explore the platform, and experience the full trading workflow.
+      </p>
+
+      <p style="margin:0 0 26px;">
+        <a href="{{ACCESS_URL}}" style="font-size:19px;font-weight:600;color:#1a1a1a;text-decoration:underline;">{{ACCESS_URL}}</a>
+      </p>
+
+      <p style="margin:0 0 18px;">
+        Once you've tested it, tell us what worked, what didn't, and what you want improved. You can reach us anytime through the <strong>Support button inside Trenchers</strong> for issues or feedback, or simply <strong>reply to this email</strong>.
+      </p>
+
+      <p style="margin:0 0 22px;">
+        <strong>Users who actively trade, test agents, and provide meaningful feedback will be prioritized for upcoming early-user rewards and access.</strong>
+      </p>
+
+      <p style="margin:0 0 28px;">
+        You're early. Make it count.
+      </p>
+
+      <p style="margin:0 0 28px;color:#555;">Trenchers</p>
+
+      <p style="margin:0;color:#8a8a8a;font-size:13px;line-height:1.5;">
+        You are receiving this because you joined the Trenchers waitlist. If you would prefer not to hear from us, you can <a href="{{UNSUBSCRIBE_URL}}" style="color:#8a8a8a;">unsubscribe</a>.
+      </p>
+    </div>
+  </body>
+</html>
