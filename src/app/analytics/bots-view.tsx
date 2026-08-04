@@ -17,6 +17,7 @@ import {
   usePagination,
   usePagerAnchor,
 } from "@/src/app/analytics/analytics-pagination";
+import { BotsDrilldown } from "@/src/app/analytics/bots-drilldown";
 import type {
   BotsByState,
   BotsPayload,
@@ -87,6 +88,10 @@ export function BotsAnalyticsContent() {
   const [filter, setFilter] = useState<Filter>("all");
   const [search, setSearch] = useState("");
   const [nonce, setNonce] = useState(0);
+  // Drill-down target. When set, the whole tab becomes that user's bot list
+  // rather than a modal over the table: the detail view is dense enough that a
+  // dialog would spend most of its height on chrome.
+  const [drill, setDrill] = useState<{ id: string; label: string } | null>(null);
 
   // No synchronous setState in here: `loading` starts true for the initial
   // mount, and the Refresh button flips it back on before bumping `nonce`.
@@ -181,6 +186,16 @@ export function BotsAnalyticsContent() {
           </CardDescription>
         </CardHeader>
       </Card>
+    );
+  }
+
+  if (drill) {
+    return (
+      <BotsDrilldown
+        userId={drill.id}
+        label={drill.label}
+        onBack={() => setDrill(null)}
+      />
     );
   }
 
@@ -331,7 +346,18 @@ export function BotsAnalyticsContent() {
                     </td>
                   </tr>
                 ) : (
-                  pager.visible.map((r) => <UserRow key={r.userId} row={r} />)
+                  pager.visible.map((r) => (
+                    <UserRow
+                      key={r.userId}
+                      row={r}
+                      onSelect={() =>
+                        setDrill({
+                          id: r.userId,
+                          label: r.email ?? r.name ?? r.userId,
+                        })
+                      }
+                    />
+                  ))
                 )}
               </tbody>
             </table>
@@ -350,9 +376,18 @@ export function BotsAnalyticsContent() {
   );
 }
 
-function UserRow({ row: r }: { row: BotUserRow }) {
+function UserRow({
+  row: r,
+  onSelect,
+}: {
+  row: BotUserRow;
+  onSelect: () => void;
+}) {
   return (
-    <tr className="border-b border-white/5 transition-colors hover:bg-white/[0.02]">
+    <tr
+      onClick={onSelect}
+      className="cursor-pointer border-b border-white/5 transition-colors hover:bg-white/[0.03]"
+    >
       <td className="py-2.5 pl-6 pr-3">
         <div className="flex flex-col">
           <span className="font-medium text-white/90">
