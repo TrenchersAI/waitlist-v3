@@ -11,6 +11,13 @@ import {
   CardTitle,
 } from "@/src/components/ui/card";
 import { Skeleton } from "@/src/components/ui/skeleton";
+import {
+  PageSizeSelect,
+  Pager,
+  usePagination,
+  usePagerAnchor,
+} from "@/src/app/analytics/analytics-pagination";
+import { BotsDrilldown } from "@/src/app/analytics/bots-drilldown";
 import type {
   BotsByState,
   BotsPayload,
@@ -81,6 +88,10 @@ export function BotsAnalyticsContent() {
   const [filter, setFilter] = useState<Filter>("all");
   const [search, setSearch] = useState("");
   const [nonce, setNonce] = useState(0);
+  // Drill-down target. When set, the whole tab becomes that user's bot list
+  // rather than a modal over the table: the detail view is dense enough that a
+  // dialog would spend most of its height on chrome.
+  const [drill, setDrill] = useState<{ id: string; label: string } | null>(null);
 
   // No synchronous setState in here: `loading` starts true for the initial
   // mount, and the Refresh button flips it back on before bumping `nonce`.
@@ -141,6 +152,11 @@ export function BotsAnalyticsContent() {
     return [...out].sort((a, b) => b[sort] - a[sort]);
   }, [data, filter, search, sort]);
 
+  // Declared before the early returns below: hooks cannot be called
+  // conditionally, and the loading / error / unavailable branches all bail out.
+  const pager = usePagination(rows);
+  const pagerAnchor = usePagerAnchor(pager.page);
+
   if (loading && !data) return <LoadingState />;
 
   if (error) {
@@ -170,6 +186,16 @@ export function BotsAnalyticsContent() {
           </CardDescription>
         </CardHeader>
       </Card>
+    );
+  }
+
+  if (drill) {
+    return (
+      <BotsDrilldown
+        userId={drill.id}
+        label={drill.label}
+        onBack={() => setDrill(null)}
+      />
     );
   }
 
@@ -234,6 +260,7 @@ export function BotsAnalyticsContent() {
       <StateBreakdown rows={data!.byState} />
 
       <Card>
+        <div ref={pagerAnchor} className="scroll-mt-6" />
         <CardHeader className="gap-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -243,6 +270,11 @@ export function BotsAnalyticsContent() {
                 {data!.users.length.toLocaleString("en-US")} users
               </CardDescription>
             </div>
+            <div className="flex items-center gap-3">
+              <PageSizeSelect
+                value={pager.pageSize}
+                onChange={pager.setPageSize}
+              />
             <div className="relative">
               <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-white/35" />
               <input
@@ -251,6 +283,7 @@ export function BotsAnalyticsContent() {
                 placeholder="Email, name, wallet…"
                 className="h-8 w-56 rounded-md border border-white/10 bg-black/40 pl-8 pr-2 text-xs text-white placeholder:text-white/30 focus:border-white/25 focus:outline-none"
               />
+            </div>
             </div>
           </div>
 
@@ -313,11 +346,23 @@ export function BotsAnalyticsContent() {
                     </td>
                   </tr>
                 ) : (
-                  rows.map((r) => <UserRow key={r.userId} row={r} />)
+                  pager.visible.map((r) => (
+                    <UserRow
+                      key={r.userId}
+                      row={r}
+                      onSelect={() =>
+                        setDrill({
+                          id: r.userId,
+                          label: r.email ?? r.name ?? r.userId,
+                        })
+                      }
+                    />
+                  ))
                 )}
               </tbody>
             </table>
           </div>
+          <Pager p={pager} label="Bot users pages" />
         </CardContent>
       </Card>
 
@@ -331,9 +376,18 @@ export function BotsAnalyticsContent() {
   );
 }
 
-function UserRow({ row: r }: { row: BotUserRow }) {
+function UserRow({
+  row: r,
+  onSelect,
+}: {
+  row: BotUserRow;
+  onSelect: () => void;
+}) {
   return (
-    <tr className="border-b border-white/5 transition-colors hover:bg-white/[0.02]">
+    <tr
+      onClick={onSelect}
+      className="cursor-pointer border-b border-white/5 transition-colors hover:bg-white/[0.03]"
+    >
       <td className="py-2.5 pl-6 pr-3">
         <div className="flex flex-col">
           <span className="font-medium text-white/90">
