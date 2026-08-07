@@ -2,6 +2,10 @@ import { getAnalyticsSessionFromCookies } from "@/src/lib/analytics-internal";
 import { fetchAccounting } from "@/src/lib/trenchers-accounting";
 
 export const runtime = "nodejs";
+// Real-time by request: per-user wallet balances must never be served stale.
+// Valid here because Cache Components is not enabled in next.config.ts.
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 // Platform accounting — revenue collected vs rakeback + referral promised, the
 // reconciliation invariants that say whether those figures can be believed, and
@@ -17,7 +21,9 @@ export async function GET() {
 
   try {
     const payload = await fetchAccounting();
-    return Response.json(payload);
+    return Response.json(payload, {
+      headers: { "Cache-Control": "no-store" },
+    });
   } catch (error) {
     // Surface the reason rather than a bare 500 — the dashboard renders it, and
     // "could not compute" must never be mistaken for "computed, all zero".

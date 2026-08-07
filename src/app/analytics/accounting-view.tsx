@@ -19,6 +19,12 @@ import {
   CardTitle,
 } from "@/src/components/ui/card";
 import { Skeleton } from "@/src/components/ui/skeleton";
+import {
+  PageSizeSelect,
+  Pager,
+  usePagination,
+  usePagerAnchor,
+} from "@/src/app/analytics/analytics-pagination";
 import { cn } from "@/src/lib/utils";
 
 // =============================================================================
@@ -49,6 +55,14 @@ type UserRow = {
   referralCausedLamports: number;
   marginLamports: number;
   givebackPct: number | null;
+  name: string | null;
+  email: string | null;
+  netDepositedLamports: number;
+  agentsBalanceLamports: number;
+  rakebackPaidLamports: number;
+  referralPaidLamports: number;
+  referralEarnedLamports: number;
+  gold: number;
 };
 
 type Payload = {
@@ -102,6 +116,17 @@ function shortWallet(w: string | null): string {
   return w.length > 12 ? `${w.slice(0, 4)}…${w.slice(-4)}` : w;
 }
 
+/** Age of the last successful poll, so a stalled refresh is visible rather
+ *  than silently showing numbers that stopped moving. */
+function updatedAgo(iso: string | null | undefined): string {
+  if (!iso) return "never";
+  const secs = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+  if (!Number.isFinite(secs) || secs < 10) return "just now";
+  if (secs < 60) return `${secs}s ago`;
+  const mins = Math.floor(secs / 60);
+  return mins < 60 ? `${mins}m ago` : `${Math.floor(mins / 60)}h ago`;
+}
+
 export function AccountingContent() {
   const [data, setData] = useState<Payload | null>(null);
   const [loading, setLoading] = useState(true);
@@ -133,6 +158,25 @@ export function AccountingContent() {
       cancelled = true;
     };
   }, [reloadKey]);
+
+  // Auto-refresh. Bumping `reloadKey` re-runs the fetch above WITHOUT flipping
+  // `loading`, so the table refreshes in place instead of blinking back to
+  // skeletons every 30s. Paused while the tab is hidden: polling a background
+  // tab burns prod DB round-trips for a screen nobody is looking at.
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (document.visibilityState === "visible") setReloadKey((k) => k + 1);
+    }, 30_000);
+    return () => clearInterval(id);
+  }, []);
+
+  // Re-render on a timer so the "updated Ns ago" label counts up between
+  // polls. Kept separate from `data` so it never triggers a refetch.
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), 1000);
+    return () => clearInterval(id);
+  }, []);
 
   const derived = useMemo(() => {
     if (!data) return null;
@@ -181,6 +225,24 @@ export function AccountingContent() {
 
   return (
     <div className="flex flex-col gap-6">
+      <div className="flex flex-wrap items-center justify-end gap-3">
+        <span className="flex items-center gap-1.5 text-[11px] text-white/40">
+          <span className="relative flex size-2">
+            <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400/60" />
+            <span className="relative inline-flex size-2 rounded-full bg-emerald-400" />
+          </span>
+          Live, updated {updatedAgo(data?.generatedAt)}
+        </span>
+        <button
+          type="button"
+          onClick={() => setReloadKey((k) => k + 1)}
+          className="flex items-center gap-1.5 rounded-md border border-white/10 px-2.5 py-1.5 text-xs font-medium text-white/60 transition-colors hover:bg-white/[0.04] hover:text-white"
+        >
+          <RefreshCw className="size-3.5" aria-hidden />
+          Refresh
+        </button>
+      </div>
+
       <TrustPanel
         loading={loading}
         invariants={data?.invariants ?? []}
@@ -666,8 +728,23 @@ function UserLedger({
   // maths, not money going out the door.
   const trivial = negativeCount > 0 && Math.abs(worstMargin) < 100_000;
 
+  const [query, setQuery] = useState("");
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return users;
+    return users.filter(
+      (u) =>
+        u.email?.toLowerCase().includes(q) ||
+        u.name?.toLowerCase().includes(q) ||
+        u.wallet?.toLowerCase().includes(q),
+    );
+  }, [users, query]);
+  const pager = usePagination(filtered, 25);
+  const anchor = usePagerAnchor(pager.page);
+
   return (
     <Card>
+      <div ref={anchor} className="scroll-mt-6" />
       <CardHeader>
         <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
           <div>
@@ -694,6 +771,17 @@ function UserLedger({
             </span>
           ) : null}
         </div>
+        {users.length > 0 ? (
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search name, email, wallet…"
+              className="h-8 w-64 rounded-md border border-white/10 bg-black/40 px-2.5 text-xs text-white placeholder:text-white/30 focus:border-white/25 focus:outline-none"
+            />
+            <PageSizeSelect value={pager.pageSize} onChange={pager.setPageSize} />
+          </div>
+        ) : null}
       </CardHeader>
       <CardContent>
         {loading ? (
@@ -702,50 +790,97 @@ function UserLedger({
               <Skeleton key={i} className="h-11 w-full" />
             ))}
           </div>
-        ) : users.length === 0 ? (
+        ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-2 py-10 text-center">
-            <p className="text-sm font-medium text-white/70">No user activity yet</p>
+            <p className="text-sm font-medium text-white/70">
+              {users.length === 0 ? "No user activity yet" : "No match"}
+            </p>
             <p className="max-w-sm text-xs text-white/40">
-              Users appear here once they generate a fee or accrue rakeback.
+              {users.length === 0
+                ? "Users appear here once they generate a fee, accrue rakeback, or deposit."
+                : "No user matches that name, email or wallet."}
             </p>
           </div>
         ) : (
           <div className="-mx-1 overflow-x-auto px-1">
-            <table className="w-full min-w-[560px] text-sm">
+            <table className="w-full min-w-[1040px] text-sm">
               <thead>
                 <tr className="border-b border-white/8 text-left text-[11px] font-medium text-white/45">
-                  <th scope="col" className="pb-2 pr-3 font-medium">Wallet</th>
+                  <th scope="col" className="pb-2 pr-3 font-medium">User</th>
                   <th scope="col" className="pb-2 pr-3 font-medium">Tier</th>
+                  <th scope="col" className="pb-2 pr-3 text-right font-medium" title="Deposits minus withdrawals">Net in</th>
+                  <th scope="col" className="pb-2 pr-3 text-right font-medium" title="Spendable across their live bots — the same figure the customer sees">Agents bal</th>
                   <th scope="col" className="pb-2 pr-3 text-right font-medium">Fees in</th>
-                  <th scope="col" className="pb-2 pr-3 text-right font-medium">Rakeback</th>
+                  <th scope="col" className="pb-2 pr-3 text-right font-medium" title="Rakeback + referral actually paid out (confirmed claims)">Rewards paid</th>
+                  <th scope="col" className="pb-2 pr-3 text-right font-medium" title="Rakeback accrued but not yet claimed">Owed</th>
                   <th scope="col" className="pb-2 pr-3 text-right font-medium">Referral</th>
+                  <th scope="col" className="pb-2 pr-3 text-right font-medium">Gold</th>
                   <th scope="col" className="pb-2 pr-3 text-right font-medium">Margin</th>
                   <th scope="col" className="pb-2 text-right font-medium">Giveback</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
-                {users.map((u) => {
+                {pager.visible.map((u) => {
                   const negative = u.marginLamports < 0;
+                  const rewardsPaid =
+                    u.rakebackPaidLamports + u.referralPaidLamports;
                   return (
                     <tr key={u.userId} className="transition-colors hover:bg-white/[0.02]">
-                      <td className="py-2.5 pr-3 font-mono text-[12px] text-white/70">
-                        {shortWallet(u.wallet)}
+                      <td className="py-2.5 pr-3">
+                        <div className="flex flex-col">
+                          <span className="text-[12px] font-medium text-white/85">
+                            {u.name ?? u.email ?? shortWallet(u.wallet)}
+                          </span>
+                          <span className="font-mono text-[11px] text-white/40">
+                            {u.email ?? "no email"} · {shortWallet(u.wallet)}
+                          </span>
+                        </div>
                       </td>
                       <td className="py-2.5 pr-3">
                         <span className="rounded border border-white/10 bg-white/[0.03] px-1.5 py-0.5 text-[10px] capitalize text-white/60">
                           {u.rank ?? "—"}
                         </span>
                       </td>
+                      <td className="py-2.5 pr-3 text-right tabular-nums text-white/70">
+                        {u.netDepositedLamports !== 0
+                          ? fmtSol(sol(u.netDepositedLamports))
+                          : "—"}
+                      </td>
+                      <td className="py-2.5 pr-3 text-right tabular-nums text-white/85">
+                        {u.agentsBalanceLamports > 0
+                          ? fmtSol(sol(u.agentsBalanceLamports))
+                          : "—"}
+                      </td>
                       <td className="py-2.5 pr-3 text-right tabular-nums text-white/80">
                         {fmtSol(sol(u.feesInLamports))}
+                      </td>
+                      <td
+                        className="py-2.5 pr-3 text-right tabular-nums text-emerald-300/80"
+                        title={
+                          rewardsPaid > 0
+                            ? `rakeback ${fmtSol(sol(u.rakebackPaidLamports))} + referral ${fmtSol(sol(u.referralPaidLamports))}`
+                            : undefined
+                        }
+                      >
+                        {rewardsPaid > 0 ? fmtSol(sol(rewardsPaid)) : "—"}
                       </td>
                       <td className="py-2.5 pr-3 text-right tabular-nums text-white/60">
                         {fmtSol(sol(u.rakebackOwedLamports))}
                       </td>
-                      <td className="py-2.5 pr-3 text-right tabular-nums text-white/60">
+                      <td
+                        className="py-2.5 pr-3 text-right tabular-nums text-white/60"
+                        title={
+                          u.referralEarnedLamports > 0
+                            ? `earned ${fmtSol(sol(u.referralEarnedLamports))} as a referrer`
+                            : undefined
+                        }
+                      >
                         {u.referralCausedLamports > 0
                           ? fmtSol(sol(u.referralCausedLamports))
                           : "—"}
+                      </td>
+                      <td className="py-2.5 pr-3 text-right tabular-nums text-white/45">
+                        {u.gold > 0 ? Math.round(u.gold).toLocaleString("en-US") : "—"}
                       </td>
                       <td
                         className={cn(
@@ -764,6 +899,7 @@ function UserLedger({
                 })}
               </tbody>
             </table>
+            <Pager p={pager} label="User ledger pages" />
           </div>
         )}
       </CardContent>
@@ -807,7 +943,8 @@ function Caveats({
         </ul>
         {generatedAt ? (
           <p className="mt-4 border-t border-white/5 pt-3 text-[10px] text-white/25">
-            Computed {new Date(generatedAt).toUTCString()} · cached for 60s
+            Computed {new Date(generatedAt).toUTCString()} · not cached, re-polled
+            every 30s
           </p>
         ) : null}
       </CardContent>

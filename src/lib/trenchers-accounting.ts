@@ -25,7 +25,6 @@
 // summary table is a second version of the truth that can drift from the rows
 // it summarises, which is the exact class of bug this dashboard exists to catch.
 
-import { unstable_cache } from "next/cache";
 
 import { getTrenchersPool } from "@/src/lib/trenchers-db";
 
@@ -65,8 +64,34 @@ export type Invariant = {
 
 export type UserLedgerRow = {
   userId: string;
+  /** Display name, falling back to username. Null when the user set neither. */
+  name: string | null;
+  email: string | null;
   wallet: string | null;
   rank: string | null;
+  /** Net SOL the user has put in: deposits minus withdrawals, from
+   *  `wallet_deposits` (System-transfer legs only, so trading never leaks in). */
+  netDepositedLamports: number;
+  /** Spendable SOL across their live bots, using the SAME expression the
+   *  terminal shows the customer (st-db/src/repo_bots.rs FREE_BALANCE_BY_ID_SQL):
+   *  allocated + PnL - fees - deployed - reverted-tx cost, clamped at 0.
+   *
+   *  NOTE: this is NOT a main-wallet chain balance. Nothing in Postgres holds
+   *  one. `wallet_balances` looks like it should, but it is the TRACKED-wallet
+   *  cache (207 rows, 27k SOL, only 2 of 785 Privy wallets match it) and using
+   *  it here would have shown other people's money as the user's. A true chain
+   *  balance needs a per-user RPC call, deliberately not done on a 30s poll. */
+  agentsBalanceLamports: number;
+  /** Rewards ACTUALLY PAID OUT: confirmed rakeback claims, split into its two
+   *  components. Distinct from the `*Owed` figures, which are liabilities. */
+  rakebackPaidLamports: number;
+  referralPaidLamports: number;
+  /** Commission this user EARNED as a referrer (keyed on `earner_id`), as
+   *  opposed to `referralCausedLamports`, which is what their own trading
+   *  obliged us to pay upline. */
+  referralEarnedLamports: number;
+  /** Gamification points balance (`user_points.gold`). Not SOL. */
+  gold: number;
   feesInLamports: number;
   rakebackOwedLamports: number;
   referralCausedLamports: number;
@@ -313,7 +338,7 @@ async function loadInvariants(): Promise<Invariant[]> {
 }
 
 /** Per-user ledger, worst margin first so a loss is the first row seen. */
-async function loadUserLedger(limit = 50): Promise<UserLedgerRow[]> {
+async function loadUserLedger(limit = 500): Promise<UserLedgerRow[]> {
   const pool = getTrenchersPool();
   if (!pool) return [];
 
@@ -330,20 +355,70 @@ async function loadUserLedger(limit = 50): Promise<UserLedgerRow[]> {
      ),
      rake AS (SELECT user_id, SUM(accrued_lamports) v FROM rakeback_accruals GROUP BY user_id),
      caused AS (SELECT source_user_id user_id, SUM(commission_lamports) v
-                  FROM referral_earnings GROUP BY source_user_id)
+                  FROM referral_earnings GROUP BY source_user_id),
+     -- Rewards actually SENT. Only 'confirmed' counts: 'sent' is still in
+     -- flight and 'failed' never left, so treating either as collected would
+     -- overstate what users have in hand.
+     paid AS (SELECT user_id,
+                     SUM(rakeback_lamports) AS rake_paid,
+                     SUM(referral_lamports) AS ref_paid
+                FROM rakeback_claims WHERE status = 'confirmed'
+               GROUP BY user_id),
+     -- Commission EARNED as a referrer, keyed on earner_id. Deliberately not
+     -- the same thing as caused, which is keyed on source_user_id.
+     earned AS (SELECT earner_id user_id, SUM(commission_lamports) v
+                  FROM referral_earnings GROUP BY earner_id),
+     -- Net SOL in: deposits minus withdrawals.
+     dep AS (SELECT user_id, SUM(delta_lamports) AS net
+               FROM wallet_deposits GROUP BY user_id),
+     -- Spendable across the user's LIVE bots, using the terminal's own
+     -- free-balance expression so the operator sees the customer's number.
+     botbal AS (
+       SELECT b.user_id,
+              SUM(GREATEST(
+                0,
+                b.allocated_lamports
+                + COALESCE((SELECT SUM(COALESCE(t.pnl_lamports, 0) - t.fees_lamports)
+                              FROM bot_trades t WHERE t.bot_id = b.id), 0)
+                - COALESCE((SELECT d.deployed_sol FROM bot_deployed_sol d
+                             WHERE d.bot_id = b.id), 0)
+                - COALESCE((SELECT SUM(a.cost_lamports) FROM bot_tx_attempts a
+                             WHERE a.bot_id = b.id), 0)
+              )) AS lamports
+         FROM bots b WHERE NOT b.paper_mode
+        GROUP BY b.user_id)
      SELECT u.id::text        AS user_id,
+            COALESCE(NULLIF(u.display_name, ''), NULLIF(u.username, '')) AS name,
+            u.email           AS email,
             u.wallet_address  AS wallet,
             p.rank            AS rank,
+            COALESCE(p.gold, 0)     AS gold,
+            COALESCE(dep.net, 0)      AS net_deposited,
+            COALESCE(botbal.lamports, 0) AS agents_balance,
             COALESCE(rev.sol, 0)    AS fees_in,
             COALESCE(rake.v, 0)     AS rake_owed,
             COALESCE(caused.v, 0)   AS ref_caused,
+            COALESCE(paid.rake_paid, 0) AS rake_paid,
+            COALESCE(paid.ref_paid, 0)  AS ref_paid,
+            COALESCE(earned.v, 0)   AS ref_earned,
             COALESCE(rev.sol, 0) - COALESCE(rake.v, 0) - COALESCE(caused.v, 0) AS margin
        FROM users u
        LEFT JOIN rev    ON rev.user_id = u.id
        LEFT JOIN rake   ON rake.user_id = u.id
        LEFT JOIN caused ON caused.user_id = u.id
+       LEFT JOIN paid   ON paid.user_id = u.id
+       LEFT JOIN earned ON earned.user_id = u.id
+       LEFT JOIN dep    ON dep.user_id = u.id
+       LEFT JOIN botbal ON botbal.user_id = u.id
        LEFT JOIN user_points p ON p.user_id = u.id
-      WHERE COALESCE(rev.sol, 0) > 0 OR COALESCE(rake.v, 0) > 0 OR COALESCE(caused.v, 0) > 0
+      WHERE COALESCE(rev.sol, 0) > 0
+         OR COALESCE(rake.v, 0) > 0
+         OR COALESCE(caused.v, 0) > 0
+         OR COALESCE(paid.rake_paid, 0) > 0
+         OR COALESCE(paid.ref_paid, 0) > 0
+         OR COALESCE(earned.v, 0) > 0
+         OR COALESCE(dep.net, 0) > 0
+         OR COALESCE(botbal.lamports, 0) > 0
       ORDER BY margin ASC
       LIMIT $1`,
     [limit],
@@ -354,8 +429,16 @@ async function loadUserLedger(limit = 50): Promise<UserLedgerRow[]> {
     const giveback = num(r.rake_owed) + num(r.ref_caused);
     return {
       userId: String(r.user_id),
+      name: r.name ? String(r.name) : null,
+      email: r.email ? String(r.email) : null,
       wallet: r.wallet ? String(r.wallet) : null,
       rank: r.rank ? String(r.rank) : null,
+      netDepositedLamports: num(r.net_deposited),
+      agentsBalanceLamports: num(r.agents_balance),
+      rakebackPaidLamports: num(r.rake_paid),
+      referralPaidLamports: num(r.ref_paid),
+      referralEarnedLamports: num(r.ref_earned),
+      gold: num(r.gold),
       feesInLamports: feesIn,
       rakebackOwedLamports: num(r.rake_owed),
       referralCausedLamports: num(r.ref_caused),
@@ -418,6 +501,8 @@ function caveats(): string[] {
     "Obligations are counted at accrual, not payout — margin already reflects money promised but not yet claimed.",
     "Network fees on payouts (~5000 lamports per confirmed claim) are not recorded anywhere, so real margin is marginally below the figure shown.",
     "The daily chart excludes referral commission: referral_earnings is an upsert aggregate with no per-event history, so a per-day split would be fiction.",
+    "Agents balance is the terminal's own spendable figure (allocated + PnL - fees - deployed), not an on-chain read. There is no stored main-wallet balance: wallet_balances is the tracked-wallet cache, where only 2 of 785 Privy wallets appear, so a true chain balance would need a per-user RPC call.",
+    "Rewards paid counts only 'confirmed' rakeback claims. Claims still 'sent' are in flight and 'failed' ones never left, so neither is money the user has in hand.",
   ];
 }
 
@@ -441,9 +526,9 @@ async function loadAccounting(): Promise<AccountingPayload> {
   };
 }
 
-// 60s cache, matching the sibling trading dashboards. These are full-table
-// aggregates over every money table and the numbers move on the timescale of
-// trades, not seconds.
-export const fetchAccounting = unstable_cache(loadAccounting, ["platform-accounting"], {
-  revalidate: 60,
-});
+// Deliberately UNCACHED. This tab now carries per-user wallet balances, and a
+// balance served from a 60s cache is a balance that can be wrong on screen
+// while the operator is reading it. The route re-polls instead, so every read
+// is current. Cost of the change is one extra set of aggregates per poll,
+// against a user base in the hundreds.
+export const fetchAccounting = loadAccounting;
