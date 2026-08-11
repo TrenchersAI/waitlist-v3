@@ -13,6 +13,7 @@ import {
 import { Skeleton } from "@/src/components/ui/skeleton";
 import type {
   RouterBuySellDay,
+  RouterFailures,
   RouterFeesDay,
   RouterOverviewRow,
   RouterPnlDay,
@@ -21,6 +22,7 @@ import type {
   RouterTopBot,
   RouterTopUser,
   RouterTradesPayload,
+  RouterVenueRow,
   RouterWindow,
 } from "@/src/lib/trenchers-router-trades";
 import { cn } from "@/src/lib/utils";
@@ -225,16 +227,25 @@ export function RouterTradesContent() {
         <TopUsers rows={d.topUsers} />
       </div>
 
-      {/* Known gaps — explicitly labeled, NO fabricated numbers. */}
+      {/* Failure rate + venue split light up once the backend migration lands.
+          Until then each stays "wiring up" — never a fabricated number. */}
       <div className="grid gap-4 lg:grid-cols-2">
-        <WiringUpPanel
-          title="Failure rate & reasons"
-          body="Success and failure rate, and the breakdown of why trades fail, are being wired from the engine's in-memory counters into the database. Failed fills are not persisted to bot_trades today, so every figure above is 100% confirmed fills by construction — we will not estimate a failure rate until it can be shown verified."
-        />
-        <WiringUpPanel
-          title="Venue split (Jupiter / PumpSwap / pump.fun)"
-          body="Per-venue volume needs a venue column on bot_trades, which is being added. Until each fill records the router it landed on, a venue breakdown here would be guessed, so it is intentionally left blank."
-        />
+        {d.failures === null ? (
+          <WiringUpPanel
+            title="Failure rate & reasons"
+            body="Success and failure rate, and the breakdown of why trades fail, are wired from the engine's per-attempt log into the database. Until that table is deployed, every figure above is confirmed fills by construction, so no failure rate is estimated here."
+          />
+        ) : (
+          <FailureRatePanel data={d.failures} />
+        )}
+        {d.venueSplit === null ? (
+          <WiringUpPanel
+            title="Venue split (Jupiter / PumpSwap / pump.fun)"
+            body="Per-venue volume needs a venue column on bot_trades. Until each fill records the router it landed on, a venue breakdown here would be guessed, so it is intentionally left blank."
+          />
+        ) : (
+          <VenueSplitPanel rows={d.venueSplit} />
+        )}
       </div>
 
       <p className="text-[11px] text-white/35">
@@ -777,6 +788,134 @@ function TopUsers({ rows }: { rows: RouterTopUser[] }) {
 // =========================================================================
 // WIRING-UP PLACEHOLDER (known gaps — NO fabricated numbers)
 // =========================================================================
+
+function VenueSplitPanel({ rows }: { rows: RouterVenueRow[] }) {
+  // Once the `venue` column exists but before new fills accrue, every
+  // historical row reads back as 'unknown'. Show that honestly rather than
+  // pretending we know the router split for legacy trades.
+  const onlyUnknown =
+    rows.length > 0 && rows.every((r) => r.venue === "unknown");
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Venue split (Jupiter / PumpSwap / pump.fun)</CardTitle>
+        <CardDescription>
+          Which router each CONFIRMED fill landed on. Fills recorded before
+          venue tracking read back as{" "}
+          <span className="text-white/55">unknown</span>.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="px-0">
+        {rows.length === 0 || onlyUnknown ? (
+          <div className="px-4">
+            <EmptyNote>
+              No venue-tagged fills yet. Only trades since the venue column
+              deployed carry a router, so real splits appear as new fills land.
+            </EmptyNote>
+          </div>
+        ) : (
+          <div className="max-h-[280px] overflow-auto scrollbar-minimal-black">
+            <table className="w-full min-w-[360px] text-left text-xs">
+              <thead className="sticky top-0 z-10 border-y border-white/8 bg-black/85 text-[10px] uppercase tracking-wider text-white/40 backdrop-blur">
+                <tr>
+                  <Th className="pl-6">Venue</Th>
+                  <Th align="right">Trades</Th>
+                  <Th align="right">Share</Th>
+                  <Th align="right" className="pr-6">
+                    Volume (SOL)
+                  </Th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r) => (
+                  <tr key={r.venue} className="border-b border-white/5">
+                    <td className="py-2 pl-6 pr-3 text-white/75">{r.venue}</td>
+                    <td className="px-3 text-right tabular-nums text-white/80">
+                      {fmtInt(r.trades)}
+                    </td>
+                    <td className="px-3 text-right tabular-nums text-white/60">
+                      {fmtPct(r.pct)}
+                    </td>
+                    <td className="pr-6 pl-3 text-right tabular-nums text-white/60">
+                      {fmtSol(r.volumeSol)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function FailureRatePanel({ data }: { data: RouterFailures }) {
+  const noFailures = data.perWindow.every((w) => w.failed === 0);
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Failure rate &amp; reasons</CardTitle>
+        <CardDescription>
+          Failed / (confirmed + failed) from the engine&rsquo;s per-attempt log.
+          Reason tokens match the backend failure classifier.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="px-0">
+        <div className="grid grid-cols-3 gap-2 px-4">
+          {data.perWindow.map((w) => (
+            <div
+              key={w.window}
+              className="rounded-lg border border-white/8 bg-white/[0.02] p-3"
+            >
+              <div className="text-[10px] uppercase tracking-wider text-white/40">
+                {w.window} fail rate
+              </div>
+              <div className="mt-1 text-lg font-semibold text-white/90 tabular-nums">
+                {fmtPct(w.ratePct)}
+              </div>
+              <div className="text-[11px] tabular-nums text-white/40">
+                {fmtInt(w.failed)} failed / {fmtInt(w.confirmed + w.failed)}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="mt-3">
+          {data.reasons.length === 0 || noFailures ? (
+            <div className="px-4">
+              <EmptyNote>No failures recorded in range.</EmptyNote>
+            </div>
+          ) : (
+            <div className="max-h-[240px] overflow-auto scrollbar-minimal-black">
+              <table className="w-full min-w-[280px] text-left text-xs">
+                <thead className="sticky top-0 z-10 border-y border-white/8 bg-black/85 text-[10px] uppercase tracking-wider text-white/40 backdrop-blur">
+                  <tr>
+                    <Th className="pl-6">Reason</Th>
+                    <Th align="right" className="pr-6">
+                      Count
+                    </Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.reasons.map((r) => (
+                    <tr key={r.reason} className="border-b border-white/5">
+                      <td className="py-2 pl-6 pr-3 text-white/75">
+                        {r.reason}
+                      </td>
+                      <td className="pr-6 pl-3 text-right tabular-nums text-white/80">
+                        {fmtInt(r.count)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 function WiringUpPanel({ title, body }: { title: string; body: string }) {
   return (
