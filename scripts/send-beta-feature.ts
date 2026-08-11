@@ -206,18 +206,46 @@ async function main() {
         failed += chunk.length;
       } else {
         const ids = result.data?.data ?? [];
-        await Promise.all(chunk.map(async (row, idx) => {
+
+        // Stamp the whole batch in ONE query instead of N concurrent
+        // updates. The previous version fired 60 parallel writes per batch,
+        // which is both wasteful and a real hazard: combined with the
+        // webhook burst the send itself generates, it helped exhaust the
+        // Supabase pooler and killed the run at batch 4.
+        //
+        // Retried, because the emails are already delivered by this point.
+        // An unstamped row is worse than a failed one: it looks pending and
+        // gets mailed a second time on the next run.
+        const rowIds = chunk.map((r) => r.id);
+        const msgIds = chunk.map((_, i) => ids[i]?.id ?? null);
+        let stamped = false;
+        for (let attempt = 1; attempt <= 4 && !stamped; attempt++) {
           try {
-            await prisma.betaInvite.update({
-              where: { id: row.id },
-              data: { featureSentAt: new Date(), featureResendMsgId: ids[idx]?.id ?? undefined },
-            });
-            sentCount++;
+            await prisma.$executeRaw`
+              UPDATE "BetaInvite" AS b
+                 SET "featureSentAt" = now(),
+                     "featureResendMsgId" = v.msg
+                FROM (
+                  SELECT unnest(${rowIds}::text[]) AS id,
+                         unnest(${msgIds}::text[]) AS msg
+                ) AS v
+               WHERE b.id = v.id`;
+            stamped = true;
+            sentCount += chunk.length;
           } catch (err) {
-            failed++;
-            console.warn(`    ${row.subscriber.email}: db update failed - ${(err as Error).message}`);
+            if (attempt === 4) {
+              failed += chunk.length;
+              console.warn(
+                `  batch ${n}: SENT but could not stamp - ${(err as Error).message}`,
+              );
+              console.warn(
+                `  batch ${n}: those ${chunk.length} may be re-sent on a later run`,
+              );
+            } else {
+              await sleep(1500 * attempt);
+            }
           }
-        }));
+        }
       }
     } catch (err) {
       failed += chunk.length;
