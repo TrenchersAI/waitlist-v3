@@ -114,7 +114,11 @@ export function RouterTradesContent() {
 
   if (loading && !data) return <LoadingState />;
 
-  if (error) {
+  // Only take over the whole view on the INITIAL load failure (no data yet). A
+  // failed auto/manual refresh AFTER a good load keeps the last-loaded analytics
+  // (and the Refresh button) rather than blanking to an error-only card; the
+  // next successful refresh clears `error` (setError(null) above).
+  if (error && !data) {
     return (
       <Card>
         <CardHeader>
