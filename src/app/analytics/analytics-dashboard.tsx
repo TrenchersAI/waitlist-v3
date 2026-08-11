@@ -16,7 +16,6 @@ import { SurveyAnalyticsContent } from "@/src/app/analytics/survey/survey-analyt
 import { AccountingContent } from "@/src/app/analytics/accounting-view";
 import { BetaAnalyticsContent } from "@/src/app/analytics/beta/beta-analytics-view";
 import { BotsAnalyticsContent } from "@/src/app/analytics/bots-view";
-import { RouterTradesContent } from "@/src/app/analytics/router-trades-view";
 import { PulseAnalyticsContent } from "@/src/app/analytics/pulse-view";
 import { TradingAnalyticsContent } from "@/src/app/analytics/trading-analytics-view";
 import {
@@ -698,7 +697,6 @@ export default function AnalyticsDashboard({
             section === "survey" ||
             section === "beta" ||
             section === "bots" ||
-            section === "router-trades" ||
             section === "pulse" ||
             section === "volume" ||
             section === "revenue" ||
@@ -732,8 +730,6 @@ export default function AnalyticsDashboard({
               <BetaAnalyticsContent />
             ) : section === "bots" ? (
               <BotsAnalyticsContent />
-            ) : section === "router-trades" ? (
-              <RouterTradesContent />
             ) : section === "pulse" ? (
               <PulseAnalyticsContent />
             ) : section === "volume" ? (
@@ -1003,7 +999,6 @@ const SECTION_TITLE: Record<AnalyticsSection, string> = {
   dashboard: "Dashboard",
   pulse: "Live pulse",
   bots: "Bots",
-  "router-trades": "Router trades",
   volume: "Trading volume",
   revenue: "Trading revenue",
   referrals: "Referrals",
@@ -1044,7 +1039,6 @@ function DashboardHeader({
       section === "survey" ||
       section === "beta" ||
       section === "bots" ||
-      section === "router-trades" ||
       section === "pulse" ||
       section === "volume" ||
       section === "revenue" ||
