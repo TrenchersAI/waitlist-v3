@@ -195,12 +195,46 @@ function mapOverview(window: RouterWindow, r?: OverviewRaw): RouterOverviewRow {
   };
 }
 
+// Bound the aggregate fan-out. loadRouterTradesUncached() fires ~10 floor-bounded
+// history scans (plus the optional venue / failure queries) against the shared
+// 3-connection Trenchers pool, and every visible admin tab polls this endpoint
+// every 30s. Without a bound, N open tabs means N x ~10 full-history scans per
+// 30s, which can starve the pool and 502 sibling analytics routes. This
+// in-process memo collapses concurrent and near-simultaneous loads to ONE
+// fan-out per TTL window. It is deliberately NOT Next's route/data cache (which
+// the route disables for correctness): the payload is GLOBAL admin analytics,
+// identical for every viewer and never per-user, and the TTL is far below the
+// 30s poll, so the dashboard stays effectively live.
+const ROUTER_TRADES_MEMO_TTL_MS = 15_000;
+let routerTradesMemo: {
+  at: number;
+  payload: Promise<RouterTradesPayload>;
+} | null = null;
+
+export function loadRouterTrades(): Promise<RouterTradesPayload> {
+  const now = Date.now();
+  if (
+    routerTradesMemo &&
+    now - routerTradesMemo.at < ROUTER_TRADES_MEMO_TTL_MS
+  ) {
+    return routerTradesMemo.payload;
+  }
+  const payload = loadRouterTradesUncached();
+  routerTradesMemo = { at: now, payload };
+  // Never cache a rejection for the whole window: drop the memo on failure so
+  // the next poll retries against the DB instead of replaying the error.
+  payload.catch(() => {
+    if (routerTradesMemo?.payload === payload) routerTradesMemo = null;
+  });
+  return payload;
+}
+
 /**
  * One round-trip per concern, assembled in JS — same discipline as
  * `trenchers-bots.ts`. Every query is parametrized on the data floor ($1) and
  * carries the LIVE_GUARD. Nothing here writes; it is all read-only aggregates.
  */
-export async function loadRouterTrades(): Promise<RouterTradesPayload> {
+async function loadRouterTradesUncached(): Promise<RouterTradesPayload> {
   const pool = getTrenchersPool();
   if (!pool) return { ...EMPTY, generatedAt: new Date().toISOString() };
 
