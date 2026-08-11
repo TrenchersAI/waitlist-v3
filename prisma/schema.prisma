@@ -166,6 +166,17 @@ model BetaInvite {
   nudgeBouncedAt   DateTime?
   nudgeComplainedAt DateTime?
 
+  /// Fourth send: the product-change announcement. Own columns for the
+  /// same reason the reminder and nudge have them. Four sends now share one
+  /// row, and without separate columns a bounce on the newest would rewrite
+  /// the delivery record of the oldest.
+  featureSentAt      DateTime?
+  featureResendMsgId String?
+  featureDeliveredAt DateTime?
+  featureOpenedAt    DateTime?
+  featureBouncedAt   DateTime?
+  featureComplainedAt DateTime?
+
   /// When beta access was actually provisioned for this address.
   accessGrantedAt DateTime?
   /// First observed sign-in on beta.trenchers.ai with this email. The
@@ -185,6 +196,8 @@ model BetaInvite {
   @@index([reminderResendMsgId])
   @@index([nudgeSentAt])
   @@index([nudgeResendMsgId])
+  @@index([featureSentAt])
+  @@index([featureResendMsgId])
 }
 
 /// Raw audit log of Resend webhook events. We also fold the relevant

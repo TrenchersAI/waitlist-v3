@@ -650,6 +650,62 @@ export function buildBetaNudgeText(params: BetaInviteCopy) {
   ].join("\n");
 }
 
+/// Subject for the product-change announcement. The founder's own line,
+/// kept verbatim including the emoji.
+///
+/// Worth knowing when judging a future subject: an emoji leans slightly
+/// toward Gmail's Promotions classifier. The evidence for that is weak, and
+/// after four sends with zero spam complaints this domain has the
+/// reputation to absorb it, so it is a fair trade for a subject that sounds
+/// like a person wrote it.
+export const BETA_FEATURE_SUBJECT = "The agents got more patient \u{1F440}";
+
+export async function buildBetaFeatureHtml(params: BetaInviteCopy) {
+  const templatePath = join(
+    process.cwd(),
+    "src/email-templates/beta-feature/index.html",
+  );
+  const templateHtml = await readFile(templatePath, "utf-8");
+  return templateHtml
+    .replace(/<!--[\s\S]*?-->/g, "")
+    .replaceAll("{{ACCESS_URL}}", params.accessUrl)
+    .replaceAll("{{UNSUBSCRIBE_URL}}", params.unsubscribeUrl)
+    .trim();
+}
+
+export function buildBetaFeatureText(params: BetaInviteCopy) {
+  return [
+    "Hello,",
+    "",
+    "Something changed at Trenchers.",
+    "",
+    "Our agents are now holding through migration, giving them a chance to",
+    "catch what happens after graduation, where the real runners can begin.",
+    "",
+    "10x. 50x. 100x.",
+    "You never know which one is going to keep running.",
+    "",
+    "The upgrade is already live. Nothing to switch on.",
+    "",
+    "You are among the few early users seeing this first hand. The first",
+    "Trenchers cohort gets our best pricing, lowest fees and highest",
+    "cashback, and a place in our priority group where we read every piece",
+    "of feedback ourselves.",
+    "",
+    "See what the agents are finding:",
+    params.accessUrl,
+    "",
+    "If you spot something interesting, reply to this email. It comes",
+    "straight to us.",
+    "",
+    "Trenchers",
+    "",
+    "---",
+    "You are receiving this because you joined the Trenchers waitlist.",
+    `Unsubscribe: ${params.unsubscribeUrl}`,
+  ].join("\n");
+}
+
 /// The recipient's own address is interpolated into the HTML body. It comes
 /// from our database rather than user input at send time, but escaping it
 /// costs nothing and stops a stored `<` in an address from breaking the

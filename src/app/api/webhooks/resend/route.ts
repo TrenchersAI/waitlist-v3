@@ -269,6 +269,41 @@ export async function POST(request: Request) {
       }
       return Response.json({ ok: true });
     }
+
+    const featureRow = await prisma.betaInvite.findFirst({
+      where: { featureResendMsgId: resendMsgId },
+      select: {
+        id: true,
+        featureDeliveredAt: true,
+        featureOpenedAt: true,
+        featureBouncedAt: true,
+        featureComplainedAt: true,
+      },
+    });
+    if (featureRow) {
+      const fdata: Record<string, Date> = {};
+      switch (evt.type) {
+        case "email.delivered":
+          if (!featureRow.featureDeliveredAt) fdata.featureDeliveredAt = occurredAt;
+          break;
+        case "email.opened":
+          if (!featureRow.featureOpenedAt) fdata.featureOpenedAt = occurredAt;
+          break;
+        case "email.bounced":
+        case "email.failed":
+          if (!featureRow.featureBouncedAt) fdata.featureBouncedAt = occurredAt;
+          break;
+        case "email.complained":
+          if (!featureRow.featureComplainedAt) fdata.featureComplainedAt = occurredAt;
+          break;
+        default:
+          break;
+      }
+      if (Object.keys(fdata).length > 0) {
+        await prisma.betaInvite.update({ where: { id: featureRow.id }, data: fdata });
+      }
+      return Response.json({ ok: true });
+    }
   }
 
   const invite = isBeta

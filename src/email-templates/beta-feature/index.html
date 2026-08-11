@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>The agents got more patient</title>
+  </head>
+  <!--
+    Fifth touch: a product-change announcement to everyone who was invited,
+    active or not.
+
+    Copy is the founder's own and is reproduced verbatim with two exceptions,
+    both required rather than editorial:
+
+      1. An em-dash was replaced with a comma. House rule, no em-dashes
+         anywhere, including outbound copy.
+      2. The unsubscribe line was added. RFC 8058 one-click needs the header,
+         and Yahoo additionally requires a visible unsubscribe in the body for
+         bulk senders. Without it this send is non-compliant.
+
+    Accuracy note for whoever edits this next. The claim is deliberately
+    scoped to "holding through migration". That is the part that genuinely
+    changed: bots used to force-sell at 95% of the bonding curve
+    (bc_near_completion_pct), and commit a1704aaa flipped that default off and
+    hold_through_migration on. Verified present in the running production
+    image 15168acd.
+
+    What this copy does NOT claim, on purpose: that users previously could not
+    sell migrated tokens. They could, via Jupiter, which routes through
+    PumpSwap. Only DIRECT PumpSwap execution is new. An earlier draft asserted
+    the stronger version and it was cut as unverifiable.
+
+    Same austere shell as the other four sends: no images, no <style> block,
+    no tables, no padded CTA button. The arrow link is inline text, not a
+    button, which keeps it out of bulk-template shape.
+
+    The priority group is named as a cohort benefit but deliberately carries
+    NO join link. The only Telegram URL in the codebase is the PUBLIC channel
+    (t.me/trenchersai, already in the site footer and the terminal status
+    strip), and linking that would promise an exclusive group while handing
+    over something everyone already has. The reply-to line immediately below
+    is the working feedback channel in the meantime. Add the real invite here
+    once it exists.
+  -->
+  <body style="margin:0;padding:0;background:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;">
+    <div style="max-width:520px;margin:0 auto;padding:36px 24px 32px;color:#1a1a1a;font-size:16px;line-height:1.6;">
+      <p style="margin:0 0 18px;">Hello,</p>
+
+      <p style="margin:0 0 18px;">
+        Something changed at Trenchers.
+      </p>
+
+      <p style="margin:0 0 22px;">
+        Our agents are now holding through migration, giving them a chance to catch what happens after graduation, where the real runners can begin.
+      </p>
+
+      <p style="margin:0 0 22px;">
+        10x. 50x. 100x.<br />
+        You never know which one is going to keep running.
+      </p>
+
+      <p style="margin:0 0 22px;">
+        The upgrade is already live. Nothing to switch on.
+      </p>
+
+      <p style="margin:0 0 26px;">
+        You are among the few early users seeing this first hand. The first Trenchers cohort gets our best pricing, lowest fees and highest cashback, and a place in our priority group where we read every piece of feedback ourselves.
+      </p>
+
+      <p style="margin:0 0 28px;">
+        See what the agents are finding &rarr; <a href="{{ACCESS_URL}}" style="font-weight:600;color:#1a1a1a;text-decoration:underline;">Trenchers</a>
+      </p>
+
+      <p style="margin:0 0 28px;">
+        If you spot something interesting, reply to this email. It comes straight to us.
+      </p>
+
+      <p style="margin:0 0 28px;color:#555;">Trenchers</p>
+
+      <p style="margin:0;color:#8a8a8a;font-size:13px;line-height:1.5;">
+        You are receiving this because you joined the Trenchers waitlist. If you would prefer not to hear from us, you can <a href="{{UNSUBSCRIBE_URL}}" style="color:#8a8a8a;">unsubscribe</a>.
+      </p>
+    </div>
+  </body>
+</html>

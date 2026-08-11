@@ -17,10 +17,13 @@ import { Resend } from "resend";
 
 import {
   BETA_INVITE_SUBJECT,
+  BETA_FEATURE_SUBJECT,
   BETA_NUDGE_SUBJECT,
   BETA_REMINDER_SUBJECT,
   buildBetaInviteHtml,
   buildBetaInviteText,
+  buildBetaFeatureHtml,
+  buildBetaFeatureText,
   buildBetaNudgeHtml,
   buildBetaNudgeText,
   buildBetaReminderHtml,
@@ -30,7 +33,7 @@ import {
 /// Which of the three campaign emails to render. Selecting by flag keeps
 /// one test path rather than a script per template, so the beta-access
 /// check below cannot be accidentally skipped by a newer variant.
-type Variant = "invite" | "reminder" | "nudge";
+type Variant = "invite" | "reminder" | "nudge" | "feature";
 
 const VARIANTS = {
   invite: {
@@ -47,6 +50,11 @@ const VARIANTS = {
     subject: BETA_NUDGE_SUBJECT,
     html: buildBetaNudgeHtml,
     text: buildBetaNudgeText,
+  },
+  feature: {
+    subject: BETA_FEATURE_SUBJECT,
+    html: buildBetaFeatureHtml,
+    text: buildBetaFeatureText,
   },
 } as const;
 import { BETA_CAMPAIGN } from "../src/lib/beta-invite";
