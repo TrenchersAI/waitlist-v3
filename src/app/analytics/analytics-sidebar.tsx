@@ -11,7 +11,6 @@ import {
   Scale,
   KeyRound,
   LayoutDashboard,
-  Route,
   Share2,
   TrendingUp,
   Trophy,
@@ -29,7 +28,6 @@ export type AnalyticsSection =
   | "survey"
   | "beta"
   | "bots"
-  | "router-trades"
   | "volume"
   | "revenue"
   | "platform-accounting";
@@ -44,7 +42,6 @@ const ITEMS: ReadonlyArray<ItemDef> = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { id: "pulse", label: "Live pulse", icon: Activity },
   { id: "bots", label: "Bots", icon: Bot },
-  { id: "router-trades", label: "Router trades", icon: Route },
   { id: "volume", label: "Trading volume", icon: TrendingUp },
   { id: "revenue", label: "Trading revenue", icon: Coins },
   { id: "platform-accounting", label: "Platform accounting", icon: Scale },
