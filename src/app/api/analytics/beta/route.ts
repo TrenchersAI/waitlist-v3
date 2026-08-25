@@ -2,6 +2,7 @@ import { getAnalyticsSessionFromCookies } from "@/src/lib/analytics-internal";
 import { getPrismaClient } from "@/src/lib/prisma";
 import { getTrenchersPool } from "@/src/lib/trenchers-db";
 import {
+  ACTIVE_ROLLOUT,
   BETA_CAMPAIGN,
   WAVE_LABELS,
   WAVE_ORDER,
@@ -29,12 +30,94 @@ export type WaveRow = {
   total: number;
   granted: number;
   sent: number;
+  pending: number;
   delivered: number;
+  opened: number;
   bounced: number;
   complained: number;
   unsubscribed: number;
   failed: number;
+  suppressed: number;
+  /// Everyone in the wave with a terminal account, whenever it was made.
   activated: number;
+  /// Account created at or after we mailed them. This is the number the
+  /// email can claim; `activated` includes people who were already users.
+  activatedAfterSend: number;
+  /// Had an account before the invite went out.
+  activatedBeforeSend: number;
+  /// Rates are computed server-side so every surface reads the same
+  /// denominator. Delivery is over sent; activation is `activatedAfterSend`
+  /// over delivered, because someone who never received it cannot have
+  /// signed in because of it and someone who was already a user did not.
+  deliveryRate: number;
+  bounceRate: number;
+  complaintRate: number;
+  activationRate: number;
+};
+
+/// A focused report on one rollout, so the wave being mailed right now can
+/// be read on its own rather than inferred from campaign-wide totals that
+/// are dominated by earlier sends.
+export type TrenchReport = {
+  wave: InviteWave;
+  name: string;
+  waveLabel: string;
+  subject: string;
+  /// Everyone graded into this wave.
+  cohort: number;
+  /// How many of them this run mails.
+  target: number;
+  /// Cohort minus target: real people, deliberately not in this run.
+  heldBack: number;
+  granted: number;
+  sent: number;
+  /// Still to go in THIS run, not the whole cohort.
+  remaining: number;
+  batchSize: number;
+  batchesTotal: number;
+  batchesDone: number;
+  startedAt: string | null;
+  lastSentAt: string | null;
+  /// Projected finish from the declared pacing, null once the run is done.
+  etaAt: string | null;
+  delivered: number;
+  opened: number;
+  bounced: number;
+  complained: number;
+  unsubscribed: number;
+  suppressed: number;
+  failed: number;
+  /// Signed in after we mailed them. The number the send can claim.
+  activated: number;
+  /// Already had an account when the invite went out.
+  activatedBeforeSend: number;
+  /// Everyone in the cohort with an account, mailed or not.
+  cohortActivated: number;
+  deliveryRate: number;
+  bounceRate: number;
+  complaintRate: number;
+  unsubscribeRate: number;
+  activationRate: number;
+  /// Open tracking is off for this campaign, so `opened` is structurally 0
+  /// and must not be read as "nobody opened it".
+  openTracked: boolean;
+  /// 15-minute buckets, which is the batch cadence, so a stalled sender is
+  /// visible as a gap rather than hiding inside an hourly average.
+  cadence: { bucket: string; sent: number; delivered: number; bounced: number }[];
+  domains: DomainRow[];
+  /// The previous run at the same point, for an honest comparison.
+  previous: {
+    wave: InviteWave;
+    name: string;
+    sent: number;
+    delivered: number;
+    bounced: number;
+    complained: number;
+    activated: number;
+    deliveryRate: number;
+    bounceRate: number;
+    activationRate: number;
+  };
 };
 
 export type SeriesPoint = {
@@ -53,6 +136,7 @@ export type DomainRow = {
   bounced: number;
   complained: number;
   unsubscribed: number;
+  /// Same rule as the wave table: account created at or after the send.
   activated: number;
 };
 
@@ -88,6 +172,47 @@ function bounceDetail(payload: unknown): string | null {
     ?.data?.bounce;
   if (!b) return null;
   return [b.type, b.subType].filter(Boolean).join(" / ") || null;
+}
+
+/// Floor a timestamp to a 15-minute bucket, the cadence a batch send runs at.
+function quarterHour(d: Date): string {
+  const t = new Date(d);
+  t.setUTCSeconds(0, 0);
+  t.setUTCMinutes(Math.floor(t.getUTCMinutes() / 15) * 15);
+  return t.toISOString();
+}
+
+/// Same shape as the campaign-wide domain table, scoped to one wave.
+function bumpDomain(
+  map: Map<string, DomainRow>,
+  domain: string,
+  r: {
+    sentAt: Date | null;
+    deliveredAt: Date | null;
+    bouncedAt: Date | null;
+    complainedAt: Date | null;
+    unsubscribedAt: Date | null;
+  },
+  activatedAfterSend: boolean,
+): DomainRow {
+  const d = map.get(domain) ?? {
+    domain,
+    total: 0,
+    sent: 0,
+    delivered: 0,
+    bounced: 0,
+    complained: 0,
+    unsubscribed: 0,
+    activated: 0,
+  };
+  d.total++;
+  if (r.sentAt) d.sent++;
+  if (r.deliveredAt) d.delivered++;
+  if (r.bouncedAt) d.bounced++;
+  if (r.complainedAt) d.complained++;
+  if (r.unsubscribedAt) d.unsubscribed++;
+  if (activatedAfterSend) d.activated++;
+  return d;
 }
 
 export async function GET() {
@@ -135,7 +260,7 @@ export async function GET() {
   // records who can actually sign in. Those can diverge, and only the second
   // one is true, so prefer it whenever the terminal is reachable.
   let whitelisted: Set<string> | null = null;
-  let signedIn: Set<string> | null = null;
+  let signedIn: Map<string, Date | null> | null = null;
   const pool = getTrenchersPool();
   if (pool && emails.length > 0) {
     try {
@@ -145,14 +270,19 @@ export async function GET() {
             WHERE enabled = TRUE AND kind = 'email' AND value = ANY($1::text[])`,
           [emails],
         ),
-        pool.query<{ email: string }>(
-          `SELECT lower(email) AS email FROM users
-            WHERE email IS NOT NULL AND lower(email) = ANY($1::text[])`,
+        // created_at, not just membership. Plenty of waitlist people already
+        // had an account before we mailed them, and counting those as
+        // "signed in because of the email" would overstate every wave.
+        pool.query<{ email: string; created_at: Date | null }>(
+          `SELECT lower(email) AS email, min(created_at) AS created_at
+             FROM users
+            WHERE email IS NOT NULL AND lower(email) = ANY($1::text[])
+            GROUP BY 1`,
           [emails],
         ),
       ]);
       whitelisted = new Set(wl.rows.map((r) => r.value));
-      signedIn = new Set(us.rows.map((r) => r.email));
+      signedIn = new Map(us.rows.map((r) => [r.email, r.created_at]));
     } catch (err) {
       console.error("[analytics/beta] terminal cross-reference failed:", err);
     }
@@ -161,6 +291,13 @@ export async function GET() {
   const hasAccess = (e: string) =>
     whitelisted ? whitelisted.has(e) : false;
   const hasSignedIn = (e: string) => (signedIn ? signedIn.has(e) : false);
+  /// True only when the account was created at or after we mailed them, which
+  /// is the closest thing to attribution we can get without click tracking.
+  const signedInAfter = (e: string, sentAt: Date | null) => {
+    if (!signedIn || !sentAt) return false;
+    const created = signedIn.get(e);
+    return created ? created.getTime() >= sentAt.getTime() : false;
+  };
 
   // --- totals ------------------------------------------------------------
   let total = 0,
@@ -173,7 +310,8 @@ export async function GET() {
     complained = 0,
     unsubscribed = 0,
     failed = 0,
-    activated = 0;
+    activated = 0,
+    activatedAfterSend = 0;
 
   const waveMap = new Map<string, WaveRow>();
   for (const w of WAVE_ORDER) {
@@ -183,16 +321,35 @@ export async function GET() {
       total: 0,
       granted: 0,
       sent: 0,
+      pending: 0,
       delivered: 0,
+      opened: 0,
       bounced: 0,
       complained: 0,
       unsubscribed: 0,
       failed: 0,
+      suppressed: 0,
       activated: 0,
+      activatedAfterSend: 0,
+      activatedBeforeSend: 0,
+      deliveryRate: 0,
+      bounceRate: 0,
+      complaintRate: 0,
+      activationRate: 0,
     });
   }
 
   const domainMap = new Map<string, DomainRow>();
+
+  // Accumulators for the rollout in flight. Filled inside the same pass over
+  // `rows` rather than a second query, because the payload is already one
+  // round trip and a second one would drift under a live send.
+  const trenchDomains = new Map<string, DomainRow>();
+  const trenchSentAt: Date[] = [];
+  const cadenceMap = new Map<
+    string,
+    { bucket: string; sent: number; delivered: number; bounced: number }
+  >();
 
   for (const r of rows) {
     const email = r.subscriber.email.trim().toLowerCase();
@@ -200,6 +357,9 @@ export async function GET() {
     const localGranted = r.accessGrantedAt !== null;
     const g = whitelisted ? hasAccess(email) : localGranted;
     const a = signedIn ? hasSignedIn(email) : r.activatedAt !== null;
+    const aAfter = signedIn
+      ? signedInAfter(email, r.sentAt)
+      : a && r.sentAt !== null;
 
     total++;
     if (g) granted++;
@@ -212,18 +372,24 @@ export async function GET() {
     if (r.unsubscribedAt) unsubscribed++;
     if (r.failedAt) failed++;
     if (a) activated++;
+    if (aAfter) activatedAfterSend++;
 
     const wr = waveMap.get(r.wave);
     if (wr) {
       wr.total++;
       if (g) wr.granted++;
       if (r.sentAt) wr.sent++;
+      else wr.pending++;
       if (r.deliveredAt) wr.delivered++;
+      if (r.openedAt) wr.opened++;
       if (r.bouncedAt) wr.bounced++;
       if (r.complainedAt) wr.complained++;
       if (r.unsubscribedAt) wr.unsubscribed++;
       if (r.failedAt) wr.failed++;
+      if (r.suppressedAt) wr.suppressed++;
       if (a) wr.activated++;
+      if (aAfter) wr.activatedAfterSend++;
+      else if (a) wr.activatedBeforeSend++;
     }
 
     let dr = domainMap.get(dom);
@@ -246,7 +412,33 @@ export async function GET() {
     if (r.bouncedAt) dr.bounced++;
     if (r.complainedAt) dr.complained++;
     if (r.unsubscribedAt) dr.unsubscribed++;
-    if (a) dr.activated++;
+    if (aAfter) dr.activated++;
+
+    // --- active rollout, walked in the same pass -----------------------
+    if (r.wave === ACTIVE_ROLLOUT.wave) {
+      trenchDomains.set(dom, bumpDomain(trenchDomains, dom, r, aAfter));
+      if (r.sentAt) {
+        trenchSentAt.push(r.sentAt);
+        // 15-minute buckets: the batch cadence. An hourly bucket would smear
+        // four batches together and hide a sender that died mid-run.
+        const b = quarterHour(r.sentAt);
+        const c = cadenceMap.get(b) ?? { bucket: b, sent: 0, delivered: 0, bounced: 0 };
+        c.sent++;
+        cadenceMap.set(b, c);
+      }
+      if (r.deliveredAt) {
+        const b = quarterHour(r.deliveredAt);
+        const c = cadenceMap.get(b) ?? { bucket: b, sent: 0, delivered: 0, bounced: 0 };
+        c.delivered++;
+        cadenceMap.set(b, c);
+      }
+      if (r.bouncedAt) {
+        const b = quarterHour(r.bouncedAt);
+        const c = cadenceMap.get(b) ?? { bucket: b, sent: 0, delivered: 0, bounced: 0 };
+        c.bounced++;
+        cadenceMap.set(b, c);
+      }
+    }
   }
 
   const funnel: FunnelStep[] = [
@@ -278,10 +470,10 @@ export async function GET() {
     },
     {
       key: "activated",
-      label: "Signed in",
-      count: activated,
+      label: "Signed in after the invite",
+      count: activatedAfterSend,
       note: signedIn
-        ? "Exists in the terminal's users table"
+        ? `Terminal account created at or after we mailed them. A further ${activated - activatedAfterSend} were already users.`
         : "Local record only, terminal not reachable",
     },
   ];
@@ -320,6 +512,95 @@ export async function GET() {
   const series = [...seriesMap.values()].sort((a, b) =>
     a.bucket.localeCompare(b.bucket),
   );
+
+  // Fold the rates onto each wave once, here, so the trench report and the
+  // wave table cannot disagree about a denominator.
+  for (const r of waveMap.values()) {
+    r.deliveryRate = r.sent > 0 ? r.delivered / r.sent : 0;
+    r.bounceRate = r.sent > 0 ? r.bounced / r.sent : 0;
+    r.complaintRate = r.sent > 0 ? r.complained / r.sent : 0;
+    r.activationRate =
+      r.delivered > 0 ? r.activatedAfterSend / r.delivered : 0;
+  }
+
+  // --- the rollout in flight --------------------------------------------
+  const aw = waveMap.get(ACTIVE_ROLLOUT.wave)!;
+  const pw = waveMap.get(ACTIVE_ROLLOUT.previousWave)!;
+  trenchSentAt.sort((a, b) => a.getTime() - b.getTime());
+  const startedAt = trenchSentAt[0] ?? null;
+  const lastSentAt = trenchSentAt[trenchSentAt.length - 1] ?? null;
+
+  // Remaining is measured against the run's target, not the cohort, so the
+  // 55 people held back from wave 2 do not read as an unfinished send.
+  const trenchTarget = Math.min(ACTIVE_ROLLOUT.target, aw.total);
+  const trenchRemaining = Math.max(0, trenchTarget - aw.sent);
+  const batchesTotal = Math.ceil(trenchTarget / ACTIVE_ROLLOUT.batchSize);
+  const batchesDone = Math.min(
+    batchesTotal,
+    Math.floor(aw.sent / ACTIVE_ROLLOUT.batchSize),
+  );
+  const etaAt =
+    trenchRemaining > 0 && lastSentAt
+      ? new Date(
+          lastSentAt.getTime() +
+            Math.ceil(trenchRemaining / ACTIVE_ROLLOUT.batchSize) *
+              ACTIVE_ROLLOUT.spacingMinutes *
+              60_000,
+        ).toISOString()
+      : null;
+
+  const trench: TrenchReport = {
+    wave: ACTIVE_ROLLOUT.wave,
+    name: ACTIVE_ROLLOUT.name,
+    waveLabel: WAVE_LABELS[ACTIVE_ROLLOUT.wave],
+    subject: ACTIVE_ROLLOUT.subject,
+    cohort: aw.total,
+    target: trenchTarget,
+    heldBack: Math.max(0, aw.total - trenchTarget),
+    granted: aw.granted,
+    sent: aw.sent,
+    remaining: trenchRemaining,
+    batchSize: ACTIVE_ROLLOUT.batchSize,
+    batchesTotal,
+    batchesDone,
+    startedAt: startedAt ? startedAt.toISOString() : null,
+    lastSentAt: lastSentAt ? lastSentAt.toISOString() : null,
+    etaAt,
+    delivered: aw.delivered,
+    opened: aw.opened,
+    bounced: aw.bounced,
+    complained: aw.complained,
+    unsubscribed: aw.unsubscribed,
+    suppressed: aw.suppressed,
+    failed: aw.failed,
+    activated: aw.activatedAfterSend,
+    activatedBeforeSend: aw.activatedBeforeSend,
+    cohortActivated: aw.activated,
+    deliveryRate: aw.deliveryRate,
+    bounceRate: aw.bounceRate,
+    complaintRate: aw.complaintRate,
+    unsubscribeRate: aw.sent > 0 ? aw.unsubscribed / aw.sent : 0,
+    activationRate: aw.activationRate,
+    openTracked: aw.opened > 0,
+    cadence: [...cadenceMap.values()].sort((a, b) =>
+      a.bucket.localeCompare(b.bucket),
+    ),
+    domains: [...trenchDomains.values()]
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 12),
+    previous: {
+      wave: ACTIVE_ROLLOUT.previousWave,
+      name: "First trench",
+      sent: pw.sent,
+      delivered: pw.delivered,
+      bounced: pw.bounced,
+      complained: pw.complained,
+      activated: pw.activatedAfterSend,
+      deliveryRate: pw.deliveryRate,
+      bounceRate: pw.bounceRate,
+      activationRate: pw.activationRate,
+    },
+  };
 
   const recentEvents: EventRow[] = events
     .slice(-40)
@@ -415,7 +696,13 @@ export async function GET() {
     campaign: BETA_CAMPAIGN,
     generatedAt: new Date().toISOString(),
     funnel,
+    // Rates are computed here, once, so every surface reads the same
+    // denominators. Delivery over sent; activation over DELIVERED, because
+    // someone who never received the email cannot have signed in because of
+    // it, and dividing by sent would quietly understate a wave whose mail
+    // is still in flight.
     waves: WAVE_ORDER.map((w) => waveMap.get(w)!),
+    trench,
     series,
     domains,
     recentEvents,
@@ -436,7 +723,8 @@ export async function GET() {
       complained,
       unsubscribed,
       failed,
-      activated,
+      activated: activatedAfterSend,
+      activatedBeforeSend: activated - activatedAfterSend,
       pending: total - sent,
     },
     reputation: {
@@ -444,7 +732,7 @@ export async function GET() {
       complaintRate: rate(complained, sent),
       deliveryRate: rate(delivered, sent),
       unsubscribeRate: rate(unsubscribed, sent),
-      activationRate: rate(activated, delivered),
+      activationRate: rate(activatedAfterSend, delivered),
       bounceLimit: 0.04,
       complaintLimit: 0.0008,
       bouncePause: 0.02,

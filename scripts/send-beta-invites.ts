@@ -31,9 +31,31 @@ import { Resend } from "resend";
 
 import {
   BETA_INVITE_SUBJECT,
+  BETA_INVITE_W2_SUBJECT,
   buildBetaInviteHtml,
   buildBetaInviteText,
+  buildBetaInviteW2Html,
+  buildBetaInviteW2Text,
 } from "../src/lib/email";
+
+/// Which invite copy to send. Wave 1 used `v1`; `w2` is the shorter,
+/// rewards-led rewrite. Selected by flag rather than by wave so the record
+/// of which copy a cohort actually received stays explicit at the call site
+/// instead of being inferred later.
+const INVITE_TEMPLATES = {
+  v1: {
+    subject: BETA_INVITE_SUBJECT,
+    html: buildBetaInviteHtml,
+    text: buildBetaInviteText,
+  },
+  w2: {
+    subject: BETA_INVITE_W2_SUBJECT,
+    html: buildBetaInviteW2Html,
+    text: buildBetaInviteW2Text,
+  },
+} as const;
+
+type InviteTemplate = keyof typeof INVITE_TEMPLATES;
 import { BETA_CAMPAIGN, WAVE_ORDER, type InviteWave } from "../src/lib/beta-invite";
 import { grantBatch, verifyAccess } from "../src/lib/beta-grant";
 import { getPrismaClient } from "../src/lib/prisma";
@@ -68,6 +90,9 @@ function parseArgs() {
   return {
     send: args.includes("--send"),
     trackOpens: args.includes("--track-opens"),
+    template: ((read("--template") ?? "v1") in INVITE_TEMPLATES
+      ? read("--template") ?? "v1"
+      : "v1") as InviteTemplate,
     wave: read("--wave") as InviteWave | undefined,
     batch: Math.min(MAX_BATCH, Math.max(1, num(read("--batch")) ?? DEFAULT_BATCH)),
     limit: num(read("--limit")) ?? Infinity,
@@ -127,7 +152,8 @@ function gate(s: Awaited<ReturnType<typeof reputation>>): string | null {
 }
 
 async function main() {
-  const { send, trackOpens, wave, batch, limit, hours, perHour } = parseArgs();
+  const { send, trackOpens, template, wave, batch, limit, hours, perHour } = parseArgs();
+  const tpl = INVITE_TEMPLATES[template];
   const prisma = getPrismaClient();
 
   if (!wave || !WAVE_ORDER.includes(wave)) {
@@ -170,6 +196,7 @@ async function main() {
 
   const snap = await reputation();
   console.log(`\nBeta invite sender - ${BETA_CAMPAIGN} - ${new Date().toISOString()}`);
+  console.log(`Template:      ${template}  ("${tpl.subject}")`);
   console.log(`Open tracking: ${trackOpens ? "ON" : "off"}`);
   console.log(`Mode:          ${send ? "LIVE SEND" : "dry-run (use --send)"}`);
   console.log(`Wave:          ${wave}`);
@@ -282,9 +309,9 @@ async function main() {
           return {
             from: fromEmail!,
             to: row.subscriber.email,
-            subject: BETA_INVITE_SUBJECT,
-            html: await buildBetaInviteHtml(copy),
-            text: buildBetaInviteText(copy),
+            subject: tpl.subject,
+            html: await tpl.html(copy),
+            text: tpl.text(copy),
             replyTo,
             headers: {
               "List-Unsubscribe": `<${unsubscribeUrl}>`,

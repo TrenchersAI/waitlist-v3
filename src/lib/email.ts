@@ -706,6 +706,54 @@ export function buildBetaFeatureText(params: BetaInviteCopy) {
   ].join("\n");
 }
 
+/// Subject for the wave 2 invite. First contact, so it is allowed to sound
+/// like an arrival rather than a notification. "Welcome to the trenches"
+/// leans on the product's own name instead of generic excitement.
+export const BETA_INVITE_W2_SUBJECT = "You're in. Welcome to the trenches.";
+
+export async function buildBetaInviteW2Html(params: BetaInviteCopy) {
+  const templatePath = join(
+    process.cwd(),
+    "src/email-templates/beta-invite-w2/index.html",
+  );
+  const templateHtml = await readFile(templatePath, "utf-8");
+  return templateHtml
+    .replace(/<!--[\s\S]*?-->/g, "")
+    .replaceAll("{{ACCESS_URL}}", params.accessUrl)
+    .replaceAll("{{UNSUBSCRIBE_URL}}", params.unsubscribeUrl)
+    .replaceAll("{{RECIPIENT_EMAIL}}", escapeHtml(params.recipientEmail))
+    .trim();
+}
+
+export function buildBetaInviteW2Text(params: BetaInviteCopy) {
+  return [
+    "Hello,",
+    "",
+    "You are in.",
+    "",
+    "Your early access to Trenchers is now open.",
+    "",
+    params.accessUrl,
+    "",
+    `Sign in with ${params.recipientEmail} (email or Google).`,
+    "",
+    "Being early pays:",
+    "",
+    "  Best pricing. Lowest fees. Highest cashback.",
+    "  A seat in our priority group.",
+    "  First in line for early-user rewards.",
+    "",
+    "See what the agents are finding.",
+    "",
+    "Thank you,",
+    "Trenchers",
+    "",
+    "---",
+    "You are receiving this because you joined the Trenchers waitlist.",
+    `Unsubscribe: ${params.unsubscribeUrl}`,
+  ].join("\n");
+}
+
 /// The recipient's own address is interpolated into the HTML body. It comes
 /// from our database rather than user input at send time, but escaping it
 /// costs nothing and stops a stored `<` in an address from breaking the

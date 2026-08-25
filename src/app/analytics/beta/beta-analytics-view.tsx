@@ -7,6 +7,7 @@ import { Skeleton } from "@/src/components/ui/skeleton";
 import {
   BAD,
   Breakdown,
+  CadenceBars,
   Funnel,
   MiniBar,
   OK,
@@ -23,13 +24,71 @@ type WaveRow = {
   total: number;
   granted: number;
   sent: number;
+  pending: number;
   delivered: number;
+  opened: number;
   bounced: number;
   complained: number;
   unsubscribed: number;
   failed: number;
+  suppressed: number;
   activated: number;
+  activatedAfterSend: number;
+  activatedBeforeSend: number;
+  deliveryRate: number;
+  bounceRate: number;
+  complaintRate: number;
+  activationRate: number;
 };
+type TrenchReport = {
+  wave: string;
+  name: string;
+  waveLabel: string;
+  subject: string;
+  cohort: number;
+  target: number;
+  heldBack: number;
+  granted: number;
+  sent: number;
+  remaining: number;
+  batchSize: number;
+  batchesTotal: number;
+  batchesDone: number;
+  startedAt: string | null;
+  lastSentAt: string | null;
+  etaAt: string | null;
+  delivered: number;
+  opened: number;
+  bounced: number;
+  complained: number;
+  unsubscribed: number;
+  suppressed: number;
+  failed: number;
+  activated: number;
+  activatedBeforeSend: number;
+  cohortActivated: number;
+  deliveryRate: number;
+  bounceRate: number;
+  complaintRate: number;
+  unsubscribeRate: number;
+  activationRate: number;
+  openTracked: boolean;
+  cadence: { bucket: string; sent: number; delivered: number; bounced: number }[];
+  domains: DomainRow[];
+  previous: {
+    wave: string;
+    name: string;
+    sent: number;
+    delivered: number;
+    bounced: number;
+    complained: number;
+    activated: number;
+    deliveryRate: number;
+    bounceRate: number;
+    activationRate: number;
+  };
+};
+
 type SeriesPoint = {
   bucket: string;
   sent: number;
@@ -59,6 +118,7 @@ type Payload = {
   generatedAt: string;
   funnel: FunnelStep[];
   waves: WaveRow[];
+  trench: TrenchReport;
   series: SeriesPoint[];
   domains: DomainRow[];
   recentEvents: EventRow[];
@@ -76,6 +136,7 @@ type Payload = {
     unsubscribed: number;
     failed: number;
     activated: number;
+    activatedBeforeSend: number;
     pending: number;
   };
   reputation: {
@@ -245,17 +306,22 @@ export function BetaAnalyticsContent() {
           tone={t.sent > 0 && r.deliveryRate < 0.95 ? WATCH : undefined}
         />
         <Kpi
-          label="Signed in"
+          label="Signed in after"
           value={t.activated}
           sub={
             t.delivered > 0
-              ? `${pct(r.activationRate)} of delivered`
+              ? `${pct(r.activationRate)} of delivered, ${nf.format(t.activatedBeforeSend)} were already users`
               : "the number that matters"
           }
           share={t.delivered > 0 ? r.activationRate : 0}
           tone={OK}
         />
       </div>
+
+      {/* The rollout in flight. This leads the page while a send is live,
+          because campaign-wide totals are dominated by earlier waves and a
+          problem in today's send is invisible inside them. */}
+      <TrenchPanel trench={data.trench} webhookHealthy={r.webhookHealthy} />
 
       {/* Reputation gauges */}
       <Panel
@@ -465,13 +531,13 @@ export function BetaAnalyticsContent() {
         </p>
       </Panel>
 
-      {/* Waves */}
+      {/* Waves: the full per-cohort report */}
       <Panel
         title="Rollout by wave"
-        hint="Sent best-first so a reputation problem surfaces while the audience is small"
+        hint="Each cohort on its own terms. Waves are graded by how likely the recipient is to be real and engaged, and mailed best-first."
       >
         <div className="min-w-0 overflow-x-auto">
-          <table className="w-full min-w-[820px] text-sm">
+          <table className="w-full min-w-[980px] text-sm">
             <thead>
               <tr className="border-b border-white/10 text-left text-[11px] uppercase tracking-wider text-white/40">
                 <th className="py-2 pr-3 font-medium">Wave</th>
@@ -479,21 +545,29 @@ export function BetaAnalyticsContent() {
                 <th className="py-2 pr-3 text-right font-medium">Total</th>
                 <th className="py-2 pr-3 text-right font-medium">Access</th>
                 <th className="py-2 pr-3 text-right font-medium">Sent</th>
-                <th className="py-2 pr-3 text-right font-medium">Delivered</th>
+                <th className="py-2 pr-3 text-right font-medium">Queued</th>
+                <th className="py-2 pr-3 font-medium">Delivered</th>
                 <th className="py-2 pr-3 text-right font-medium">Bounced</th>
                 <th className="py-2 pr-3 text-right font-medium">Spam</th>
                 <th className="py-2 pr-3 text-right font-medium">Unsub</th>
-                <th className="py-2 text-right font-medium">Signed in</th>
+                <th className="py-2 pr-3 font-medium">Signed in after</th>
               </tr>
             </thead>
             <tbody>
               {data.waves.map((w) => {
                 const progress = w.total > 0 ? w.sent / w.total : 0;
-                const bRate = w.sent > 0 ? w.bounced / w.sent : 0;
+                const live = w.pending > 0 && w.sent > 0;
                 return (
                   <tr key={w.wave} className="border-b border-white/5 last:border-0">
                     <td className="py-2.5 pr-3">
-                      <div className="text-white">{w.label}</div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-white">{w.label}</span>
+                        {live ? (
+                          <span className="rounded border border-emerald-400/30 px-1.5 py-0.5 font-mono text-[10px] text-emerald-300">
+                            sending
+                          </span>
+                        ) : null}
+                      </div>
                       <div className="font-mono text-[10px] text-white/35">{w.wave}</div>
                     </td>
                     <td className="py-2.5 pr-3">
@@ -503,28 +577,70 @@ export function BetaAnalyticsContent() {
                           tone={progress === 0 ? "rgba(255,255,255,0.25)" : "rgba(255,255,255,0.8)"}
                         />
                         <span className="text-[11px] tabular-nums text-white/40">
-                          {progress === 0 ? "queued" : pct(progress, 0)}
+                          {progress === 0 ? "not started" : pct(progress, 0)}
                         </span>
                       </div>
                     </td>
                     <Num v={w.total} />
                     <Num v={w.granted} dim={w.granted === 0} />
                     <Num v={w.sent} dim={w.sent === 0} />
-                    <Num v={w.delivered} dim={w.delivered === 0} />
+                    <Num v={w.pending} dim={w.pending === 0} />
+                    <td className="py-2.5 pr-3">
+                      {w.sent > 0 ? (
+                        <div className="flex items-center gap-2">
+                          <MiniBar
+                            value={w.deliveryRate}
+                            tone={w.deliveryRate < 0.9 ? WATCH : OK}
+                          />
+                          <span className="text-[11px] tabular-nums text-white/60">
+                            {nf.format(w.delivered)}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-[11px] text-white/25">not sent</span>
+                      )}
+                    </td>
                     <Num
                       v={w.bounced}
-                      tone={w.bounced > 0 ? toneFor(bRate, 0.02, 0.04) : undefined}
+                      tone={w.bounced > 0 ? toneFor(w.bounceRate, 0.02, 0.04) : undefined}
                       dim={w.bounced === 0}
                     />
                     <Num v={w.complained} tone={w.complained > 0 ? BAD : undefined} dim={w.complained === 0} />
                     <Num v={w.unsubscribed} dim={w.unsubscribed === 0} />
-                    <Num v={w.activated} tone={w.activated > 0 ? OK : undefined} dim={w.activated === 0} last />
+                    <td className="py-2.5 text-right">
+                      {w.delivered > 0 ? (
+                        <span className="tabular-nums" style={{ color: OK }}>
+                          {nf.format(w.activatedAfterSend)}
+                          <span className="ml-1.5 text-[11px] text-white/35">
+                            {pct(w.activationRate, 0)}
+                          </span>
+                        </span>
+                      ) : (
+                        <span className="text-[11px] text-white/25">
+                          {w.activated > 0
+                            ? `${nf.format(w.activated)} already users`
+                            : "n/a"}
+                        </span>
+                      )}
+                    </td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
         </div>
+
+        <p className="mt-4 border-t border-white/5 pt-3 text-[12px] leading-relaxed text-white/45">
+          <strong className="text-white/70">Signed in after</strong> counts only
+          people whose terminal account was created at or after we mailed them,
+          as a percentage of delivered. Both halves of that matter: plenty of
+          waitlist signups already had an account, and someone who never
+          received the email cannot have signed in because of it. Counting
+          every account in the cohort would let a wave claim users it never
+          brought in. <strong className="text-white/70">Queued</strong> is the
+          remainder of a cohort that has not been mailed yet, which is how a
+          partial rollout stays visible rather than looking finished.
+        </p>
       </Panel>
 
       {/* Domains + engagement */}
@@ -664,6 +780,330 @@ export function BetaAnalyticsContent() {
 }
 
 /* ---------------------------------------------------------------- pieces */
+
+/// Focused report on the rollout currently going out.
+///
+/// Everything here is scoped to one wave. Reading a live send off the
+/// campaign totals does not work: wave 1 contributes 1,364 sends and would
+/// drown any signal from the few hundred that have gone out today, so a
+/// delivery collapse in the current run would still show a healthy overall
+/// rate.
+function TrenchPanel({
+  trench: tr,
+  webhookHealthy,
+}: {
+  trench: TrenchReport;
+  webhookHealthy: boolean;
+}) {
+  const progress = tr.target > 0 ? tr.sent / tr.target : 0;
+  const live = tr.remaining > 0 && tr.sent > 0;
+  const done = tr.sent > 0 && tr.remaining === 0;
+  const clock = (iso: string | null) =>
+    iso ? `${iso.slice(11, 16)} UTC` : "not yet";
+  const dayOf = (iso: string | null) => (iso ? iso.slice(0, 10) : "");
+
+  return (
+    <Panel
+      title={`${tr.name}: rollout report`}
+      hint={`${tr.waveLabel} - "${tr.subject}"`}
+      action={
+        <span
+          className={`rounded border px-2 py-0.5 font-mono text-[10px] ${
+            live
+              ? "border-emerald-400/30 text-emerald-300"
+              : done
+                ? "border-white/15 text-white/50"
+                : "border-white/10 text-white/35"
+          }`}
+        >
+          {live ? "sending" : done ? "complete" : "not started"}
+        </span>
+      }
+    >
+      {/* Progress against the run's target, not the cohort. */}
+      <div className="mb-5">
+        <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+          <div className="text-sm text-white/70">
+            <span className="text-[22px] tabular-nums text-white">
+              {nf.format(tr.sent)}
+            </span>
+            <span className="text-white/40"> of {nf.format(tr.target)} sent</span>
+            <span className="ml-3 text-[11px] text-white/35">
+              batch {tr.batchesDone} of {tr.batchesTotal}, {tr.batchSize} per batch
+            </span>
+          </div>
+          <div className="text-[11px] tabular-nums text-white/40">
+            started {clock(tr.startedAt)}
+            {tr.etaAt ? ` - finishes about ${clock(tr.etaAt)}` : ""}
+          </div>
+        </div>
+        <div className="h-2 w-full overflow-hidden rounded-full bg-white/[0.06]">
+          <div
+            className="h-full rounded-full transition-[width] duration-500"
+            style={{
+              width: `${Math.max(0, Math.min(1, progress)) * 100}%`,
+              background: live ? OK : "rgba(255,255,255,0.65)",
+            }}
+          />
+        </div>
+        <div className="mt-1.5 flex justify-between text-[11px] text-white/35">
+          <span>{pct(progress, 0)} of this run</span>
+          <span>{nf.format(tr.remaining)} still to send</span>
+        </div>
+      </div>
+
+      {/* The numbers that decide whether to keep going. */}
+      <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-6">
+        <Mini
+          label="Has access"
+          value={tr.granted}
+          caption={
+            tr.granted >= tr.cohort
+              ? "whole cohort, verified"
+              : `${nf.format(tr.cohort - tr.granted)} missing`
+          }
+          tone={tr.granted >= tr.cohort ? OK : WATCH}
+        />
+        <Mini
+          label="Delivered"
+          value={tr.delivered}
+          caption={tr.sent > 0 ? `${pct(tr.deliveryRate)} of sent` : "awaiting send"}
+          tone={tr.sent > 0 && tr.deliveryRate < 0.9 ? WATCH : undefined}
+        />
+        <Mini
+          label="Bounced"
+          value={tr.bounced}
+          caption={tr.sent > 0 ? `${pct(tr.bounceRate, 2)} of sent` : "none"}
+          tone={tr.bounced > 0 ? toneFor(tr.bounceRate, 0.02, 0.04) : undefined}
+        />
+        <Mini
+          label="Complaints"
+          value={tr.complained}
+          caption={tr.sent > 0 ? `${pct(tr.complaintRate, 3)} of sent` : "none"}
+          tone={tr.complained > 0 ? BAD : undefined}
+        />
+        <Mini
+          label="Unsubscribed"
+          value={tr.unsubscribed}
+          caption={tr.sent > 0 ? `${pct(tr.unsubscribeRate, 2)} of sent` : "none"}
+        />
+        <Mini
+          label="Signed in after"
+          value={tr.activated}
+          caption={
+            tr.delivered > 0
+              ? `${pct(tr.activationRate)} of delivered`
+              : "the number that matters"
+          }
+          tone={OK}
+        />
+      </div>
+
+      {/* Cadence. A dead sender is a gap here long before it is a bad rate. */}
+      <div className="mt-6">
+        <div className="mb-2 flex items-baseline justify-between">
+          <h4 className="text-[11px] uppercase tracking-wider text-white/40">
+            Batch cadence
+          </h4>
+          <span className="text-[11px] text-white/30">
+            {dayOf(tr.startedAt)} - 15 minute buckets
+          </span>
+        </div>
+        <CadenceBars points={tr.cadence} batchSize={tr.batchSize} />
+      </div>
+
+      {/* Comparison against the previous run, and the honest caveats. */}
+      <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
+        <div className="min-w-0 overflow-x-auto rounded-lg border border-white/8 p-3">
+          <h4 className="mb-2 text-[11px] uppercase tracking-wider text-white/40">
+            Against the first trench
+          </h4>
+          <table className="w-full min-w-[380px] text-sm">
+            <thead>
+              <tr className="border-b border-white/10 text-left text-[11px] uppercase tracking-wider text-white/35">
+                <th className="py-1.5 pr-3 font-medium">Run</th>
+                <th className="py-1.5 pr-3 text-right font-medium">Sent</th>
+                <th className="py-1.5 pr-3 text-right font-medium">Delivered</th>
+                <th className="py-1.5 pr-3 text-right font-medium">Bounce</th>
+                <th className="py-1.5 text-right font-medium">Signed in</th>
+              </tr>
+            </thead>
+            <tbody>
+              <ComparisonRow
+                name={tr.previous.name}
+                sent={tr.previous.sent}
+                deliveryRate={tr.previous.deliveryRate}
+                bounceRate={tr.previous.bounceRate}
+                activationRate={tr.previous.activationRate}
+                activated={tr.previous.activated}
+              />
+              <ComparisonRow
+                name={tr.name}
+                sent={tr.sent}
+                deliveryRate={tr.deliveryRate}
+                bounceRate={tr.bounceRate}
+                activationRate={tr.activationRate}
+                activated={tr.activated}
+                current
+              />
+            </tbody>
+          </table>
+          <p className="mt-2.5 text-[11px] leading-relaxed text-white/40">
+            The first trench finished weeks ago and has had all that time to
+            convert, so its sign-in rate is a mature number and this run&apos;s
+            is not. Compare bounce and delivery now, and sign-ins only once
+            this run has had the same runway.
+          </p>
+        </div>
+
+        <div className="min-w-0 rounded-lg border border-white/8 p-3">
+          <h4 className="mb-2 text-[11px] uppercase tracking-wider text-white/40">
+            What this report does not say
+          </h4>
+          <ul className="flex flex-col gap-2 text-[12px] leading-relaxed text-white/50">
+            <li>
+              <strong className="text-white/75">Opens are not tracked.</strong>{" "}
+              Open tracking is off for this campaign, so the {tr.opened} above
+              is structural, not a measurement. Tracking pixels are one of the
+              signals filters weigh, and delivery matters more here than
+              knowing who looked.
+            </li>
+            <li>
+              <strong className="text-white/75">
+                {nf.format(tr.heldBack)} people are held back.
+              </strong>{" "}
+              The cohort has {nf.format(tr.cohort)} members and this run mails{" "}
+              {nf.format(tr.target)}. The remainder is not a stalled send, it
+              is outside this run and stays queued for the next one.
+            </li>
+            <li>
+              <strong className="text-white/75">
+                {nf.format(tr.activatedBeforeSend)} were already users.
+              </strong>{" "}
+              They are in this cohort and have terminal accounts, but those
+              accounts predate the invite, so they are excluded from the
+              sign-in figure above. {nf.format(tr.cohortActivated)} people in
+              the whole cohort have an account.
+            </li>
+            <li>
+              <strong className="text-white/75">
+                {webhookHealthy ? "Delivery is measured." : "Delivery is unmeasured."}
+              </strong>{" "}
+              {webhookHealthy
+                ? "Resend's webhook is recording, so delivered, bounced and complained are facts rather than floors."
+                : "No webhook events are arriving, so every delivery number here is a floor and the sender's abort gates cannot fire."}
+            </li>
+            {tr.suppressed > 0 ? (
+              <li>
+                <strong className="text-white/75">
+                  {nf.format(tr.suppressed)} suppressed.
+                </strong>{" "}
+                Resend refused to send to these addresses because of prior
+                bounces or complaints. They were never mailed and never will be.
+              </li>
+            ) : null}
+          </ul>
+        </div>
+      </div>
+
+      {/* Where the mail is landing. Domain mix is the earliest warning of a
+          filtering problem, because one provider degrades before the blended
+          rate moves. */}
+      {tr.domains.length > 0 ? (
+        <div className="mt-6 min-w-0 overflow-x-auto">
+          <h4 className="mb-2 text-[11px] uppercase tracking-wider text-white/40">
+            By mailbox provider
+          </h4>
+          <table className="w-full min-w-[620px] text-sm">
+            <thead>
+              <tr className="border-b border-white/10 text-left text-[11px] uppercase tracking-wider text-white/35">
+                <th className="py-1.5 pr-3 font-medium">Domain</th>
+                <th className="py-1.5 pr-3 text-right font-medium">In cohort</th>
+                <th className="py-1.5 pr-3 text-right font-medium">Sent</th>
+                <th className="py-1.5 pr-3 font-medium">Delivered</th>
+                <th className="py-1.5 pr-3 text-right font-medium">Bounced</th>
+                <th className="py-1.5 text-right font-medium">Signed in</th>
+              </tr>
+            </thead>
+            <tbody>
+              {tr.domains.map((d) => {
+                const dr = d.sent > 0 ? d.delivered / d.sent : 0;
+                return (
+                  <tr key={d.domain} className="border-b border-white/5 last:border-0">
+                    <td className="py-2 pr-3 font-mono text-[12px] text-white/70">
+                      {d.domain}
+                    </td>
+                    <Num v={d.total} />
+                    <Num v={d.sent} dim={d.sent === 0} />
+                    <td className="py-2 pr-3">
+                      {d.sent > 0 ? (
+                        <div className="flex items-center gap-2">
+                          <MiniBar value={dr} tone={dr < 0.9 ? WATCH : OK} />
+                          <span className="text-[11px] tabular-nums text-white/55">
+                            {pct(dr, 0)}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-[11px] text-white/25">not sent</span>
+                      )}
+                    </td>
+                    <Num v={d.bounced} tone={d.bounced > 0 ? BAD : undefined} dim={d.bounced === 0} />
+                    <Num v={d.activated} tone={d.activated > 0 ? OK : undefined} dim={d.activated === 0} last />
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
+    </Panel>
+  );
+}
+
+function ComparisonRow({
+  name,
+  sent,
+  deliveryRate,
+  bounceRate,
+  activationRate,
+  activated,
+  current,
+}: {
+  name: string;
+  sent: number;
+  deliveryRate: number;
+  bounceRate: number;
+  activationRate: number;
+  activated: number;
+  current?: boolean;
+}) {
+  return (
+    <tr className="border-b border-white/5 last:border-0">
+      <td className="py-2 pr-3">
+        <span className={current ? "text-white" : "text-white/60"}>{name}</span>
+        {current ? (
+          <span className="ml-2 text-[10px] text-white/30">in progress</span>
+        ) : null}
+      </td>
+      <Num v={sent} />
+      <td className="py-2 pr-3 text-right tabular-nums text-white/75">
+        {sent > 0 ? pct(deliveryRate) : "n/a"}
+      </td>
+      <td
+        className="py-2 pr-3 text-right tabular-nums"
+        style={{ color: sent > 0 ? toneFor(bounceRate, 0.02, 0.04) : "rgba(255,255,255,0.25)" }}
+      >
+        {sent > 0 ? pct(bounceRate, 2) : "n/a"}
+      </td>
+      <td className="py-2 text-right tabular-nums" style={{ color: OK }}>
+        {nf.format(activated)}
+        <span className="ml-1.5 text-[11px] text-white/35">
+          {sent > 0 ? pct(activationRate, 0) : ""}
+        </span>
+      </td>
+    </tr>
+  );
+}
 
 function Panel({
   title,
