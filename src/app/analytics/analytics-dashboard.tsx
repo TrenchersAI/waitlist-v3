@@ -14,6 +14,7 @@ import {
 import { AnalyticsTimeseriesChart } from "@/src/app/analytics/analytics-timeseries-chart";
 import { SurveyAnalyticsContent } from "@/src/app/analytics/survey/survey-analytics-view";
 import { TradingAnalyticsContent } from "@/src/app/analytics/trading-analytics-view";
+import { UserActivityContent } from "@/src/app/analytics/user-activity-view";
 import {
   ReferrersStrip,
   type ReferralsPayload,
@@ -692,7 +693,8 @@ export default function AnalyticsDashboard({
             section === "users" ||
             section === "survey" ||
             section === "volume" ||
-            section === "revenue" ? null : (
+            section === "revenue" ||
+            section === "user-activity" ? null : (
               <InPageNav
                 activeRangeKey={rangeKey}
                 onPickRange={applyRange}
@@ -707,6 +709,8 @@ export default function AnalyticsDashboard({
                 rangeKey={rangeKey}
                 range={appliedRange}
               />
+            ) : section === "user-activity" ? (
+              <UserActivityContent />
             ) : section === "referrals" ? (
               <ReferralsSection
                 referrals={referrals}
@@ -981,6 +985,7 @@ function UsersSection(props: React.ComponentProps<typeof SignupsTable>) {
 
 const SECTION_TITLE: Record<AnalyticsSection, string> = {
   dashboard: "Dashboard",
+  "user-activity": "User activity",
   volume: "Trading volume",
   revenue: "Trading revenue",
   referrals: "Referrals",
@@ -1018,7 +1023,8 @@ function DashboardHeader({
       section === "users" ||
       section === "survey" ||
       section === "volume" ||
-      section === "revenue" ? null : (
+      section === "revenue" ||
+      section === "user-activity" ? null : (
         <RangePill rangeKey={rangeKey} range={range} />
       )}
     </header>

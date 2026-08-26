@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import {
+  Activity,
   ChevronsLeft,
   ChevronsRight,
   ClipboardList,
@@ -17,6 +18,7 @@ import { cn } from "@/src/lib/utils";
 
 export type AnalyticsSection =
   | "dashboard"
+  | "user-activity"
   | "referrals"
   | "top-referrers"
   | "users"
@@ -32,6 +34,7 @@ type ItemDef = {
 
 const ITEMS: ReadonlyArray<ItemDef> = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { id: "user-activity", label: "User activity", icon: Activity },
   { id: "volume", label: "Trading volume", icon: TrendingUp },
   { id: "revenue", label: "Trading revenue", icon: Coins },
   { id: "referrals", label: "Referrals", icon: Share2 },
