@@ -288,9 +288,9 @@ function BotsDashboard({
           derived ? (
             <AnalyticsTimeseriesChart
               signupsByDay={derived.activeR}
-              verificationsByDay={derived.activeR}
+              verificationsByDay={[]}
+              hideSecondary
               primaryLabel="active bots"
-              secondaryLabel="active bots"
               primaryLegend="Active bots"
             />
           ) : null
