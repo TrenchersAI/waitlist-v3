@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
+import { BETA_CAMPAIGN } from "@/src/lib/beta-invite";
 import { getPrismaClient } from "@/src/lib/prisma";
 
 export const runtime = "nodejs";
@@ -26,7 +27,8 @@ type ResendEventType =
   | "email.clicked"
   | "email.bounced"
   | "email.complained"
-  | "email.failed";
+  | "email.failed"
+  | "email.suppressed";
 
 type ResendEvent = {
   type: ResendEventType;
@@ -79,23 +81,32 @@ function verifySignature(params: {
   return false;
 }
 
-function extractInviteIdFromTags(
+/// Resend hands tags back either as the array we sent or as a flattened
+/// object, depending on the event type. Handle both shapes.
+function extractTagValue(
   tags: NonNullable<ResendEvent["data"]>["tags"] | undefined,
+  name: string,
 ): string | null {
   if (!tags) return null;
   if (Array.isArray(tags)) {
     for (const t of tags) {
-      if (t && typeof t === "object" && t.name === "inviteId") {
+      if (t && typeof t === "object" && t.name === name) {
         return typeof t.value === "string" ? t.value : null;
       }
     }
     return null;
   }
   if (typeof tags === "object") {
-    const v = (tags as Record<string, string>).inviteId;
+    const v = (tags as Record<string, string>)[name];
     return typeof v === "string" ? v : null;
   }
   return null;
+}
+
+function extractInviteIdFromTags(
+  tags: NonNullable<ResendEvent["data"]>["tags"] | undefined,
+): string | null {
+  return extractTagValue(tags, "inviteId");
 }
 
 export async function POST(request: Request) {
@@ -163,19 +174,141 @@ export async function POST(request: Request) {
   // tag we attached when sending — useful when Resend retries and the
   // message id we stored is the most recent of multiple sends.
   const inviteIdFromTag = extractInviteIdFromTags(evt.data?.tags);
-  const invite = await prisma.surveyInvite.findFirst({
-    where: inviteIdFromTag
-      ? { OR: [{ resendMsgId }, { id: inviteIdFromTag }] }
-      : { resendMsgId },
-    select: {
-      id: true,
-      deliveredAt: true,
-      openedAt: true,
-      clickedAt: true,
-      bouncedAt: true,
-      complainedAt: true,
-    },
-  });
+
+  // Which campaign this event belongs to. Both campaigns tag their sends,
+  // so we route to the right table instead of guessing. Untagged events
+  // fall through to the survey table, which is where all pre-existing
+  // (untagged) traffic came from.
+  const campaign = extractTagValue(evt.data?.tags, "campaign");
+  const isBeta = campaign === BETA_CAMPAIGN;
+
+  const where = inviteIdFromTag
+    ? { OR: [{ resendMsgId }, { id: inviteIdFromTag }] }
+    : { resendMsgId };
+  const select = {
+    id: true,
+    deliveredAt: true,
+    openedAt: true,
+    clickedAt: true,
+    bouncedAt: true,
+    complainedAt: true,
+  } as const;
+
+  // The beta campaign sends twice to the same row (invite, then the signup
+  // issue reminder), so a message id alone does not say which send an event
+  // belongs to. Check the reminder id first: if it matches, fold the event
+  // onto the reminder columns so the two sends keep independent delivery
+  // stats instead of the second overwriting the first.
+  if (isBeta) {
+    const reminderRow = await prisma.betaInvite.findFirst({
+      where: { reminderResendMsgId: resendMsgId },
+      select: {
+        id: true,
+        reminderDeliveredAt: true,
+        reminderOpenedAt: true,
+        reminderBouncedAt: true,
+        reminderComplainedAt: true,
+      },
+    });
+    if (reminderRow) {
+      const rdata: Record<string, Date> = {};
+      switch (evt.type) {
+        case "email.delivered":
+          if (!reminderRow.reminderDeliveredAt) rdata.reminderDeliveredAt = occurredAt;
+          break;
+        case "email.opened":
+          if (!reminderRow.reminderOpenedAt) rdata.reminderOpenedAt = occurredAt;
+          break;
+        case "email.bounced":
+        case "email.failed":
+          if (!reminderRow.reminderBouncedAt) rdata.reminderBouncedAt = occurredAt;
+          break;
+        case "email.complained":
+          if (!reminderRow.reminderComplainedAt) rdata.reminderComplainedAt = occurredAt;
+          break;
+        default:
+          break;
+      }
+      if (Object.keys(rdata).length > 0) {
+        await prisma.betaInvite.update({ where: { id: reminderRow.id }, data: rdata });
+      }
+      return Response.json({ ok: true });
+    }
+
+    const nudgeRow = await prisma.betaInvite.findFirst({
+      where: { nudgeResendMsgId: resendMsgId },
+      select: {
+        id: true,
+        nudgeDeliveredAt: true,
+        nudgeOpenedAt: true,
+        nudgeBouncedAt: true,
+        nudgeComplainedAt: true,
+      },
+    });
+    if (nudgeRow) {
+      const ndata: Record<string, Date> = {};
+      switch (evt.type) {
+        case "email.delivered":
+          if (!nudgeRow.nudgeDeliveredAt) ndata.nudgeDeliveredAt = occurredAt;
+          break;
+        case "email.opened":
+          if (!nudgeRow.nudgeOpenedAt) ndata.nudgeOpenedAt = occurredAt;
+          break;
+        case "email.bounced":
+        case "email.failed":
+          if (!nudgeRow.nudgeBouncedAt) ndata.nudgeBouncedAt = occurredAt;
+          break;
+        case "email.complained":
+          if (!nudgeRow.nudgeComplainedAt) ndata.nudgeComplainedAt = occurredAt;
+          break;
+        default:
+          break;
+      }
+      if (Object.keys(ndata).length > 0) {
+        await prisma.betaInvite.update({ where: { id: nudgeRow.id }, data: ndata });
+      }
+      return Response.json({ ok: true });
+    }
+
+    const featureRow = await prisma.betaInvite.findFirst({
+      where: { featureResendMsgId: resendMsgId },
+      select: {
+        id: true,
+        featureDeliveredAt: true,
+        featureOpenedAt: true,
+        featureBouncedAt: true,
+        featureComplainedAt: true,
+      },
+    });
+    if (featureRow) {
+      const fdata: Record<string, Date> = {};
+      switch (evt.type) {
+        case "email.delivered":
+          if (!featureRow.featureDeliveredAt) fdata.featureDeliveredAt = occurredAt;
+          break;
+        case "email.opened":
+          if (!featureRow.featureOpenedAt) fdata.featureOpenedAt = occurredAt;
+          break;
+        case "email.bounced":
+        case "email.failed":
+          if (!featureRow.featureBouncedAt) fdata.featureBouncedAt = occurredAt;
+          break;
+        case "email.complained":
+          if (!featureRow.featureComplainedAt) fdata.featureComplainedAt = occurredAt;
+          break;
+        default:
+          break;
+      }
+      if (Object.keys(fdata).length > 0) {
+        await prisma.betaInvite.update({ where: { id: featureRow.id }, data: fdata });
+      }
+      return Response.json({ ok: true });
+    }
+  }
+
+  const invite = isBeta
+    ? await prisma.betaInvite.findFirst({ where, select })
+    : await prisma.surveyInvite.findFirst({ where, select });
   if (!invite) {
     return Response.json({ ok: true });
   }
@@ -198,17 +331,24 @@ export async function POST(request: Request) {
     case "email.complained":
       if (!invite.complainedAt) data.complainedAt = occurredAt;
       break;
+    case "email.suppressed":
+      // Resend refused to send because the address is on its suppression
+      // list. The message never left, so it costs no reputation, but the
+      // person is unreachable and must stop showing up as pending.
+      if (isBeta) data.suppressedAt = occurredAt;
+      break;
     default:
-      // sent / delivery_delayed — already covered by sentAt or no signal
-      // needed for the funnel.
+      // sent / delivery_delayed are covered by sentAt or carry no signal
+      // the funnel needs.
       break;
   }
 
   if (Object.keys(data).length > 0) {
-    await prisma.surveyInvite.update({
-      where: { id: invite.id },
-      data,
-    });
+    if (isBeta) {
+      await prisma.betaInvite.update({ where: { id: invite.id }, data });
+    } else {
+      await prisma.surveyInvite.update({ where: { id: invite.id }, data });
+    }
   }
 
   return Response.json({ ok: true });

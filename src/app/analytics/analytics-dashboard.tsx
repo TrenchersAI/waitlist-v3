@@ -13,6 +13,11 @@ import {
 } from "@/src/app/analytics/analytics-sidebar";
 import { AnalyticsTimeseriesChart } from "@/src/app/analytics/analytics-timeseries-chart";
 import { SurveyAnalyticsContent } from "@/src/app/analytics/survey/survey-analytics-view";
+import { AccountingContent } from "@/src/app/analytics/accounting-view";
+import { BetaAnalyticsContent } from "@/src/app/analytics/beta/beta-analytics-view";
+import { BotsAnalyticsContent } from "@/src/app/analytics/bots-view";
+import { RouterTradesContent } from "@/src/app/analytics/router-trades-view";
+import { PulseAnalyticsContent } from "@/src/app/analytics/pulse-view";
 import { TradingAnalyticsContent } from "@/src/app/analytics/trading-analytics-view";
 import { UserActivityContent } from "@/src/app/analytics/user-activity-view";
 import {
@@ -692,9 +697,14 @@ export default function AnalyticsDashboard({
             {section === "top-referrers" ||
             section === "users" ||
             section === "survey" ||
+            section === "beta" ||
+            section === "bots" ||
+            section === "router-trades" ||
+            section === "pulse" ||
             section === "volume" ||
             section === "revenue" ||
-            section === "user-activity" ? null : (
+            section === "user-activity" ||
+            section === "platform-accounting" ? null : (
               <InPageNav
                 activeRangeKey={rangeKey}
                 onPickRange={applyRange}
@@ -722,10 +732,20 @@ export default function AnalyticsDashboard({
               <TopReferrersSection referrals={referrals} />
             ) : section === "survey" ? (
               <SurveyAnalyticsContent />
+            ) : section === "beta" ? (
+              <BetaAnalyticsContent />
+            ) : section === "bots" ? (
+              <BotsAnalyticsContent />
+            ) : section === "router-trades" ? (
+              <RouterTradesContent />
+            ) : section === "pulse" ? (
+              <PulseAnalyticsContent />
             ) : section === "volume" ? (
               <TradingAnalyticsContent metric="volume" />
             ) : section === "revenue" ? (
               <TradingAnalyticsContent metric="revenue" />
+            ) : section === "platform-accounting" ? (
+              <AccountingContent />
             ) : (
               <UsersSection
                 data={visibleSignups}
@@ -986,12 +1006,17 @@ function UsersSection(props: React.ComponentProps<typeof SignupsTable>) {
 const SECTION_TITLE: Record<AnalyticsSection, string> = {
   dashboard: "Dashboard",
   "user-activity": "User activity",
+  pulse: "Live pulse",
+  bots: "Bots",
+  "router-trades": "Router trades",
   volume: "Trading volume",
   revenue: "Trading revenue",
   referrals: "Referrals",
   "top-referrers": "Top referrers",
   users: "Users",
   survey: "Survey",
+  beta: "Beta access",
+  "platform-accounting": "Platform accounting",
 };
 
 function DashboardHeader({
@@ -1022,9 +1047,14 @@ function DashboardHeader({
       {section === "top-referrers" ||
       section === "users" ||
       section === "survey" ||
+      section === "beta" ||
+      section === "bots" ||
+      section === "router-trades" ||
+      section === "pulse" ||
       section === "volume" ||
       section === "revenue" ||
-      section === "user-activity" ? null : (
+      section === "user-activity" ||
+      section === "platform-accounting" ? null : (
         <RangePill rangeKey={rangeKey} range={range} />
       )}
     </header>

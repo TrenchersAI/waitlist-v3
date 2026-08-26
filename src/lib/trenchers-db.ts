@@ -30,15 +30,39 @@ export function getTrenchersPool(): Pool | null {
     // via the explicit `ssl` option below — still encrypted, just no chain
     // verification (acceptable for a read-only analytics reader).
     const noSslMode = connectionString.replace(/[?&]sslmode=[^&]*/i, "");
-    globalForTrenchers.trenchersPool = new Pool({
+    // A local Postgres (dev, or the throwaway container `scripts/verify-pulse.ts`
+    // runs against) is not built with SSL support, and forcing it there fails
+    // outright with "The server does not support SSL connections". Remote stays
+    // encrypted; only a loopback host opts out.
+    const isLocal = /@(localhost|127\.0\.0\.1|\[::1\])[:/]/i.test(noSslMode);
+    const pool = new Pool({
       connectionString: noSslMode,
-      ssl: { rejectUnauthorized: false },
+      ssl: isLocal ? false : { rejectUnauthorized: false },
       // Read-only analytics: a tiny pool is plenty and stays friendly to the
       // Supabase pooler.
       max: 3,
       idleTimeoutMillis: 30_000,
       connectionTimeoutMillis: 10_000,
+      keepAlive: true,
     });
+
+    // `pg.Pool` emits 'error' when an IDLE pooled client dies — the Supabase
+    // pooler drops connections it considers stale, which surfaces as
+    // `read ETIMEDOUT`. In Node an 'error' event with no listener is
+    // rethrown, so this crashes the whole process rather than the query.
+    //
+    // That is not theoretical: it killed a live send mid-campaign. The
+    // sender sleeps minutes between batches, the connection went idle, the
+    // pooler dropped it, and the unhandled event took the process down
+    // between batch 11 and 12 with no other symptom.
+    //
+    // An idle-client failure is recoverable by definition: the pool discards
+    // that client and the next query opens a fresh one. Log it and carry on.
+    pool.on("error", (err) => {
+      console.error("[trenchers-db] idle client error (recovering):", err.message);
+    });
+
+    globalForTrenchers.trenchersPool = pool;
   }
   return globalForTrenchers.trenchersPool;
 }

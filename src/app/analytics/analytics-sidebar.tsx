@@ -3,14 +3,19 @@
 import * as React from "react";
 import {
   Activity,
+  Bot,
   ChevronsLeft,
   ChevronsRight,
   ClipboardList,
   Coins,
+  Scale,
+  KeyRound,
   LayoutDashboard,
+  Route,
   Share2,
   TrendingUp,
   Trophy,
+  UserCheck,
   Users,
 } from "lucide-react";
 
@@ -19,12 +24,17 @@ import { cn } from "@/src/lib/utils";
 export type AnalyticsSection =
   | "dashboard"
   | "user-activity"
+  | "pulse"
   | "referrals"
   | "top-referrers"
   | "users"
   | "survey"
+  | "beta"
+  | "bots"
+  | "router-trades"
   | "volume"
-  | "revenue";
+  | "revenue"
+  | "platform-accounting";
 
 type ItemDef = {
   id: AnalyticsSection;
@@ -34,13 +44,18 @@ type ItemDef = {
 
 const ITEMS: ReadonlyArray<ItemDef> = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { id: "user-activity", label: "User activity", icon: Activity },
+  { id: "user-activity", label: "User activity", icon: UserCheck },
+  { id: "pulse", label: "Live pulse", icon: Activity },
+  { id: "bots", label: "Bots", icon: Bot },
+  { id: "router-trades", label: "Router trades", icon: Route },
   { id: "volume", label: "Trading volume", icon: TrendingUp },
   { id: "revenue", label: "Trading revenue", icon: Coins },
+  { id: "platform-accounting", label: "Platform accounting", icon: Scale },
   { id: "referrals", label: "Referrals", icon: Share2 },
   { id: "top-referrers", label: "Top referrers", icon: Trophy },
   { id: "users", label: "Users", icon: Users },
   { id: "survey", label: "Survey", icon: ClipboardList },
+  { id: "beta", label: "Beta access", icon: KeyRound },
 ];
 
 type Props = {
@@ -106,17 +121,21 @@ export function MobileBottomNav({
       className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-black/85 backdrop-blur-md md:hidden"
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
-      <ul className="grid grid-cols-5">
+      {/* Horizontal scroll, not a fixed grid: there are 10 sections and a
+          `grid-cols-5` squashed every label past the fifth into an unreadable
+          two-line wrap. Fixed-width items keep each tab legible and let the
+          overflow scroll, which is the standard mobile tab-bar behaviour. */}
+      <ul className="flex overflow-x-auto scrollbar-minimal-black">
         {ITEMS.map(({ id, label, icon: Icon }) => {
           const isActive = active === id;
           return (
-            <li key={id} className="relative">
+            <li key={id} className="relative shrink-0">
               <button
                 type="button"
                 onClick={() => onChange(id)}
                 aria-current={isActive ? "page" : undefined}
                 className={cn(
-                  "flex w-full flex-col items-center justify-center gap-1 py-2.5 text-[11px] font-medium transition-colors",
+                  "flex w-[72px] flex-col items-center justify-center gap-1 py-2.5 text-[11px] font-medium transition-colors",
                   isActive ? "text-white" : "text-white/55 hover:text-white/80",
                 )}
               >

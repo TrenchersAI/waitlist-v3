@@ -1,7 +1,6 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BorderBeam } from "border-beam";
 import { useReducedMotion } from "motion/react";
@@ -13,7 +12,8 @@ export default function FinalCtaSection() {
   if (
     pathname === "/analytics" ||
     pathname?.startsWith("/analytics/") ||
-    pathname?.startsWith("/survey")
+    pathname?.startsWith("/survey") ||
+    pathname?.startsWith("/blog")
   ) {
     return null;
   }
@@ -35,7 +35,7 @@ export default function FinalCtaSection() {
           Join the vibe trenchers.
         </h2>
         <p className="mx-auto mt-4 max-w-[52ch] text-balance text-[15px] leading-[1.65] text-white/60 md:text-[16px]">
-          Join the waitlist for TrenchersAI, one terminal to discover, snipe,
+          TrenchersAI is live in public beta. One terminal to discover, snipe,
           copy, track, and manage positions with AI agents built for speed.
         </p>
         <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row sm:gap-4">
@@ -49,12 +49,12 @@ export default function FinalCtaSection() {
             active={!prefersReducedMotion}
             className="shrink-0"
           >
-            <Link
-              href="/#waitlist"
+            <a
+              href="https://beta.trenchers.ai"
               className="inline-flex items-center justify-center rounded-full border border-white/15 bg-black px-6 py-2.5 text-[13px] font-semibold text-white outline-none transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/35"
             >
-              Get early access
-            </Link>
+              Sign in
+            </a>
           </BorderBeam>
         </div>
         <div className="relative mx-auto mt-8 w-full max-w-[1100px] md:mt-10">

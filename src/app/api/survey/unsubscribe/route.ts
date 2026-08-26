@@ -9,24 +9,49 @@ export const runtime = "nodejs";
 /// footer — handle both with the same logic so we never bounce a real
 /// opt-out.
 
+/// Resolves a token against either campaign. The token space is shared
+/// (both tables generate 24 random bytes), so we look in both rather than
+/// trusting a query param that a mail client could strip.
+///
+/// An opt-out is treated as GLOBAL: someone clicking unsubscribe on the
+/// beta invite is saying "stop emailing me", not "stop emailing me about
+/// this one campaign". We suppress every campaign row for that subscriber.
+/// Getting this wrong is how a sender ends up mailing people who already
+/// opted out, which is the fastest route to a complaint spike.
 async function markUnsubscribed(token: string | null) {
   if (!token || token.length < 8) {
     return new Response("Invalid token.", { status: 400 });
   }
   const prisma = getPrismaClient();
-  const invite = await prisma.surveyInvite.findUnique({
-    where: { token },
-    select: { id: true, unsubscribedAt: true },
-  });
-  if (!invite) {
+  const now = new Date();
+
+  const [surveyRow, betaRow] = await Promise.all([
+    prisma.surveyInvite.findUnique({
+      where: { token },
+      select: { subscriberId: true },
+    }),
+    prisma.betaInvite.findUnique({
+      where: { token },
+      select: { subscriberId: true },
+    }),
+  ]);
+
+  const subscriberId = surveyRow?.subscriberId ?? betaRow?.subscriberId;
+  if (!subscriberId) {
     return new Response("Invalid token.", { status: 404 });
   }
-  if (!invite.unsubscribedAt) {
-    await prisma.surveyInvite.update({
-      where: { id: invite.id },
-      data: { unsubscribedAt: new Date() },
-    });
-  }
+
+  await Promise.all([
+    prisma.surveyInvite.updateMany({
+      where: { subscriberId, unsubscribedAt: null },
+      data: { unsubscribedAt: now },
+    }),
+    prisma.betaInvite.updateMany({
+      where: { subscriberId, unsubscribedAt: null },
+      data: { unsubscribedAt: now },
+    }),
+  ]);
+
   // The List-Unsubscribe-Post one-click flow expects a 200 — no body
   // required. For the GET path the user lands on the human-readable
   // confirmation page (handled by the Next page route, not here).

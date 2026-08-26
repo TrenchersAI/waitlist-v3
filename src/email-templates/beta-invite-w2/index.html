@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>You're in. Welcome to the trenches.</title>
+  </head>
+  <!--
+    Wave 2 invite. First contact for people who opened the trader survey but
+    never finished it, and who have never received anything from this
+    campaign.
+
+    Structurally this is the wave 1 invite, which delivered at 99.6% with
+    zero spam complaints and converted at 28.3%. What changed is the middle:
+    wave 1 asked for feedback and offered nothing back, so this one leads
+    with what the reader gets. Every benefit listed here is one the founders
+    already approved in earlier sends; nothing new is promised.
+
+    Deliberately NOT said: any wave or cohort number. An earlier draft opened
+    with "you are joining as the second wave", which is accurate and makes
+    the reader feel like an afterthought. Being early is the pitch, and
+    ranking them inside that undercuts it.
+
+    The sign-in line survived the cut, but rephrased. It used to read
+    "using email or Google. X and Apple will not work", which is a warning
+    and reads as friction in an email whose job is to feel like a win. It is
+    now "(email or Google)": positive, four words, same steer.
+
+    It cannot be removed entirely. The backend resolves a Privy email only
+    for `email` and `google_oauth` accounts, so an X or Apple login is denied
+    even though the person holds access. Naming the two methods that work is
+    the shortest form that still prevents that.
+
+    Same austere shell as all five prior sends: no images, no <style> block,
+    no tables, no padded CTA button. The excitement is in the words. Four
+    sends and 4,239 emails at zero complaints came from that discipline, and
+    a first contact is the worst moment to spend it.
+  -->
+  <body style="margin:0;padding:0;background:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;">
+    <div style="max-width:520px;margin:0 auto;padding:36px 24px 32px;color:#1a1a1a;font-size:16px;line-height:1.6;">
+      <p style="margin:0 0 18px;">Hello,</p>
+
+      <p style="margin:0 0 18px;font-size:19px;font-weight:600;">
+        You are in.
+      </p>
+
+      <p style="margin:0 0 24px;">
+        Your early access to Trenchers is now open.
+      </p>
+
+      <p style="margin:0 0 24px;">
+        <a href="{{ACCESS_URL}}" style="font-size:19px;font-weight:600;color:#1a1a1a;text-decoration:underline;">{{ACCESS_URL}}</a>
+      </p>
+
+      <p style="margin:0 0 26px;">
+        Sign in with <strong>{{RECIPIENT_EMAIL}}</strong> (email or Google).
+      </p>
+
+      <p style="margin:0 0 12px;font-weight:600;">
+        Being early pays:
+      </p>
+
+      <p style="margin:0 0 8px;">
+        Best pricing. Lowest fees. Highest cashback.
+      </p>
+
+      <p style="margin:0 0 8px;">
+        A seat in our priority group.
+      </p>
+
+      <p style="margin:0 0 26px;">
+        First in line for early-user rewards.
+      </p>
+
+      <p style="margin:0 0 28px;">
+        See what the agents are finding.
+      </p>
+
+      <p style="margin:0 0 6px;color:#555;">Thank you,</p>
+      <p style="margin:0 0 28px;color:#555;">Trenchers</p>
+
+      <p style="margin:0;color:#8a8a8a;font-size:13px;line-height:1.5;">
+        You are receiving this because you joined the Trenchers waitlist. If you would prefer not to hear from us, you can <a href="{{UNSUBSCRIBE_URL}}" style="color:#8a8a8a;">unsubscribe</a>.
+      </p>
+    </div>
+  </body>
+</html>

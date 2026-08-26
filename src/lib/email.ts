@@ -484,6 +484,288 @@ export function buildSurveyInviteText(params: {
   ].join("\n");
 }
 
+export type BetaInviteCopy = {
+  accessUrl: string;
+  unsubscribeUrl: string;
+  recipientEmail: string;
+};
+
+/// Subject for the beta invite. Deliberately plain and declarative.
+///
+/// Avoided on purpose: brackets, ALL CAPS, emoji, exclamation marks, and the
+/// words free / exclusive / limited / hurry / act now, all of which push a
+/// message toward Promotions or a spam-score penalty. Also avoided: "invite"
+/// and "invitation", which are overwhelmingly used by bulk senders. A short
+/// possessive statement of fact reads like a human wrote it.
+export const BETA_INVITE_SUBJECT = "Your Trenchers access is open";
+
+export async function buildBetaInviteHtml(params: BetaInviteCopy) {
+  const templatePath = join(
+    process.cwd(),
+    "src/email-templates/beta-invite/index.html",
+  );
+  const templateHtml = await readFile(templatePath, "utf-8");
+
+  return (
+    templateHtml
+      // The template carries a long rationale comment explaining why the
+      // markup is as austere as it is. That is for whoever edits it next,
+      // not for the recipient, so strip it: we neither ship our own
+      // deliverability notes to 10k inboxes nor pay for the bytes.
+      .replace(/<!--[\s\S]*?-->/g, "")
+      .replaceAll("{{ACCESS_URL}}", params.accessUrl)
+      .replaceAll("{{UNSUBSCRIBE_URL}}", params.unsubscribeUrl)
+      .replaceAll("{{RECIPIENT_EMAIL}}", escapeHtml(params.recipientEmail))
+      .trim()
+  );
+}
+
+/// Plain-text alternative. Kept in sync with the HTML wording, since a text part
+/// that diverges from the HTML part is itself a spam-filter signal, and
+/// HTML-only mail scores worse than multipart regardless.
+export function buildBetaInviteText(params: BetaInviteCopy) {
+  return [
+    "Hello,",
+    "",
+    "You are in. Your early access to Trenchers is now open.",
+    "",
+    params.accessUrl,
+    "",
+    `Sign in with ${params.recipientEmail} using email or Google.`,
+    "X and Apple will not work.",
+    "",
+    "You joined the waitlist early, so you are in the first group through the",
+    "door. Your feedback is greatly appreciated and will help us shape this to",
+    "perfection. Just reply to this email and it comes straight to us.",
+    "",
+    "Thank you,",
+    "Trenchers",
+    "",
+    "---",
+    "You are receiving this because you joined the Trenchers waitlist.",
+    `Unsubscribe: ${params.unsubscribeUrl}`,
+  ].join("\n");
+}
+
+/// Subject for the second touch: a reminder that carries the incident
+/// notice.
+///
+/// Reminder-led rather than apology-led, because most recipients never hit
+/// the bug and "the sign-in issue is fixed" means nothing to them. Stating
+/// that their access is still open gives every recipient a reason to act,
+/// and the fix inside removes the obstacle for the subset who were blocked.
+export const BETA_REMINDER_SUBJECT = "Your Trenchers access is still open";
+
+export async function buildBetaReminderHtml(params: BetaInviteCopy) {
+  const templatePath = join(
+    process.cwd(),
+    "src/email-templates/beta-reminder/index.html",
+  );
+  const templateHtml = await readFile(templatePath, "utf-8");
+  return templateHtml
+    .replace(/<!--[\s\S]*?-->/g, "")
+    .replaceAll("{{ACCESS_URL}}", params.accessUrl)
+    .replaceAll("{{UNSUBSCRIBE_URL}}", params.unsubscribeUrl)
+    .replaceAll("{{RECIPIENT_EMAIL}}", escapeHtml(params.recipientEmail))
+    .trim();
+}
+
+export function buildBetaReminderText(params: BetaInviteCopy) {
+  return [
+    "Hello,",
+    "",
+    "A quick reminder that your early access to Trenchers is open and",
+    "waiting.",
+    "",
+    "We also noticed that some users were not able to sign in earlier today.",
+    "That was a fault on our side. We found it and fixed it fast, so if you",
+    "tried and could not get in, please try again.",
+    "",
+    "Your access is here:",
+    params.accessUrl,
+    "",
+    `Sign in with ${params.recipientEmail} using email or Google. Signing in`,
+    "through X or Apple will not resolve your access.",
+    "",
+    "If anything else blocks you, reply to this email. It reaches the team",
+    "directly, and we act on it.",
+    "",
+    "Thank you,",
+    "Trenchers",
+    "",
+    "---",
+    "You are receiving this because you joined the Trenchers waitlist.",
+    `Unsubscribe: ${params.unsubscribeUrl}`,
+  ].join("\n");
+}
+
+/// Subject for the activation nudge, sent only to people who have already
+/// signed in. Taken from the closing line of the body: short, not in
+/// marketing register, and the most memorable thing in the email.
+export const BETA_NUDGE_SUBJECT = "You're early. Make it count.";
+
+export async function buildBetaNudgeHtml(params: BetaInviteCopy) {
+  const templatePath = join(
+    process.cwd(),
+    "src/email-templates/beta-nudge/index.html",
+  );
+  const templateHtml = await readFile(templatePath, "utf-8");
+  return templateHtml
+    .replace(/<!--[\s\S]*?-->/g, "")
+    .replaceAll("{{ACCESS_URL}}", params.accessUrl)
+    .replaceAll("{{UNSUBSCRIBE_URL}}", params.unsubscribeUrl)
+    .trim();
+}
+
+export function buildBetaNudgeText(params: BetaInviteCopy) {
+  return [
+    "Hi,",
+    "",
+    "You have early access to Trenchers, and we want you to actively test",
+    "the platform.",
+    "",
+    "Users are already trading both manually and through AI agents, testing",
+    "different strategies, and sharing feedback that is directly shaping",
+    "what we ship next.",
+    "",
+    "If you haven't spawned a bot yet, start there. Deploy one, explore the",
+    "platform, and experience the full trading workflow.",
+    "",
+    params.accessUrl,
+    "",
+    "Once you've tested it, tell us what worked, what didn't, and what you",
+    "want improved. You can reach us anytime through the Support button",
+    "inside Trenchers for issues or feedback, or simply reply to this email.",
+    "",
+    "Users who actively trade, test agents, and provide meaningful feedback",
+    "will be prioritized for upcoming early-user rewards and access.",
+    "",
+    "You're early. Make it count.",
+    "",
+    "Trenchers",
+    "",
+    "---",
+    "You are receiving this because you joined the Trenchers waitlist.",
+    `Unsubscribe: ${params.unsubscribeUrl}`,
+  ].join("\n");
+}
+
+/// Subject for the product-change announcement. The founder's own line,
+/// kept verbatim including the emoji.
+///
+/// Worth knowing when judging a future subject: an emoji leans slightly
+/// toward Gmail's Promotions classifier. The evidence for that is weak, and
+/// after four sends with zero spam complaints this domain has the
+/// reputation to absorb it, so it is a fair trade for a subject that sounds
+/// like a person wrote it.
+export const BETA_FEATURE_SUBJECT = "The agents got more patient \u{1F440}";
+
+export async function buildBetaFeatureHtml(params: BetaInviteCopy) {
+  const templatePath = join(
+    process.cwd(),
+    "src/email-templates/beta-feature/index.html",
+  );
+  const templateHtml = await readFile(templatePath, "utf-8");
+  return templateHtml
+    .replace(/<!--[\s\S]*?-->/g, "")
+    .replaceAll("{{ACCESS_URL}}", params.accessUrl)
+    .replaceAll("{{UNSUBSCRIBE_URL}}", params.unsubscribeUrl)
+    .trim();
+}
+
+export function buildBetaFeatureText(params: BetaInviteCopy) {
+  return [
+    "Hello,",
+    "",
+    "Something changed at Trenchers.",
+    "",
+    "Our agents are now holding through migration, giving them a chance to",
+    "catch what happens after graduation, where the real runners can begin.",
+    "",
+    "10x. 50x. 100x.",
+    "You never know which one is going to keep running.",
+    "",
+    "The upgrade is already live. Nothing to switch on.",
+    "",
+    "You are among the few early users seeing this first hand. The first",
+    "Trenchers cohort gets our best pricing, lowest fees and highest",
+    "cashback, and a place in our priority group where we read every piece",
+    "of feedback ourselves.",
+    "",
+    "See what the agents are finding:",
+    params.accessUrl,
+    "",
+    "If you spot something interesting, reply to this email. It comes",
+    "straight to us.",
+    "",
+    "Trenchers",
+    "",
+    "---",
+    "You are receiving this because you joined the Trenchers waitlist.",
+    `Unsubscribe: ${params.unsubscribeUrl}`,
+  ].join("\n");
+}
+
+/// Subject for the wave 2 invite. First contact, so it is allowed to sound
+/// like an arrival rather than a notification. "Welcome to the trenches"
+/// leans on the product's own name instead of generic excitement.
+export const BETA_INVITE_W2_SUBJECT = "You're in. Welcome to the trenches.";
+
+export async function buildBetaInviteW2Html(params: BetaInviteCopy) {
+  const templatePath = join(
+    process.cwd(),
+    "src/email-templates/beta-invite-w2/index.html",
+  );
+  const templateHtml = await readFile(templatePath, "utf-8");
+  return templateHtml
+    .replace(/<!--[\s\S]*?-->/g, "")
+    .replaceAll("{{ACCESS_URL}}", params.accessUrl)
+    .replaceAll("{{UNSUBSCRIBE_URL}}", params.unsubscribeUrl)
+    .replaceAll("{{RECIPIENT_EMAIL}}", escapeHtml(params.recipientEmail))
+    .trim();
+}
+
+export function buildBetaInviteW2Text(params: BetaInviteCopy) {
+  return [
+    "Hello,",
+    "",
+    "You are in.",
+    "",
+    "Your early access to Trenchers is now open.",
+    "",
+    params.accessUrl,
+    "",
+    `Sign in with ${params.recipientEmail} (email or Google).`,
+    "",
+    "Being early pays:",
+    "",
+    "  Best pricing. Lowest fees. Highest cashback.",
+    "  A seat in our priority group.",
+    "  First in line for early-user rewards.",
+    "",
+    "See what the agents are finding.",
+    "",
+    "Thank you,",
+    "Trenchers",
+    "",
+    "---",
+    "You are receiving this because you joined the Trenchers waitlist.",
+    `Unsubscribe: ${params.unsubscribeUrl}`,
+  ].join("\n");
+}
+
+/// The recipient's own address is interpolated into the HTML body. It comes
+/// from our database rather than user input at send time, but escaping it
+/// costs nothing and stops a stored `<` in an address from breaking the
+/// markup for that one recipient.
+function escapeHtml(value: string) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
+
 async function buildOtpEmailHtml(otp: string) {
   const templatePath = join(
     process.cwd(),
