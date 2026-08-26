@@ -15,6 +15,7 @@ import {
   Share2,
   TrendingUp,
   Trophy,
+  UserCheck,
   Users,
 } from "lucide-react";
 
@@ -22,6 +23,7 @@ import { cn } from "@/src/lib/utils";
 
 export type AnalyticsSection =
   | "dashboard"
+  | "user-activity"
   | "pulse"
   | "referrals"
   | "top-referrers"
@@ -42,6 +44,7 @@ type ItemDef = {
 
 const ITEMS: ReadonlyArray<ItemDef> = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { id: "user-activity", label: "User activity", icon: UserCheck },
   { id: "pulse", label: "Live pulse", icon: Activity },
   { id: "bots", label: "Bots", icon: Bot },
   { id: "router-trades", label: "Router trades", icon: Route },
