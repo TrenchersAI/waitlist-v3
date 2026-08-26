@@ -163,10 +163,10 @@ export default function TrenchersFeaturesGrid() {
             terminal, agents, wallets, and speed to play the game differently.
           </p>
           <a
-            href="#waitlist"
+            href="https://beta.trenchers.ai"
             className="mt-2 inline-flex items-center rounded-full bg-white px-4 py-2 text-[12px] font-semibold text-black transition-colors hover:bg-white/90 sm:text-[12.5px]"
           >
-            Get Early Access
+            Get started
           </a>
         </motion.header>
 
