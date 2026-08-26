@@ -67,12 +67,12 @@ export default function SiteNav({ analyticsActions }: Props = {}) {
               active={!prefersReducedMotion}
               className="shrink-0"
             >
-              <Link
-                href="/#waitlist"
+              <a
+                href="https://beta.trenchers.ai"
                 className="inline-flex items-center rounded-full border border-white/15 bg-black px-5 py-3 text-[12px] font-medium text-white outline-none transition-colors hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-white/35"
               >
-                Get Early Access
-              </Link>
+                We are live now
+              </a>
             </BorderBeam>
           </div>
         )}
