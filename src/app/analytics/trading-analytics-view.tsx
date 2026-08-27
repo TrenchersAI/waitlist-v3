@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ArrowDownRight, ArrowUpRight } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, ChevronRight } from "lucide-react";
 
 import {
   TradingBarChart,
   type ChartView,
   type TradingDay,
 } from "@/src/app/analytics/trading-bar-chart";
+import { TradersPanel } from "@/src/app/analytics/traders-panel";
 import {
   Card,
   CardContent,
@@ -26,6 +27,9 @@ type TradingPayload = {
 
 /** Which dashboard this instance renders. */
 type Metric = "volume" | "revenue";
+
+/** Which per-user breakdown is open below the chart (volume dashboard only). */
+type TradersKind = "manual" | "bot";
 
 type RangeKey = "7d" | "14d" | "30d" | "all";
 const RANGES: { key: RangeKey; label: string; days: number | null }[] = [
@@ -73,6 +77,9 @@ export function TradingAnalyticsContent({ metric }: { metric: Metric }) {
   const [error, setError] = useState<string | null>(null);
   const [range, setRange] = useState<RangeKey>("all");
   const [view, setView] = useState<ChartView>("daily");
+  // Which per-user breakdown is open below the chart. Only the volume dashboard
+  // exposes this — the cards there sum to real, per-user SOL volume.
+  const [openTraders, setOpenTraders] = useState<TradersKind | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -169,6 +176,15 @@ export function TradingAnalyticsContent({ metric }: { metric: Metric }) {
             sub={`${manualPct}% of total`}
             dotColor="#2dd4bf"
             loading={loading}
+            onClick={
+              metric === "volume"
+                ? () =>
+                    setOpenTraders((prev) =>
+                      prev === "manual" ? null : "manual",
+                    )
+                : undefined
+            }
+            active={metric === "volume" && openTraders === "manual"}
           />
           <StatCard
             label="Bot"
@@ -176,6 +192,13 @@ export function TradingAnalyticsContent({ metric }: { metric: Metric }) {
             sub={`${botPct}% of total`}
             dotColor="#818cf8"
             loading={loading}
+            onClick={
+              metric === "volume"
+                ? () =>
+                    setOpenTraders((prev) => (prev === "bot" ? null : "bot"))
+                : undefined
+            }
+            active={metric === "volume" && openTraders === "bot"}
           />
           <StatCard
             label="Avg / active day"
@@ -235,6 +258,21 @@ export function TradingAnalyticsContent({ metric }: { metric: Metric }) {
             manualLegend="Manual"
           />
         )}
+
+        {/* Per-user drill-down: opens when a headline card is clicked. */}
+        {metric === "volume" && openTraders ? (
+          <TradersPanel
+            kind={openTraders}
+            onClose={() => setOpenTraders(null)}
+          />
+        ) : metric === "volume" && !loading ? (
+          <p className="text-center text-[11px] text-white/30">
+            Tip: click the{" "}
+            <span className="text-white/50">Manual</span> or{" "}
+            <span className="text-white/50">Bot</span> card to see which users
+            are behind that volume.
+          </p>
+        ) : null}
       </CardContent>
     </Card>
   );
@@ -276,6 +314,8 @@ function StatCard({
   dotColor,
   trendPct,
   loading,
+  onClick,
+  active,
 }: {
   label: string;
   value: string;
@@ -284,10 +324,36 @@ function StatCard({
   dotColor?: string;
   trendPct?: number | null;
   loading: boolean;
+  /** When set, the card becomes a button that opens a drill-down. */
+  onClick?: () => void;
+  active?: boolean;
 }) {
   const up = trendPct != null && trendPct >= 0;
+  const clickable = Boolean(onClick);
   return (
-    <div className="rounded-lg border border-white/10 bg-white/[0.02] p-3">
+    <div
+      role={clickable ? "button" : undefined}
+      tabIndex={clickable ? 0 : undefined}
+      onClick={onClick}
+      onKeyDown={
+        clickable
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onClick?.();
+              }
+            }
+          : undefined
+      }
+      className={cn(
+        "rounded-lg border p-3 transition-colors",
+        active
+          ? "border-white/25 bg-white/[0.06]"
+          : "border-white/10 bg-white/[0.02]",
+        clickable &&
+          "cursor-pointer outline-none hover:border-white/20 hover:bg-white/[0.04] focus-visible:ring-2 focus-visible:ring-white/20",
+      )}
+    >
       <div className="flex items-center gap-1.5 text-xs text-white/50">
         {dotColor ? (
           <span
@@ -297,6 +363,15 @@ function StatCard({
           />
         ) : null}
         {label}
+        {clickable ? (
+          <ChevronRight
+            className={cn(
+              "ml-auto size-3.5 text-white/40 transition-transform",
+              active && "rotate-90 text-white/70",
+            )}
+            aria-hidden
+          />
+        ) : null}
       </div>
       {loading ? (
         <Skeleton className="mt-1.5 h-6 w-20" />
