@@ -77,9 +77,11 @@ export function TradingAnalyticsContent({ metric }: { metric: Metric }) {
   const [error, setError] = useState<string | null>(null);
   const [range, setRange] = useState<RangeKey>("all");
   const [view, setView] = useState<ChartView>("daily");
-  // Which per-user breakdown is open below the chart. Only the volume dashboard
-  // exposes this — the cards there sum to real, per-user SOL volume.
-  const [openTraders, setOpenTraders] = useState<TradersKind | null>(null);
+  // Per-day order drill-down (volume dashboard only): click a bar to pick a
+  // day, then choose Manual or Bot to see that day's traders. `pickedDay` is
+  // the clicked UTC day; `pickedKind` is null until they choose a side.
+  const [pickedDay, setPickedDay] = useState<string | null>(null);
+  const [pickedKind, setPickedKind] = useState<TradersKind | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -176,15 +178,6 @@ export function TradingAnalyticsContent({ metric }: { metric: Metric }) {
             sub={`${manualPct}% of total`}
             dotColor="#2dd4bf"
             loading={loading}
-            onClick={
-              metric === "volume"
-                ? () =>
-                    setOpenTraders((prev) =>
-                      prev === "manual" ? null : "manual",
-                    )
-                : undefined
-            }
-            active={metric === "volume" && openTraders === "manual"}
           />
           <StatCard
             label="Bot"
@@ -192,13 +185,6 @@ export function TradingAnalyticsContent({ metric }: { metric: Metric }) {
             sub={`${botPct}% of total`}
             dotColor="#818cf8"
             loading={loading}
-            onClick={
-              metric === "volume"
-                ? () =>
-                    setOpenTraders((prev) => (prev === "bot" ? null : "bot"))
-                : undefined
-            }
-            active={metric === "volume" && openTraders === "bot"}
           />
           <StatCard
             label="Avg / active day"
@@ -256,25 +242,136 @@ export function TradingAnalyticsContent({ metric }: { metric: Metric }) {
             unit="SOL"
             botLegend="Bot"
             manualLegend="Manual"
+            onPickDay={
+              metric === "volume"
+                ? (date) => {
+                    setPickedDay(date);
+                    setPickedKind(null); // re-show the chooser for the new day
+                  }
+                : undefined
+            }
+            pickedDate={metric === "volume" ? pickedDay : null}
           />
         )}
 
-        {/* Per-user drill-down: opens when a headline card is clicked. */}
-        {metric === "volume" && openTraders ? (
-          <TradersPanel
-            kind={openTraders}
-            onClose={() => setOpenTraders(null)}
-          />
-        ) : metric === "volume" && !loading ? (
+        {/* Per-day order drill-down: click a bar → choose Manual/Bot → list. */}
+        {metric === "volume" && pickedDay ? (
+          pickedKind ? (
+            <TradersPanel
+              kind={pickedKind}
+              date={pickedDay}
+              onBack={() => setPickedKind(null)}
+              onClose={() => {
+                setPickedDay(null);
+                setPickedKind(null);
+              }}
+            />
+          ) : (
+            <OrderKindChooser
+              day={days.find((d) => d.date === pickedDay) ?? null}
+              onPick={setPickedKind}
+              onClose={() => setPickedDay(null)}
+            />
+          )
+        ) : metric === "volume" && !loading && allDays.length > 0 ? (
           <p className="text-center text-[11px] text-white/30">
-            Tip: click the{" "}
-            <span className="text-white/50">Manual</span> or{" "}
-            <span className="text-white/50">Bot</span> card to see which users
-            traded on a given day.
+            Tip: click any{" "}
+            <span className="text-white/50">bar</span> to see the manual or bot
+            orders placed that day.
           </p>
         ) : null}
       </CardContent>
     </Card>
+  );
+}
+
+// After a bar is clicked, offer the two order types for that day. Each button
+// shows the day's SOL split (already known from the chart data) so the choice
+// is informed before we fetch the per-user list.
+function OrderKindChooser({
+  day,
+  onPick,
+  onClose,
+}: {
+  day: TradingDay | null;
+  onPick: (kind: TradersKind) => void;
+  onClose: () => void;
+}) {
+  const label = day
+    ? new Date(`${day.date}T00:00:00Z`).toLocaleDateString("en-US", {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+        timeZone: "UTC",
+      })
+    : "";
+  return (
+    <div className="rounded-xl border border-white/10 bg-black/40 p-4">
+      <div className="mb-3 flex items-center justify-between">
+        <p className="text-xs text-white/55">
+          <span className="font-medium text-white/85">{label}</span> — which
+          orders?
+        </p>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close"
+          className="text-[11px] text-white/40 transition-colors hover:text-white/80"
+        >
+          Cancel
+        </button>
+      </div>
+      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+        <OrderKindButton
+          kind="manual"
+          dotColor="#2dd4bf"
+          sol={day?.manual ?? 0}
+          onClick={() => onPick("manual")}
+        />
+        <OrderKindButton
+          kind="bot"
+          dotColor="#818cf8"
+          sol={day?.bot ?? 0}
+          onClick={() => onPick("bot")}
+        />
+      </div>
+    </div>
+  );
+}
+
+function OrderKindButton({
+  kind,
+  dotColor,
+  sol,
+  onClick,
+}: {
+  kind: TradersKind;
+  dotColor: string;
+  sol: number;
+  onClick: () => void;
+}) {
+  const title = kind === "manual" ? "Manual orders" : "Bot orders";
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="group flex items-center justify-between rounded-lg border border-white/10 bg-white/[0.02] px-4 py-3 text-left transition-colors hover:border-white/25 hover:bg-white/[0.05]"
+    >
+      <span className="flex items-center gap-2.5">
+        <span
+          aria-hidden
+          className="size-2.5 rounded-sm"
+          style={{ background: dotColor }}
+        />
+        <span className="text-sm font-medium text-white/90">{title}</span>
+      </span>
+      <span className="flex items-center gap-1.5">
+        <span className="font-mono text-sm tabular-nums text-white/70">
+          ◎{fmtSol(sol)}
+        </span>
+        <ChevronRight className="size-4 text-white/30 transition-transform group-hover:translate-x-0.5 group-hover:text-white/60" />
+      </span>
+    </button>
   );
 }
 
