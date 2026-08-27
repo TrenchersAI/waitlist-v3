@@ -270,7 +270,7 @@ export function TradingAnalyticsContent({ metric }: { metric: Metric }) {
             Tip: click the{" "}
             <span className="text-white/50">Manual</span> or{" "}
             <span className="text-white/50">Bot</span> card to see which users
-            are behind that volume.
+            traded on a given day.
           </p>
         ) : null}
       </CardContent>

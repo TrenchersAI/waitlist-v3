@@ -1,12 +1,14 @@
 // =============================================================================
-// trenchers-traders — per-USER volume breakdown, manual vs bot
+// trenchers-traders — per-USER volume breakdown for a SINGLE UTC day
 // =============================================================================
 //
 // Powers the "who traded" drill-down on the Trading volume dashboard: click the
-// Manual (or Bot) headline card and get the ranked list of users behind that
-// number. Same source + same correctness guards as `trenchers-analytics.ts`
-// (the card totals these rows sum to are computed there), so the two always
-// reconcile:
+// Manual (or Bot) headline card, pick a day, and get the ranked list of users
+// who traded THAT day. The chart is per-day, so the drill-down is per-day too.
+//
+// Same source + same correctness guards as `trenchers-analytics.ts` (the daily
+// bars these rows sum to are computed there), so a day's rows reconcile with
+// that day's bar:
 //
 //   • LIVE, CONFIRMED FILLS ONLY — `status = 'confirmed'` AND
 //     `signature NOT LIKE 'paper%'` (paper fills carry a synthetic 'paper%'
@@ -15,10 +17,11 @@
 //   • LAMPORTS → SOL AT THE QUERY EDGE for bot volume (`sol_amount` / 1e9).
 //     Manual volume is the SOL leg of the swap (`input_amount` on a buy,
 //     `output_amount` on a sell), already in SOL.
+//   • A SINGLE UTC DAY: `created_at >= $1::date AND created_at < $1::date + 1`.
 //
 // Identity is resolved by LEFT JOIN onto `users` so a user_id with no row (or a
-// null user_id on a legacy fill) still shows up — we just render the wallet /
-// short id instead of a username.
+// null user_id on a legacy fill) still shows up — we render the wallet / short
+// id instead of a username.
 //
 // DATA FLOOR: reused from `trenchers-analytics.ts` (2026-07-25).
 
@@ -41,8 +44,12 @@ export type TraderRow = {
   lastTradeAt: string | null;
 };
 
+/** The breakdown for one day, plus the list of days that have any activity so
+ *  the UI can offer a day picker. */
 export type TradersPayload = {
   floor: string;
+  date: string; // the UTC day these rows are for (YYYY-MM-DD)
+  days: string[]; // selectable days with activity, newest first
   manual: TraderRow[];
   bot: TraderRow[];
 };
@@ -52,18 +59,50 @@ function num(v: unknown): number {
   return Number.isFinite(n) ? n : 0;
 }
 
-// A single user can trade with a huge number of fills; we only ever render a
-// leaderboard, so cap each list. 500 is far beyond what the table shows but
-// keeps the payload bounded if the user base grows.
+/** `YYYY-MM-DD`, and not before the data floor. */
+export function isValidTradingDay(date: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return false;
+  return date >= TRADING_FLOOR_ISO;
+}
+
+// One user can trade with a huge number of fills; we only ever render a
+// leaderboard, so cap each list well above what the table shows.
 const LIMIT = 500;
 
-async function loadTraders(): Promise<Omit<TradersPayload, "floor">> {
+/** Days (UTC, newest first) that have at least one confirmed non-paper manual
+ *  or bot fill since the floor — the options for the day picker. */
+async function loadTraderDays(): Promise<string[]> {
+  const pool = getTrenchersPool();
+  if (!pool) return [];
+
+  const q = await pool.query<{ date: string }>(
+    `SELECT d FROM (
+        SELECT DISTINCT to_char(date(created_at), 'YYYY-MM-DD') AS d
+          FROM bot_trades
+         WHERE status = 'confirmed' AND signature NOT LIKE 'paper%'
+           AND created_at >= $1::date
+        UNION
+        SELECT DISTINCT to_char(date(created_at), 'YYYY-MM-DD') AS d
+          FROM trades
+         WHERE quote_mint LIKE 'So111%' AND status = 'confirmed'
+           AND signature NOT LIKE 'paper%' AND created_at >= $1::date
+      ) u
+      ORDER BY d DESC`,
+    [TRADING_FLOOR_ISO],
+  );
+  return q.rows.map((r) => r.date);
+}
+
+/** Per-user manual + bot breakdown for one UTC day. */
+async function loadTradersForDay(
+  date: string,
+): Promise<Pick<TradersPayload, "manual" | "bot">> {
   const pool = getTrenchersPool();
   if (!pool) return { manual: [], bot: [] };
 
-  // Bot volume per user — mirrors `loadVolume`'s bot leg, grouped by user and
-  // joined to identity. `pnl_lamports` sums to realized PnL (only sells carry
-  // it). `count(DISTINCT bot_id)` = how many of their bots actually fired.
+  // Bot volume per user for the day — mirrors `loadVolume`'s bot leg, grouped
+  // by user and joined to identity. `pnl_lamports` sums to realized PnL (only
+  // sells carry it). `count(DISTINCT bot_id)` = how many of their bots fired.
   const botQ = pool.query<{
     user_id: string | null;
     username: string | null;
@@ -89,14 +128,15 @@ async function loadTraders(): Promise<Omit<TradersPayload, "floor">> {
       WHERE bt.status = 'confirmed'
         AND bt.signature NOT LIKE 'paper%'
         AND bt.created_at >= $1::date
+        AND bt.created_at <  ($1::date + INTERVAL '1 day')
       GROUP BY bt.user_id, u.username, u.display_name, u.wallet_address
       ORDER BY volume_sol DESC NULLS LAST
       LIMIT ${LIMIT}`,
-    [TRADING_FLOOR_ISO],
+    [date],
   );
 
-  // Manual volume per user — mirrors `loadVolume`'s manual leg (SOL-quoted
-  // swaps only), grouped by user and joined to identity.
+  // Manual volume per user for the day — mirrors `loadVolume`'s manual leg
+  // (SOL-quoted swaps only), grouped by user and joined to identity.
   const manualQ = pool.query<{
     user_id: string | null;
     username: string | null;
@@ -120,10 +160,11 @@ async function loadTraders(): Promise<Omit<TradersPayload, "floor">> {
         AND t.status = 'confirmed'
         AND t.signature NOT LIKE 'paper%'
         AND t.created_at >= $1::date
+        AND t.created_at <  ($1::date + INTERVAL '1 day')
       GROUP BY t.user_id, u.username, u.display_name, u.wallet_address
       ORDER BY volume_sol DESC NULLS LAST
       LIMIT ${LIMIT}`,
-    [TRADING_FLOOR_ISO],
+    [date],
   );
 
   const [bot, manual] = await Promise.all([botQ, manualQ]);
@@ -154,9 +195,14 @@ async function loadTraders(): Promise<Omit<TradersPayload, "floor">> {
   };
 }
 
-// 60s cache, matching the volume/revenue aggregates this drills into.
-export const fetchTradingTraders = unstable_cache(
-  loadTraders,
-  ["trading-traders"],
+// 60s cache, matching the volume/revenue aggregates this drills into. The day
+// list is date-independent; the breakdown is keyed by day (unstable_cache keys
+// on the function args, so each date caches separately).
+export const fetchTraderDays = unstable_cache(loadTraderDays, ["trader-days"], {
+  revalidate: 60,
+});
+export const fetchTradersForDay = unstable_cache(
+  loadTradersForDay,
+  ["trading-traders-day"],
   { revalidate: 60 },
 );
