@@ -22,7 +22,6 @@ type TraderRow = {
 type TradersPayload = {
   floor: string;
   date: string;
-  days: string[];
   manual: TraderRow[];
   bot: TraderRow[];
 };
