@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { X } from "lucide-react";
+import { ArrowLeft, X } from "lucide-react";
 
 import { Skeleton } from "@/src/components/ui/skeleton";
 import { cn } from "@/src/lib/utils";
@@ -29,28 +29,24 @@ type TradersPayload = {
 
 type TradersKind = "manual" | "bot";
 
-// Module-level cache keyed by day so switching manual↔bot or re-opening the
-// same day doesn't re-hit the endpoint. `null` (no explicit day) resolves to
-// the latest active day server-side and is cached under "__default__". The API
-// itself is 60s-cached; this just avoids redundant round-trips in a session.
+// Module-level cache keyed by day so switching Manual↔Bot for the same day (or
+// re-opening it) doesn't re-hit the endpoint. The API itself is 60s-cached;
+// this just avoids redundant round-trips within a session.
 const cacheByDate = new Map<string, TradersPayload>();
 
-function loadTraders(date: string | null): Promise<TradersPayload> {
-  const key = date ?? "__default__";
-  const cached = cacheByDate.get(key);
+function loadTradersForDate(date: string): Promise<TradersPayload> {
+  const cached = cacheByDate.get(date);
   if (cached) return Promise.resolve(cached);
-  const url = date
-    ? `/api/analytics/trading/traders?date=${encodeURIComponent(date)}`
-    : "/api/analytics/trading/traders";
-  return fetch(url, { cache: "no-store" })
+  return fetch(
+    `/api/analytics/trading/traders?date=${encodeURIComponent(date)}`,
+    { cache: "no-store" },
+  )
     .then(async (r) => {
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       return (await r.json()) as TradersPayload;
     })
     .then((p) => {
-      cacheByDate.set(key, p);
-      // Also cache under the resolved day so an explicit re-pick is instant.
-      cacheByDate.set(p.date, p);
+      cacheByDate.set(date, p);
       return p;
     });
 }
@@ -69,8 +65,8 @@ function fmtInt(n: number): string {
   return n.toLocaleString("en-US");
 }
 
-/** Time-of-day (UTC) for a fill on the selected day — the day is already in the
- *  header, so a relative "3h ago" would be redundant and confusing here. */
+/** Time-of-day (UTC) for a fill — the day is already in the header, so a
+ *  relative "3h ago" would be redundant here. */
 function fmtClock(iso: string | null): string {
   if (!iso) return "—";
   const d = new Date(iso);
@@ -83,7 +79,7 @@ function fmtClock(iso: string | null): string {
   });
 }
 
-/** Human day label for the picker: `Wed, Aug 27` (UTC). */
+/** Human day label: `Wed, Aug 27` (UTC). */
 function fmtDayLabel(date: string): string {
   const d = new Date(`${date}T00:00:00.000Z`);
   if (Number.isNaN(d.getTime())) return date;
@@ -116,33 +112,35 @@ function traderInitial(r: TraderRow): string {
 }
 
 const COPY: Record<TradersKind, { title: string; noun: string; dot: string }> = {
-  manual: { title: "Manual traders", noun: "a confirmed manual swap", dot: "#2dd4bf" },
-  bot: { title: "Bot traders", noun: "a confirmed live bot fill", dot: "#818cf8" },
+  manual: { title: "Manual orders", noun: "manual swaps", dot: "#2dd4bf" },
+  bot: { title: "Bot orders", noun: "bot fills", dot: "#818cf8" },
 };
 
 export function TradersPanel({
   kind,
+  date,
+  onBack,
   onClose,
 }: {
   kind: TradersKind;
+  /** The UTC day (YYYY-MM-DD) picked on the chart. */
+  date: string;
+  /** Back to the Manual/Bot chooser for the same day. */
+  onBack: () => void;
+  /** Close the whole drill-down. */
   onClose: () => void;
 }) {
-  // `date === null` means "latest active day"; the server resolves it and the
-  // response tells us which day + the full list of selectable days.
-  const [date, setDate] = useState<string | null>(null);
   const [payload, setPayload] = useState<TradersPayload | null>(
-    cacheByDate.get("__default__") ?? null,
+    cacheByDate.get(date) ?? null,
   );
-  const [loading, setLoading] = useState(!cacheByDate.get("__default__"));
+  const [loading, setLoading] = useState(!cacheByDate.get(date));
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
 
-  // Loading/error are reset in the day-picker's onChange (an event handler) so
-  // we never call setState synchronously in the effect body. On first mount
-  // `loading` already starts `true` on a cache miss.
+  // `loading` starts `true` on a cache miss, so no synchronous setState here.
   useEffect(() => {
     let cancelled = false;
-    loadTraders(date)
+    loadTradersForDate(date)
       .then((p) => {
         if (!cancelled) setPayload(p);
       })
@@ -161,8 +159,6 @@ export function TradersPanel({
 
   const copy = COPY[kind];
   const rows = kind === "manual" ? payload?.manual : payload?.bot;
-  const shownDate = date ?? payload?.date ?? "";
-  const days = payload?.days ?? [];
 
   const filtered = useMemo(() => {
     if (!rows) return [];
@@ -186,33 +182,21 @@ export function TradersPanel({
     <div className="rounded-xl border border-white/10 bg-black/40">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/8 px-4 py-3">
         <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={onBack}
+            className="flex items-center gap-1 rounded-lg border border-white/10 px-2 py-1 text-[11px] text-white/55 transition-colors hover:bg-white/[0.05] hover:text-white"
+          >
+            <ArrowLeft className="size-3.5" />
+            Back
+          </button>
           <span
             aria-hidden
             className="size-2 rounded-sm"
             style={{ background: copy.dot }}
           />
           <h3 className="text-sm font-semibold text-white">{copy.title}</h3>
-          {/* Day picker — the whole point of the drill-down is per-day. */}
-          <select
-            value={shownDate}
-            onChange={(e) => {
-              setSearch("");
-              setError(null);
-              setLoading(true);
-              setDate(e.target.value);
-            }}
-            disabled={days.length === 0}
-            className="h-7 rounded-lg border border-white/12 bg-black/40 px-2 text-xs text-white outline-none focus:border-white/35 focus:ring-2 focus:ring-white/15 disabled:opacity-50"
-          >
-            {days.length === 0 && shownDate ? (
-              <option value={shownDate}>{fmtDayLabel(shownDate)}</option>
-            ) : null}
-            {days.map((d) => (
-              <option key={d} value={d}>
-                {fmtDayLabel(d)}
-              </option>
-            ))}
-          </select>
+          <span className="text-xs text-white/45">· {fmtDayLabel(date)}</span>
           {rows ? (
             <span className="rounded-full border border-white/10 bg-white/[0.03] px-2 py-0.5 text-[10px] font-medium tabular-nums text-white/55">
               {fmtInt(rows.length)} users · ◎{fmtSol(totalVol)}
@@ -239,11 +223,9 @@ export function TradersPanel({
       </div>
 
       <p className="px-4 pt-3 text-[11px] text-white/40">
-        Users who placed {copy.noun} on{" "}
-        <span className="text-white/60">
-          {shownDate ? fmtDayLabel(shownDate) : "—"}
-        </span>{" "}
-        (UTC), ranked by SOL volume.
+        Users who placed confirmed {copy.noun} on{" "}
+        <span className="text-white/60">{fmtDayLabel(date)}</span> (UTC), ranked
+        by SOL volume.
       </p>
 
       <div className="max-h-[420px] overflow-auto p-1">
