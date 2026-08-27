@@ -21,36 +21,38 @@ type TraderRow = {
 
 type TradersPayload = {
   floor: string;
+  date: string;
+  days: string[];
   manual: TraderRow[];
   bot: TraderRow[];
 };
 
 type TradersKind = "manual" | "bot";
 
-// Module-level cache so re-opening the panel (or flipping manual↔bot) doesn't
-// re-hit the endpoint every time. The API itself is 60s-cached; this just
-// avoids a redundant round-trip within a session.
-let cachedPayload: TradersPayload | null = null;
-let inflight: Promise<TradersPayload> | null = null;
+// Module-level cache keyed by day so switching manual↔bot or re-opening the
+// same day doesn't re-hit the endpoint. `null` (no explicit day) resolves to
+// the latest active day server-side and is cached under "__default__". The API
+// itself is 60s-cached; this just avoids redundant round-trips in a session.
+const cacheByDate = new Map<string, TradersPayload>();
 
-function loadTraders(): Promise<TradersPayload> {
-  if (cachedPayload) return Promise.resolve(cachedPayload);
-  if (inflight) return inflight;
-  inflight = fetch("/api/analytics/trading/traders", { cache: "no-store" })
+function loadTraders(date: string | null): Promise<TradersPayload> {
+  const key = date ?? "__default__";
+  const cached = cacheByDate.get(key);
+  if (cached) return Promise.resolve(cached);
+  const url = date
+    ? `/api/analytics/trading/traders?date=${encodeURIComponent(date)}`
+    : "/api/analytics/trading/traders";
+  return fetch(url, { cache: "no-store" })
     .then(async (r) => {
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       return (await r.json()) as TradersPayload;
     })
     .then((p) => {
-      cachedPayload = p;
-      inflight = null;
+      cacheByDate.set(key, p);
+      // Also cache under the resolved day so an explicit re-pick is instant.
+      cacheByDate.set(p.date, p);
       return p;
-    })
-    .catch((e) => {
-      inflight = null;
-      throw e;
     });
-  return inflight;
 }
 
 // ◎ SOL formatting, identical to the trading dashboards.
@@ -67,16 +69,30 @@ function fmtInt(n: number): string {
   return n.toLocaleString("en-US");
 }
 
-function fmtWhen(iso: string | null): string {
+/** Time-of-day (UTC) for a fill on the selected day — the day is already in the
+ *  header, so a relative "3h ago" would be redundant and confusing here. */
+function fmtClock(iso: string | null): string {
   if (!iso) return "—";
-  const then = new Date(iso).getTime();
-  if (Number.isNaN(then)) return "—";
-  const mins = Math.floor((Date.now() - then) / 60_000);
-  if (mins < 1) return "now";
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  return `${Math.floor(hrs / 24)}d ago`;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleTimeString("en-US", {
+    timeZone: "UTC",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+}
+
+/** Human day label for the picker: `Wed, Aug 27` (UTC). */
+function fmtDayLabel(date: string): string {
+  const d = new Date(`${date}T00:00:00.000Z`);
+  if (Number.isNaN(d.getTime())) return date;
+  return d.toLocaleDateString("en-US", {
+    timeZone: "UTC",
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
 }
 
 function shortWallet(w: string | null): string {
@@ -84,8 +100,8 @@ function shortWallet(w: string | null): string {
   return w.length <= 12 ? w : `${w.slice(0, 4)}…${w.slice(-4)}`;
 }
 
-/** The label we show for a user: username → display name → short wallet →
- *  short user id. Never blank, so every row is identifiable. */
+/** Label for a user: username → display name → short wallet → short id. Never
+ *  blank, so every row is identifiable. */
 function traderLabel(r: TraderRow): string {
   if (r.username) return r.username;
   if (r.displayName) return r.displayName;
@@ -95,27 +111,13 @@ function traderLabel(r: TraderRow): string {
 }
 
 function traderInitial(r: TraderRow): string {
-  const label = traderLabel(r);
-  const ch = label.trim()[0];
+  const ch = traderLabel(r).trim()[0];
   return ch ? ch.toUpperCase() : "?";
 }
 
-const COPY: Record<
-  TradersKind,
-  { title: string; blurb: string; dot: string }
-> = {
-  manual: {
-    title: "Manual traders",
-    blurb:
-      "Every user who placed a confirmed manual swap since Jul 25, ranked by SOL volume.",
-    dot: "#2dd4bf",
-  },
-  bot: {
-    title: "Bot traders",
-    blurb:
-      "Every user whose bots placed a confirmed live fill since Jul 25, ranked by SOL volume.",
-    dot: "#818cf8",
-  },
+const COPY: Record<TradersKind, { title: string; noun: string; dot: string }> = {
+  manual: { title: "Manual traders", noun: "a confirmed manual swap", dot: "#2dd4bf" },
+  bot: { title: "Bot traders", noun: "a confirmed live bot fill", dot: "#818cf8" },
 };
 
 export function TradersPanel({
@@ -125,22 +127,24 @@ export function TradersPanel({
   kind: TradersKind;
   onClose: () => void;
 }) {
-  const [payload, setPayload] = useState<TradersPayload | null>(cachedPayload);
-  const [loading, setLoading] = useState(!cachedPayload);
+  // `date === null` means "latest active day"; the server resolves it and the
+  // response tells us which day + the full list of selectable days.
+  const [date, setDate] = useState<string | null>(null);
+  const [payload, setPayload] = useState<TradersPayload | null>(
+    cacheByDate.get("__default__") ?? null,
+  );
+  const [loading, setLoading] = useState(!cacheByDate.get("__default__"));
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
 
+  // Loading/error are reset in the day-picker's onChange (an event handler) so
+  // we never call setState synchronously in the effect body. On first mount
+  // `loading` already starts `true` on a cache miss.
   useEffect(() => {
-    // `loading` starts `!cachedPayload`, so it's already true on the miss path
-    // and false when the cache is warm — no synchronous setState needed here.
-    if (cachedPayload) return;
     let cancelled = false;
-    loadTraders()
+    loadTraders(date)
       .then((p) => {
-        if (!cancelled) {
-          setPayload(p);
-          setError(null);
-        }
+        if (!cancelled) setPayload(p);
       })
       .catch((e: unknown) => {
         if (!cancelled) {
@@ -153,23 +157,24 @@ export function TradersPanel({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [date]);
 
   const copy = COPY[kind];
   const rows = kind === "manual" ? payload?.manual : payload?.bot;
+  const shownDate = date ?? payload?.date ?? "";
+  const days = payload?.days ?? [];
 
   const filtered = useMemo(() => {
     if (!rows) return [];
     const q = search.trim().toLowerCase();
     if (!q) return rows;
-    return rows.filter((r) => {
-      return (
+    return rows.filter(
+      (r) =>
         r.username?.toLowerCase().includes(q) ||
         r.displayName?.toLowerCase().includes(q) ||
         r.wallet?.toLowerCase().includes(q) ||
-        r.userId?.toLowerCase().includes(q)
-      );
-    });
+        r.userId?.toLowerCase().includes(q),
+    );
   }, [rows, search]);
 
   const totalVol = useMemo(
@@ -180,13 +185,34 @@ export function TradersPanel({
   return (
     <div className="rounded-xl border border-white/10 bg-black/40">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/8 px-4 py-3">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <span
             aria-hidden
             className="size-2 rounded-sm"
             style={{ background: copy.dot }}
           />
           <h3 className="text-sm font-semibold text-white">{copy.title}</h3>
+          {/* Day picker — the whole point of the drill-down is per-day. */}
+          <select
+            value={shownDate}
+            onChange={(e) => {
+              setSearch("");
+              setError(null);
+              setLoading(true);
+              setDate(e.target.value);
+            }}
+            disabled={days.length === 0}
+            className="h-7 rounded-lg border border-white/12 bg-black/40 px-2 text-xs text-white outline-none focus:border-white/35 focus:ring-2 focus:ring-white/15 disabled:opacity-50"
+          >
+            {days.length === 0 && shownDate ? (
+              <option value={shownDate}>{fmtDayLabel(shownDate)}</option>
+            ) : null}
+            {days.map((d) => (
+              <option key={d} value={d}>
+                {fmtDayLabel(d)}
+              </option>
+            ))}
+          </select>
           {rows ? (
             <span className="rounded-full border border-white/10 bg-white/[0.03] px-2 py-0.5 text-[10px] font-medium tabular-nums text-white/55">
               {fmtInt(rows.length)} users · ◎{fmtSol(totalVol)}
@@ -212,7 +238,13 @@ export function TradersPanel({
         </div>
       </div>
 
-      <p className="px-4 pt-3 text-[11px] text-white/40">{copy.blurb}</p>
+      <p className="px-4 pt-3 text-[11px] text-white/40">
+        Users who placed {copy.noun} on{" "}
+        <span className="text-white/60">
+          {shownDate ? fmtDayLabel(shownDate) : "—"}
+        </span>{" "}
+        (UTC), ranked by SOL volume.
+      </p>
 
       <div className="max-h-[420px] overflow-auto p-1">
         <table className="w-full min-w-[560px] border-collapse text-left text-sm">
@@ -228,7 +260,7 @@ export function TradersPanel({
                   <th className="py-2 pr-3 text-right font-medium">PnL</th>
                 </>
               ) : null}
-              <th className="py-2 pr-4 text-right font-medium">Last trade</th>
+              <th className="py-2 pr-4 text-right font-medium">Last (UTC)</th>
             </tr>
           </thead>
           <tbody>
@@ -251,7 +283,9 @@ export function TradersPanel({
                   colSpan={kind === "bot" ? 7 : 5}
                   className="px-4 py-8 text-center text-sm text-white/50"
                 >
-                  {search ? "No users match that search." : "No traders yet."}
+                  {search
+                    ? "No users match that search."
+                    : "No traders on this day."}
                 </td>
               </tr>
             ) : (
@@ -315,7 +349,7 @@ export function TradersPanel({
                     </>
                   ) : null}
                   <td className="py-2.5 pr-4 text-right font-mono text-[11px] whitespace-nowrap text-white/45">
-                    {fmtWhen(r.lastTradeAt)}
+                    {fmtClock(r.lastTradeAt)}
                   </td>
                 </tr>
               ))
