@@ -330,23 +330,17 @@ function StatCard({
 }) {
   const up = trendPct != null && trendPct >= 0;
   const clickable = Boolean(onClick);
+  // A real <button> when clickable (bulletproof hit target + keyboard support),
+  // a plain <div> otherwise. `text-left` + `w-full` keep the button visually
+  // identical to the static cards.
+  const Tag = clickable ? "button" : "div";
   return (
-    <div
-      role={clickable ? "button" : undefined}
-      tabIndex={clickable ? 0 : undefined}
-      onClick={onClick}
-      onKeyDown={
-        clickable
-          ? (e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                onClick?.();
-              }
-            }
-          : undefined
-      }
+    <Tag
+      {...(clickable
+        ? { type: "button" as const, onClick }
+        : {})}
       className={cn(
-        "rounded-lg border p-3 transition-colors",
+        "block w-full rounded-lg border p-3 text-left transition-colors",
         active
           ? "border-white/25 bg-white/[0.06]"
           : "border-white/10 bg-white/[0.02]",
@@ -407,6 +401,6 @@ function StatCard({
       {sub && !loading ? (
         <div className="mt-0.5 truncate text-[11px] text-white/35">{sub}</div>
       ) : null}
-    </div>
+    </Tag>
   );
 }
