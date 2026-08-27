@@ -195,14 +195,22 @@ async function loadTradersForDay(
   };
 }
 
-// 60s cache, matching the volume/revenue aggregates this drills into. The day
-// list is date-independent; the breakdown is keyed by day (unstable_cache keys
-// on the function args, so each date caches separately).
+// 60s cache, matching the volume/revenue aggregates this drills into.
 export const fetchTraderDays = unstable_cache(loadTraderDays, ["trader-days"], {
   revalidate: 60,
 });
-export const fetchTradersForDay = unstable_cache(
-  loadTradersForDay,
-  ["trading-traders-day"],
-  { revalidate: 60 },
-);
+
+// The per-day breakdown MUST cache per date. `unstable_cache` keys on its
+// `keyParts` (not reliably on the wrapped function's arguments), so a single
+// static keyParts would collide every date into one entry — the first day
+// queried would then be served for all days. Bake the date INTO keyParts by
+// building a fresh cached fn per date; each date gets its own cache slot.
+export function fetchTradersForDay(
+  date: string,
+): Promise<Pick<TradersPayload, "manual" | "bot">> {
+  return unstable_cache(
+    () => loadTradersForDay(date),
+    ["trading-traders-day", date],
+    { revalidate: 60 },
+  )();
+}
