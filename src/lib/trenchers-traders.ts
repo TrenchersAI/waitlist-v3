@@ -25,8 +25,6 @@
 //
 // DATA FLOOR: reused from `trenchers-analytics.ts` (2026-07-25).
 
-import { unstable_cache } from "next/cache";
-
 import { TRADING_FLOOR_ISO } from "@/src/lib/trenchers-analytics";
 import { getTrenchersPool } from "@/src/lib/trenchers-db";
 
@@ -44,12 +42,10 @@ export type TraderRow = {
   lastTradeAt: string | null;
 };
 
-/** The breakdown for one day, plus the list of days that have any activity so
- *  the UI can offer a day picker. */
+/** The per-user breakdown for one UTC day. */
 export type TradersPayload = {
   floor: string;
   date: string; // the UTC day these rows are for (YYYY-MM-DD)
-  days: string[]; // selectable days with activity, newest first
   manual: TraderRow[];
   bot: TraderRow[];
 };
@@ -69,32 +65,8 @@ export function isValidTradingDay(date: string): boolean {
 // leaderboard, so cap each list well above what the table shows.
 const LIMIT = 500;
 
-/** Days (UTC, newest first) that have at least one confirmed non-paper manual
- *  or bot fill since the floor — the options for the day picker. */
-async function loadTraderDays(): Promise<string[]> {
-  const pool = getTrenchersPool();
-  if (!pool) return [];
-
-  const q = await pool.query<{ date: string }>(
-    `SELECT d FROM (
-        SELECT DISTINCT to_char(date(created_at), 'YYYY-MM-DD') AS d
-          FROM bot_trades
-         WHERE status = 'confirmed' AND signature NOT LIKE 'paper%'
-           AND created_at >= $1::date
-        UNION
-        SELECT DISTINCT to_char(date(created_at), 'YYYY-MM-DD') AS d
-          FROM trades
-         WHERE quote_mint LIKE 'So111%' AND status = 'confirmed'
-           AND signature NOT LIKE 'paper%' AND created_at >= $1::date
-      ) u
-      ORDER BY d DESC`,
-    [TRADING_FLOOR_ISO],
-  );
-  return q.rows.map((r) => r.date);
-}
-
 /** Per-user manual + bot breakdown for one UTC day. */
-async function loadTradersForDay(
+export async function fetchTradersForDay(
   date: string,
 ): Promise<Pick<TradersPayload, "manual" | "bot">> {
   const pool = getTrenchersPool();
@@ -195,22 +167,9 @@ async function loadTradersForDay(
   };
 }
 
-// 60s cache, matching the volume/revenue aggregates this drills into.
-export const fetchTraderDays = unstable_cache(loadTraderDays, ["trader-days"], {
-  revalidate: 60,
-});
-
-// The per-day breakdown MUST cache per date. `unstable_cache` keys on its
-// `keyParts` (not reliably on the wrapped function's arguments), so a single
-// static keyParts would collide every date into one entry — the first day
-// queried would then be served for all days. Bake the date INTO keyParts by
-// building a fresh cached fn per date; each date gets its own cache slot.
-export function fetchTradersForDay(
-  date: string,
-): Promise<Pick<TradersPayload, "manual" | "bot">> {
-  return unstable_cache(
-    () => loadTradersForDay(date),
-    ["trading-traders-day", date],
-    { revalidate: 60 },
-  )();
-}
+// NOTE: deliberately NOT wrapped in `unstable_cache`. That helper keys on its
+// static `keyParts`, not reliably on the wrapped function's date argument, so
+// every day collided into one cache entry and the drill-down served the same
+// day for every bar. The query is a single-day, indexed aggregate run only on
+// an explicit user click, so we just query live each time; the route is
+// force-dynamic to match.
