@@ -159,6 +159,10 @@ export function TradersPanel({
 
   const copy = COPY[kind];
   const rows = kind === "manual" ? payload?.manual : payload?.bot;
+  // Prefer the day the server actually returned; falls back to the requested
+  // day while loading. These agree in normal operation — this just guarantees
+  // the header can never label a day the rows don't belong to.
+  const shownDate = payload?.date ?? date;
 
   const filtered = useMemo(() => {
     if (!rows) return [];
@@ -196,7 +200,7 @@ export function TradersPanel({
             style={{ background: copy.dot }}
           />
           <h3 className="text-sm font-semibold text-white">{copy.title}</h3>
-          <span className="text-xs text-white/45">· {fmtDayLabel(date)}</span>
+          <span className="text-xs text-white/45">· {fmtDayLabel(shownDate)}</span>
           {rows ? (
             <span className="rounded-full border border-white/10 bg-white/[0.03] px-2 py-0.5 text-[10px] font-medium tabular-nums text-white/55">
               {fmtInt(rows.length)} users · ◎{fmtSol(totalVol)}
@@ -224,7 +228,7 @@ export function TradersPanel({
 
       <p className="px-4 pt-3 text-[11px] text-white/40">
         Users who placed confirmed {copy.noun} on{" "}
-        <span className="text-white/60">{fmtDayLabel(date)}</span> (UTC), ranked
+        <span className="text-white/60">{fmtDayLabel(shownDate)}</span> (UTC), ranked
         by SOL volume.
       </p>
 
