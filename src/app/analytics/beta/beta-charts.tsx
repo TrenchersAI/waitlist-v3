@@ -240,10 +240,26 @@ export function Timeline({
   );
 }
 
-function Legend({ swatch, label }: { swatch: string; label: string }) {
+function Legend({
+  swatch,
+  label,
+  outline,
+}: {
+  swatch: string;
+  label: string;
+  /// Draw the swatch as a bordered box, matching a series the chart renders
+  /// as an outline rather than a fill.
+  outline?: boolean;
+}) {
   return (
     <span className="inline-flex items-center gap-1.5">
-      <span className="inline-block size-2 rounded-[2px]" style={{ background: swatch }} />
+      <span
+        className="inline-block size-2 rounded-[2px]"
+        style={{
+          background: swatch,
+          border: outline ? "1px solid rgba(255,255,255,0.45)" : undefined,
+        }}
+      />
       {label}
     </span>
   );
@@ -288,6 +304,169 @@ export function Breakdown({
           <span className="tabular-nums text-sm text-white/80">{r.count.toLocaleString()}</span>
         </div>
       ))}
+    </div>
+  );
+}
+
+/// Batch cadence for a live rollout, in 15-minute buckets.
+///
+/// This is deliberately not the hourly Timeline. A send that paces one batch
+/// every ~15 minutes looks perfectly healthy at hourly resolution even after
+/// the sender has died, because the hour containing the last three batches
+/// still shows a tall bar. At the batch resolution a dead sender shows up
+/// immediately as a run of empty buckets.
+export function CadenceBars({
+  points,
+  batchSize,
+}: {
+  points: { bucket: string; sent: number; delivered: number; bounced: number }[];
+  batchSize: number;
+}) {
+  const [hover, setHover] = React.useState<number | null>(null);
+  if (points.length === 0) {
+    return (
+      <div className="grid h-36 place-items-center text-sm text-white/30">
+        No batches sent yet.
+      </div>
+    );
+  }
+  const W = 720;
+  const H = 170;
+  const PAD_L = 34;
+  const PAD_R = 10;
+  const PAD_T = 14;
+  const PAD_B = 24;
+  const max = Math.max(...points.map((p) => p.sent), batchSize, 1);
+  const bw = (W - PAD_L - PAD_R) / points.length;
+  const x = (i: number) => PAD_L + i * bw;
+  const y = (v: number) => PAD_T + (1 - v / max) * (H - PAD_T - PAD_B);
+  const barW = Math.max(2, Math.min(bw - 3, 22));
+  const active = hover !== null ? points[hover] : null;
+  const clock = (iso: string) => iso.slice(11, 16);
+
+  return (
+    <div className="relative min-w-0">
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        className="w-full"
+        role="img"
+        aria-label="Batch cadence"
+        onMouseLeave={() => setHover(null)}
+      >
+        {/* The declared batch size, so a short batch is visible as a bar that
+            fails to reach the line rather than as a number nobody compares. */}
+        <line
+          x1={PAD_L}
+          y1={y(batchSize)}
+          x2={W - PAD_R}
+          y2={y(batchSize)}
+          stroke="rgba(255,255,255,0.22)"
+          strokeWidth="1"
+          strokeDasharray="3 3"
+        />
+        <text
+          x={PAD_L - 7}
+          y={y(batchSize) + 3}
+          textAnchor="end"
+          className="fill-white/35 text-[9px]"
+          style={{ fontVariantNumeric: "tabular-nums" }}
+        >
+          {batchSize}
+        </text>
+        <text
+          x={PAD_L}
+          y={y(0) + 15}
+          className="fill-white/25 text-[9px]"
+        >
+          {clock(points[0].bucket)} UTC
+        </text>
+        {points.length > 1 ? (
+          <text
+            x={W - PAD_R}
+            y={y(0) + 15}
+            textAnchor="end"
+            className="fill-white/25 text-[9px]"
+          >
+            {clock(points[points.length - 1].bucket)} UTC
+          </text>
+        ) : null}
+        {/* Sent is the outline, delivered is the fill inside it.
+            Drawing them as two solid overlapping bars does not work: at a
+            healthy delivery rate the delivered bar covers the sent bar
+            completely, so the chart shows one series while the legend
+            promises two, and the gap between them (the thing actually worth
+            looking at) is exactly what disappears. As an outline the sent
+            bar is always visible, and a delivery shortfall reads as an
+            unfilled bar rather than as nothing at all. */}
+        {points.map((p, i) => {
+          const bx = x(i) + (bw - barW) / 2;
+          const isHover = hover === i;
+          return (
+            <g key={p.bucket} onMouseEnter={() => setHover(i)}>
+              <rect
+                x={x(i)}
+                y={PAD_T}
+                width={bw}
+                height={H - PAD_T - PAD_B}
+                fill="transparent"
+              />
+              <rect
+                x={bx + 0.5}
+                y={y(p.sent)}
+                width={barW - 1}
+                height={Math.max(0, y(0) - y(p.sent))}
+                rx="2"
+                fill="rgba(255,255,255,0.06)"
+                stroke={isHover ? "rgba(255,255,255,0.85)" : "rgba(255,255,255,0.45)"}
+                strokeWidth="1"
+              />
+              <rect
+                x={bx + 2}
+                y={y(p.delivered) + 2}
+                width={barW - 4}
+                height={Math.max(0, y(0) - y(p.delivered) - 2)}
+                rx="1.5"
+                fill={OK}
+                opacity={isHover ? 0.95 : 0.8}
+              />
+              {p.bounced > 0 ? (
+                <rect
+                  x={bx + 2}
+                  y={y(p.bounced)}
+                  width={barW - 4}
+                  height={Math.max(2, y(0) - y(p.bounced))}
+                  rx="1.5"
+                  fill={BAD}
+                />
+              ) : null}
+            </g>
+          );
+        })}
+        <line
+          x1={PAD_L}
+          y1={y(0)}
+          x2={W - PAD_R}
+          y2={y(0)}
+          stroke="rgba(255,255,255,0.12)"
+          strokeWidth="1"
+        />
+      </svg>
+      {active ? (
+        <div className="pointer-events-none absolute right-2 top-1 rounded-md border border-white/12 bg-black/90 px-2.5 py-1.5 text-[11px] leading-relaxed">
+          <div className="font-mono text-white/45">{clock(active.bucket)} UTC</div>
+          <div className="text-white">{active.sent} sent</div>
+          <div style={{ color: OK }}>{active.delivered} delivered</div>
+          {active.bounced > 0 ? (
+            <div style={{ color: BAD }}>{active.bounced} bounced</div>
+          ) : null}
+        </div>
+      ) : null}
+      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-white/40">
+        <Legend swatch="rgba(255,255,255,0.06)" label="Sent" outline />
+        <Legend swatch={OK} label="Delivered" />
+        <Legend swatch={BAD} label="Bounced" />
+        <span className="text-white/30">Dashed line is the planned batch size</span>
+      </div>
     </div>
   );
 }

@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Claim your Falcon</title>
+  </head>
+  <!--
+    Seventh touch: the public-beta launch note, gifting Falcon to the WHOLE
+    waitlist (14,199 addresses) rather than a single wave.
+
+    Same austere shell as the six sends before it: no images, no <style>
+    block, no tables, no padded CTA button. The arrow link is inline text,
+    which keeps it out of bulk-template shape. The benefit list is a plain
+    <ul>, the one structural addition, because the two bolded benefits are
+    the point of the mail and a run-on paragraph buries them.
+
+    HOW THIS DIFFERS FROM beta-falcon/, which it otherwise mirrors:
+
+    1. IT IS A CLAIM, NOT A GRANT. The earlier mail said "you now hold
+       Falcon" and needed the tier applied BEFORE sending, or every sentence
+       was false on arrival. This one does not: `tier_claim_grants` holds a
+       row per address, and the recipient redeems it themselves from the
+       Falcon dialog. The precondition is the seed, which is done (14,199
+       rows live in production), not a per-user grant.
+
+    2. IT GOES TO EVERYONE, so it cannot thank anyone for feedback. Wave 1
+       gave feedback; the other 12,835 addresses did not, and "you gave
+       valuable feedback" would be untrue for most of the list. The shared
+       fact is that they signed up early, so that is what the copy uses.
+
+    3. IT MAKES NO PERMANENCE CLAIM, and that is deliberate rather than an
+       omission. A claimed tier writes no `user_points.plus_tier` floor, so
+       it decays TIER_DEMOTION_PERIOD_DAYS after the holder stops meeting
+       the volume bar, exactly like an earned tier. The penultimate
+       paragraph says so plainly. Without it the step-down arrives
+       unannounced to thousands of people who were told they had the top
+       tier, which is a support wave and a trust cost that one honest
+       sentence avoids.
+
+       The $5,000,000 volume figure is deliberately NOT printed: it reads as
+       unreachable and makes the gift feel hollow. "Held by volume" is the
+       true and useful half.
+
+    KEEP IN STEP with buildBetaFalconClaimText in src/lib/email.ts. The
+    plain-text mirror is maintained by hand, and some clients (and every
+    screen reader in reading mode) show only that version.
+  -->
+  <body style="margin:0;padding:0;background:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;">
+    <div style="max-width:520px;margin:0 auto;padding:36px 24px 32px;color:#1a1a1a;font-size:16px;line-height:1.6;">
+      <p style="margin:0 0 18px;">Hello,</p>
+
+      <p style="margin:0 0 18px;">
+        Trenchers is live in public beta.
+      </p>
+
+      <p style="margin:0 0 22px;">
+        You signed up before there was much to sign up for. Early believers are the only reason we got here, and we wanted to thank the people who backed us when it was still a promise.
+      </p>
+
+      <p style="margin:0 0 22px;">
+        So <strong>Falcon</strong>, our top tier, is a gift to you. It is sitting on your account, waiting to be claimed:
+      </p>
+
+      <ul style="margin:0 0 22px;padding:0 0 0 22px;">
+        <li style="margin:0 0 10px;"><strong>50% cashback on every fee.</strong> Get half your trading fees back, paid in SOL. No tier earns more.</li>
+        <li style="margin:0;"><strong>4x points on every trade.</strong> Four times what a new trader earns.</li>
+      </ul>
+
+      <p style="margin:0 0 22px;">
+        Sign in and you will see it. One click and it is yours.
+      </p>
+
+      <p style="margin:0 0 28px;">
+        Falcon is a trading tier, so it is held by volume. Claiming gives you a full 30 days at the top, and it stays as long as you keep trading.
+      </p>
+
+      <p style="margin:0 0 28px;">
+        Claim your Falcon &rarr; <a href="{{ACCESS_URL}}" style="font-weight:600;color:#1a1a1a;text-decoration:underline;">Trenchers</a>
+      </p>
+
+      <p style="margin:0 0 28px;color:#555;">Trenchers</p>
+
+      <p style="margin:0;color:#8a8a8a;font-size:13px;line-height:1.5;">
+        You are receiving this because you joined the Trenchers waitlist. If you would prefer not to hear from us, you can <a href="{{UNSUBSCRIBE_URL}}" style="color:#8a8a8a;">unsubscribe</a>.
+      </p>
+    </div>
+  </body>
+</html>

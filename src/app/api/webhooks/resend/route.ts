@@ -304,6 +304,105 @@ export async function POST(request: Request) {
       }
       return Response.json({ ok: true });
     }
+
+    // Fifth send: the Falcon tier upgrade.
+    //
+    // Adding a send WITHOUT adding its branch here is silent, which is why
+    // this comment exists. An unmatched id falls through to the base lookup
+    // on `resendMsgId` (the FIRST send's column), matches nothing, and the
+    // handler returns ok:true. The events are then gone: no delivery record,
+    // and no bounce record either, so the address stays in the reachable set
+    // and the campaign-wide reputation gate cannot see the damage the newest
+    // send is doing. If you add a sixth send, add its branch here too.
+    const falconRow = await prisma.betaInvite.findFirst({
+      where: { falconResendMsgId: resendMsgId },
+      select: {
+        id: true,
+        falconDeliveredAt: true,
+        falconOpenedAt: true,
+        falconBouncedAt: true,
+        falconComplainedAt: true,
+      },
+    });
+    if (falconRow) {
+      const fadata: Record<string, Date> = {};
+      switch (evt.type) {
+        case "email.delivered":
+          if (!falconRow.falconDeliveredAt) fadata.falconDeliveredAt = occurredAt;
+          break;
+        case "email.opened":
+          if (!falconRow.falconOpenedAt) fadata.falconOpenedAt = occurredAt;
+          break;
+        case "email.bounced":
+        case "email.failed":
+          if (!falconRow.falconBouncedAt) fadata.falconBouncedAt = occurredAt;
+          break;
+        case "email.complained":
+          if (!falconRow.falconComplainedAt) fadata.falconComplainedAt = occurredAt;
+          break;
+        default:
+          break;
+      }
+      if (Object.keys(fadata).length > 0) {
+        await prisma.betaInvite.update({ where: { id: falconRow.id }, data: fadata });
+      }
+      return Response.json({ ok: true });
+    }
+
+    // Seventh send: the public-beta Falcon CLAIM campaign.
+    //
+    // The FIRST send whose columns are not on `BetaInvite`. It goes to the
+    // whole waitlist, and 3,740 of those addresses have no invite row to hang
+    // a column on, so it stamps `WaitlistSubscriber` instead. The lookup has
+    // to follow it there.
+    //
+    // This branch is what makes that send's reputation gate real. Without it
+    // an id matches nothing, the handler still returns ok:true, and
+    // `falconClaimBouncedAt` is never written -- so the sender reads zero
+    // bounces however badly the run is going, and the mid-flight abort that
+    // is supposed to stop a bad list can never fire. Silent, and worst
+    // exactly when it matters most.
+    const claimRow = await prisma.waitlistSubscriber.findFirst({
+      where: { falconClaimResendMsgId: resendMsgId },
+      select: {
+        id: true,
+        falconClaimDeliveredAt: true,
+        falconClaimBouncedAt: true,
+        falconClaimComplainedAt: true,
+        falconClaimSuppressedAt: true,
+      },
+    });
+    if (claimRow) {
+      const cdata: Record<string, Date> = {};
+      switch (evt.type) {
+        case "email.delivered":
+          if (!claimRow.falconClaimDeliveredAt) cdata.falconClaimDeliveredAt = occurredAt;
+          break;
+        case "email.bounced":
+        case "email.failed":
+          if (!claimRow.falconClaimBouncedAt) cdata.falconClaimBouncedAt = occurredAt;
+          break;
+        case "email.complained":
+          if (!claimRow.falconClaimComplainedAt) cdata.falconClaimComplainedAt = occurredAt;
+          break;
+        // Resend refused the send outright because the address is already on
+        // its suppression list. The message never left, so it costs no
+        // reputation, but the person is unreachable and must stop counting as
+        // pending or every later run retries them forever.
+        case "email.suppressed":
+          if (!claimRow.falconClaimSuppressedAt) cdata.falconClaimSuppressedAt = occurredAt;
+          break;
+        default:
+          break;
+      }
+      if (Object.keys(cdata).length > 0) {
+        await prisma.waitlistSubscriber.update({
+          where: { id: claimRow.id },
+          data: cdata,
+        });
+      }
+      return Response.json({ ok: true });
+    }
   }
 
   const invite = isBeta

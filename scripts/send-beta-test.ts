@@ -18,11 +18,20 @@ import { Resend } from "resend";
 import {
   BETA_INVITE_SUBJECT,
   BETA_FEATURE_SUBJECT,
+  BETA_INVITE_W2_SUBJECT,
+  BETA_FALCON_SUBJECT,
+  BETA_FALCON_CLAIM_SUBJECT,
   BETA_NUDGE_SUBJECT,
   BETA_REMINDER_SUBJECT,
   buildBetaInviteHtml,
   buildBetaInviteText,
   buildBetaFeatureHtml,
+  buildBetaInviteW2Html,
+  buildBetaInviteW2Text,
+  buildBetaFalconHtml,
+  buildBetaFalconText,
+  buildBetaFalconClaimHtml,
+  buildBetaFalconClaimText,
   buildBetaFeatureText,
   buildBetaNudgeHtml,
   buildBetaNudgeText,
@@ -33,9 +42,26 @@ import {
 /// Which of the three campaign emails to render. Selecting by flag keeps
 /// one test path rather than a script per template, so the beta-access
 /// check below cannot be accidentally skipped by a newer variant.
-type Variant = "invite" | "reminder" | "nudge" | "feature";
+type Variant =
+  | "invite"
+  | "reminder"
+  | "nudge"
+  | "feature"
+  | "invite-w2"
+  | "falcon"
+  | "falcon-claim";
 
 const VARIANTS = {
+  "falcon-claim": {
+    subject: BETA_FALCON_CLAIM_SUBJECT,
+    html: buildBetaFalconClaimHtml,
+    text: buildBetaFalconClaimText,
+  },
+  falcon: {
+    subject: BETA_FALCON_SUBJECT,
+    html: buildBetaFalconHtml,
+    text: buildBetaFalconText,
+  },
   invite: {
     subject: BETA_INVITE_SUBJECT,
     html: buildBetaInviteHtml,
@@ -55,6 +81,11 @@ const VARIANTS = {
     subject: BETA_FEATURE_SUBJECT,
     html: buildBetaFeatureHtml,
     text: buildBetaFeatureText,
+  },
+  "invite-w2": {
+    subject: BETA_INVITE_W2_SUBJECT,
+    html: buildBetaInviteW2Html,
+    text: buildBetaInviteW2Text,
   },
 } as const;
 import { BETA_CAMPAIGN } from "../src/lib/beta-invite";

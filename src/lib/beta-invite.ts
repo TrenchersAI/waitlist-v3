@@ -106,6 +106,32 @@ export const WAVE_LABELS: Record<InviteWave, string> = {
   excluded: "Excluded",
 };
 
+/// The rollout currently in flight, declared rather than inferred.
+///
+/// The dashboard has to report progress against what was actually launched,
+/// and that is not derivable from the table alone. wave-2-engaged holds 1,055
+/// people but this run targets 1,000 of them, so a naive "cohort minus sent"
+/// would show 55 people as still queued long after the run finished, which
+/// reads as a stalled send rather than a deliberate cap. Keeping the run's
+/// parameters here lets the report distinguish "not mailed yet" from "not in
+/// this run", and keeps one source of truth for the sender and the dashboard.
+///
+/// Update this when a new wave starts sending.
+export const ACTIVE_ROLLOUT = {
+  wave: "wave-2-engaged" as InviteWave,
+  /// What we call it in conversation, not the grading rule that named the wave.
+  name: "Second trench",
+  /// Template key passed to scripts/send-beta-invites.ts --template.
+  template: "w2",
+  subject: "You're in. Welcome to the trenches.",
+  /// Recipients this run will mail, which may be fewer than the cohort.
+  target: 1000,
+  batchSize: 84,
+  spacingMinutes: 15.1,
+  /// The run before this one, for a like-for-like comparison in the report.
+  previousWave: "wave-1-completed" as InviteWave,
+} as const;
+
 export function emailDomain(email: string): string {
   return email.slice(email.lastIndexOf("@") + 1).toLowerCase();
 }
