@@ -65,7 +65,14 @@ async function main() {
   console.log(`  delivered per webhook : ${ids.length}`);
   console.log(`  unstamped of those    : ${unstamped.length}`);
   console.log(`  mode: ${dryRun ? "DRY RUN — nothing is written" : "live"}\n`);
-  if (dryRun || unstamped.length === 0) return;
+  // Outcomes are reconciled even when nothing needs stamping: the two
+  // failures are independent, and the common case after a clean run is
+  // exactly "all stamped, but some deliveries lost the race".
+  if (dryRun) return;
+  if (unstamped.length === 0) {
+    await reconcileOutcomes(prisma);
+    return;
+  }
 
   // ONE statement. The whole reason this repair exists is that N updates in a
   // transaction cannot finish inside Prisma's 5s interactive limit over the
@@ -85,6 +92,60 @@ async function main() {
   });
   console.log(`  stamped:    ${n}`);
   console.log(`  still null: ${left}   (expect 0)\n`);
+
+  await reconcileOutcomes(prisma);
+}
+
+/// Replay delivery outcomes that the webhook could not match at the time.
+///
+/// Resend can deliver and fire `email.delivered` BEFORE the sender's stamping
+/// statement commits the message id, and the webhook's original lookup was by
+/// message id alone -- so the first batch's 96 deliveries and 1 bounce all
+/// found no row and were dropped. The webhook now matches on the
+/// `subscriberId` tag, which cannot lose that race, but the events already
+/// dropped only exist in EmailEvent. This replays them.
+///
+/// It matters beyond tidiness: the sender's mid-flight abort reads
+/// `falconClaimBouncedAt`, so bounces that never landed are an abort that
+/// cannot fire.
+async function reconcileOutcomes(prisma: ReturnType<typeof getPrismaClient>) {
+  const events = await prisma.emailEvent.findMany({
+    select: { type: true, payload: true },
+    orderBy: { occurredAt: "desc" },
+    take: 20_000,
+  });
+
+  const col: Record<string, string> = {
+    "email.delivered": "falconClaimDeliveredAt",
+    "email.bounced": "falconClaimBouncedAt",
+    "email.failed": "falconClaimBouncedAt",
+    "email.complained": "falconClaimComplainedAt",
+    "email.suppressed": "falconClaimSuppressedAt",
+  };
+  const byCol = new Map<string, Set<string>>();
+  for (const e of events) {
+    const d = (e.payload as Payload)?.data;
+    if (d?.tags?.campaign !== CAMPAIGN) continue;
+    const c = col[e.type];
+    const sub = d.tags.subscriberId;
+    if (!c || !sub) continue;
+    if (!byCol.has(c)) byCol.set(c, new Set());
+    byCol.get(c)!.add(sub);
+  }
+
+  console.log(`Reconcile outcomes from webhook events`);
+  for (const [c, set] of byCol) {
+    const arr = [...set];
+    // Column name is from the fixed `col` map above, never from event data,
+    // so interpolating it into the statement cannot be steered by a payload.
+    const updated = await prisma.$executeRawUnsafe(
+      `UPDATE "WaitlistSubscriber" SET "${c}" = now()
+        WHERE id = ANY($1::text[]) AND "${c}" IS NULL`,
+      arr,
+    );
+    console.log(`  ${c}: ${updated} stamped (${arr.length} in events)`);
+  }
+  console.log("");
 }
 
 main()

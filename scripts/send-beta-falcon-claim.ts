@@ -168,6 +168,30 @@ async function main() {
     },
   });
 
+  /// Addresses a provider will actually accept.
+  ///
+  /// Resend rejects an ENTIRE batch if a single `to` is malformed -- the first
+  /// live attempt lost all 100 recipients to one bad address and reported only
+  /// "Invalid `to` field", naming none of them. Three addresses on this list
+  /// fail: a 200-character local part (the limit is 64), one ending in a dot,
+  /// and one using a quoted local part, which is RFC-valid and rejected
+  /// anyway. Left unfiltered they would each have poisoned a whole batch of
+  /// otherwise good recipients.
+  ///
+  /// Deliberately stricter than RFC 5322 and close to what mailbox providers
+  /// enforce: the goal is "will this send", not "is this technically legal".
+  const mailable = (email: string) => {
+    if (email !== email.trim() || email.length > 254) return false;
+    if (/[\s"'<>()\[\],;:\\]/.test(email)) return false;
+    const parts = email.split("@");
+    if (parts.length !== 2) return false;
+    const [local, domain] = parts;
+    if (local.length === 0 || local.length > 64) return false;
+    if (/^\.|\.$|\.\./.test(local)) return false;
+    if (!/^[^.]+(\.[^.]+)+$/.test(domain)) return false;
+    return true;
+  };
+
   /// An opt-out is GLOBAL, so it counts from wherever it was recorded. A hard
   /// bounce or a Resend suppression means the address is unreachable: mailing
   /// it again cannot succeed and costs reputation to fail.
@@ -179,7 +203,12 @@ async function main() {
     r.betaInvite?.complainedAt != null ||
     r.betaInvite?.suppressedAt != null;
 
-  let pending = everyone.filter((r) => r.falconClaimSentAt == null && !suppressed(r));
+  const unmailable = everyone.filter(
+    (r) => r.falconClaimSentAt == null && !suppressed(r) && !mailable(r.email),
+  );
+  let pending = everyone.filter(
+    (r) => r.falconClaimSentAt == null && !suppressed(r) && mailable(r.email),
+  );
   const excludedSuppressed = everyone.length - everyone.filter((r) => !suppressed(r)).length;
 
   if (opts.excludeWaves.length > 0) {
@@ -214,6 +243,10 @@ async function main() {
   console.log(`\nFalcon CLAIM send — ${CAMPAIGN}`);
   console.log(`  recipients:  ${pending.length}`);
   console.log(`  suppressed:  ${excludedSuppressed} (opted out, bounced or unreachable)`);
+  if (unmailable.length > 0) {
+    console.log(`  unmailable:  ${unmailable.length} (malformed address, would fail its whole batch)`);
+    for (const u of unmailable) console.log(`      ${JSON.stringify(u.email)}`);
+  }
   if (opts.excludeWaves.length) console.log(`  excluded:    ${opts.excludeWaves.join(", ")}`);
   console.log(`  batches:     ${batches} x ${opts.batch}`);
   console.log(`  window:      ${opts.hours}h  (~${Math.round(gapMs / 1000)}s between batches)`);
