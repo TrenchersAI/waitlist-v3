@@ -170,26 +170,29 @@ async function main() {
 
   /// Addresses a provider will actually accept.
   ///
-  /// Resend rejects an ENTIRE batch if a single `to` is malformed -- the first
-  /// live attempt lost all 100 recipients to one bad address and reported only
-  /// "Invalid `to` field", naming none of them. Three addresses on this list
-  /// fail: a 200-character local part (the limit is 64), one ending in a dot,
-  /// and one using a quoted local part, which is RFC-valid and rejected
-  /// anyway. Left unfiltered they would each have poisoned a whole batch of
-  /// otherwise good recipients.
+  /// Resend rejects an ENTIRE batch if a single `to` is malformed, and reports
+  /// only "Invalid `to` field" without naming the offender -- so one bad
+  /// address costs ~100 reachable people per batch and gives you nothing to
+  /// debug with. The first full run died on batch 1 twice for this reason.
+  ///
+  /// A WHITELIST, not a blacklist, and that is the lesson. The first attempt
+  /// banned a list of characters it could think of and still let `g^@g.com`
+  /// through, because a caret was not on the list. Enumerating what is allowed
+  /// is finite; enumerating what is forbidden is not.
   ///
   /// Deliberately stricter than RFC 5322 and close to what mailbox providers
-  /// enforce: the goal is "will this send", not "is this technically legal".
+  /// enforce -- the question is "will this send", not "is this technically
+  /// legal". Seven addresses on this list fail it: a 200-character local part
+  /// (limit 64), one ending in a dot, a quoted local part, a caret, a
+  /// single-letter TLD, and two numeric TLDs.
+  const ADDRESS =
+    /^[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}$/;
   const mailable = (email: string) => {
     if (email !== email.trim() || email.length > 254) return false;
-    if (/[\s"'<>()\[\],;:\\]/.test(email)) return false;
-    const parts = email.split("@");
-    if (parts.length !== 2) return false;
-    const [local, domain] = parts;
-    if (local.length === 0 || local.length > 64) return false;
+    const local = email.split("@")[0] ?? "";
+    if (local.length > 64) return false;
     if (/^\.|\.$|\.\./.test(local)) return false;
-    if (!/^[^.]+(\.[^.]+)+$/.test(domain)) return false;
-    return true;
+    return ADDRESS.test(email);
   };
 
   /// An opt-out is GLOBAL, so it counts from wherever it was recorded. A hard
