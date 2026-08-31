@@ -290,20 +290,24 @@ async function main() {
         // what exhausted the Supabase pooler and killed an earlier send.
         // Retried hard, because the mail is already delivered: an unstamped
         // row looks pending and gets mailed a SECOND time on the next run.
+        // ONE statement, not N updates in a transaction. The first live batch
+        // delivered 100 messages and then could not stamp them: 100 sequential
+        // updates through the Supabase pooler blew Prisma's 5s interactive
+        // limit at 5,214ms, all four retries hit the same wall, and the run
+        // aborted holding mail that was already out. `unnest` of two arrays
+        // does the same work in a single round trip.
+        const subIds = chunk.map((r) => r.id);
+        const msgIds = chunk.map((_, k) => ids[k]?.id ?? "");
         let stamped = false;
         for (let attempt = 1; attempt <= 4 && !stamped; attempt++) {
           try {
-            await prisma.$transaction(
-              chunk.map((r, k) =>
-                prisma.waitlistSubscriber.update({
-                  where: { id: r.id },
-                  data: {
-                    falconClaimSentAt: new Date(),
-                    falconClaimResendMsgId: ids[k]?.id ?? null,
-                  },
-                }),
-              ),
-            );
+            await prisma.$executeRaw`
+              UPDATE "WaitlistSubscriber" AS w
+                 SET "falconClaimSentAt" = now(),
+                     "falconClaimResendMsgId" = NULLIF(v.msg, '')
+                FROM (SELECT unnest(${subIds}::text[]) AS id,
+                             unnest(${msgIds}::text[]) AS msg) v
+               WHERE w.id = v.id AND w."falconClaimSentAt" IS NULL`;
             stamped = true;
           } catch (e) {
             console.warn(`  batch ${n}: stamp attempt ${attempt} failed — ${(e as Error).message}`);
