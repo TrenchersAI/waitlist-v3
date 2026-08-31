@@ -177,6 +177,25 @@ model BetaInvite {
   featureBouncedAt   DateTime?
   featureComplainedAt DateTime?
 
+  /// Fifth send: the Falcon tier-upgrade thank-you. Own columns for the same
+  /// reason every send before it has them. Five sends now share one row, so
+  /// without separate columns a bounce on the newest rewrites the delivery
+  /// record of the oldest.
+  falconSentAt      DateTime?
+  falconResendMsgId String?
+  falconDeliveredAt DateTime?
+  falconOpenedAt    DateTime?
+  falconBouncedAt   DateTime?
+  falconComplainedAt DateTime?
+
+  /// When the Falcon tier was actually applied to this person's terminal
+  /// account. Distinct from `accessGrantedAt`, which is login access only.
+  /// Written by scripts/watch-falcon-grants.ts, which is what makes the
+  /// mail's "you now hold Falcon" true for someone who signs up AFTER
+  /// being mailed. Null means they either have no account yet or the
+  /// watcher has not reached them.
+  falconTierGrantedAt DateTime?
+
   /// When beta access was actually provisioned for this address.
   accessGrantedAt DateTime?
   /// First observed sign-in on beta.trenchers.ai with this email. The
@@ -198,6 +217,9 @@ model BetaInvite {
   @@index([nudgeResendMsgId])
   @@index([featureSentAt])
   @@index([featureResendMsgId])
+  @@index([falconSentAt])
+  @@index([falconResendMsgId])
+  @@index([falconTierGrantedAt])
 }
 
 /// Raw audit log of Resend webhook events. We also fold the relevant

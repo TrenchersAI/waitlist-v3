@@ -304,6 +304,50 @@ export async function POST(request: Request) {
       }
       return Response.json({ ok: true });
     }
+
+    // Fifth send: the Falcon tier upgrade.
+    //
+    // Adding a send WITHOUT adding its branch here is silent, which is why
+    // this comment exists. An unmatched id falls through to the base lookup
+    // on `resendMsgId` (the FIRST send's column), matches nothing, and the
+    // handler returns ok:true. The events are then gone: no delivery record,
+    // and no bounce record either, so the address stays in the reachable set
+    // and the campaign-wide reputation gate cannot see the damage the newest
+    // send is doing. If you add a sixth send, add its branch here too.
+    const falconRow = await prisma.betaInvite.findFirst({
+      where: { falconResendMsgId: resendMsgId },
+      select: {
+        id: true,
+        falconDeliveredAt: true,
+        falconOpenedAt: true,
+        falconBouncedAt: true,
+        falconComplainedAt: true,
+      },
+    });
+    if (falconRow) {
+      const fadata: Record<string, Date> = {};
+      switch (evt.type) {
+        case "email.delivered":
+          if (!falconRow.falconDeliveredAt) fadata.falconDeliveredAt = occurredAt;
+          break;
+        case "email.opened":
+          if (!falconRow.falconOpenedAt) fadata.falconOpenedAt = occurredAt;
+          break;
+        case "email.bounced":
+        case "email.failed":
+          if (!falconRow.falconBouncedAt) fadata.falconBouncedAt = occurredAt;
+          break;
+        case "email.complained":
+          if (!falconRow.falconComplainedAt) fadata.falconComplainedAt = occurredAt;
+          break;
+        default:
+          break;
+      }
+      if (Object.keys(fadata).length > 0) {
+        await prisma.betaInvite.update({ where: { id: falconRow.id }, data: fadata });
+      }
+      return Response.json({ ok: true });
+    }
   }
 
   const invite = isBeta
