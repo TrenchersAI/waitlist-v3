@@ -131,44 +131,56 @@ async function main() {
   const accessUrl = process.env.BETA_ACCESS_URL ?? "https://beta.trenchers.ai";
   const replyTo = process.env.RESEND_REPLY_TO ?? "team@trenchers.ai";
 
-  const candidates = await prisma.waitlistSubscriber.findMany({
-    where: {
-      falconClaimSentAt: null,
-      unsubscribedAt: null,
-      // The opt-out is global, so an unsubscribe recorded against either
-      // invite counts even though this campaign uses neither.
-      betaInvite: { is: { unsubscribedAt: null, bouncedAt: null, complainedAt: null, suppressedAt: null } },
-      surveyInvite: { is: { unsubscribedAt: null } },
-    },
+  // ONE fetch, then filter in TypeScript, and that is deliberate rather than
+  // lazy. The first version used two Prisma queries -- one with
+  // `betaInvite: { is: {...clean} }`, plus a second for the no-invite case --
+  // because an `is:` filter on a to-one relation EXCLUDES rows where the
+  // relation is null, which would have silently dropped the 3,740 subscribers
+  // with no BetaInvite: exactly the population this send exists to reach.
+  //
+  // The union of those two queries then leaked. `OR: [betaInvite is null,
+  // surveyInvite is null]` matched people who were missing ONE invite without
+  // ever checking the status on the other, so 13 addresses that had already
+  // unsubscribed came back as mailable. Thirteen unsubscribed people mailed
+  // anyway is a complaint spike, which is the single most expensive signal a
+  // domain carrying OTP login mail can produce.
+  //
+  // Null-tolerant boolean logic is hard to express once and easy to express
+  // twice, so it is expressed once, here, where it can be read. 14,199 rows
+  // is nothing to hold in memory.
+  const everyone = await prisma.waitlistSubscriber.findMany({
     select: {
       id: true,
       email: true,
       unsubscribeToken: true,
-      betaInvite: { select: { wave: true } },
+      falconClaimSentAt: true,
+      unsubscribedAt: true,
+      betaInvite: {
+        select: {
+          wave: true,
+          unsubscribedAt: true,
+          bouncedAt: true,
+          complainedAt: true,
+          suppressedAt: true,
+        },
+      },
+      surveyInvite: { select: { unsubscribedAt: true } },
     },
   });
 
-  // Prisma's `is:` filter on a to-one relation EXCLUDES rows where the
-  // relation is null, which would silently drop the 3,740 subscribers with no
-  // BetaInvite -- the exact population this send exists to reach. So the
-  // no-invite case is fetched separately and merged.
-  const noInvite = await prisma.waitlistSubscriber.findMany({
-    where: {
-      falconClaimSentAt: null,
-      unsubscribedAt: null,
-      OR: [{ betaInvite: { is: null } }, { surveyInvite: { is: null } }],
-    },
-    select: {
-      id: true,
-      email: true,
-      unsubscribeToken: true,
-      betaInvite: { select: { wave: true } },
-    },
-  });
+  /// An opt-out is GLOBAL, so it counts from wherever it was recorded. A hard
+  /// bounce or a Resend suppression means the address is unreachable: mailing
+  /// it again cannot succeed and costs reputation to fail.
+  const suppressed = (r: (typeof everyone)[number]) =>
+    r.unsubscribedAt != null ||
+    r.surveyInvite?.unsubscribedAt != null ||
+    r.betaInvite?.unsubscribedAt != null ||
+    r.betaInvite?.bouncedAt != null ||
+    r.betaInvite?.complainedAt != null ||
+    r.betaInvite?.suppressedAt != null;
 
-  const byId = new Map<string, (typeof candidates)[number]>();
-  for (const r of [...candidates, ...noInvite]) byId.set(r.id, r);
-  let pending = [...byId.values()];
+  let pending = everyone.filter((r) => r.falconClaimSentAt == null && !suppressed(r));
+  const excludedSuppressed = everyone.length - everyone.filter((r) => !suppressed(r)).length;
 
   if (opts.excludeWaves.length > 0) {
     pending = pending.filter((r) => {
@@ -188,13 +200,20 @@ async function main() {
     process.exit(1);
   }
 
-  if (pending.length > opts.limit) pending = pending.slice(0, opts.limit);
+  // Pace off the FULL list, then apply the limit. Deriving the gap from the
+  // limited set instead makes `--limit 200` compute two batches and space them
+  // by the whole window -- a ten-hour sleep between two test batches. The rate
+  // is a property of the campaign, not of how much of it this run does.
+  const fullBatches = Math.ceil(pending.length / opts.batch);
+  const gapMs =
+    fullBatches > 1 ? Math.floor((opts.hours * 3_600_000) / (fullBatches - 1)) : 0;
 
+  if (pending.length > opts.limit) pending = pending.slice(0, opts.limit);
   const batches = Math.ceil(pending.length / opts.batch);
-  const gapMs = batches > 1 ? Math.floor((opts.hours * 3_600_000) / (batches - 1)) : 0;
 
   console.log(`\nFalcon CLAIM send — ${CAMPAIGN}`);
   console.log(`  recipients:  ${pending.length}`);
+  console.log(`  suppressed:  ${excludedSuppressed} (opted out, bounced or unreachable)`);
   if (opts.excludeWaves.length) console.log(`  excluded:    ${opts.excludeWaves.join(", ")}`);
   console.log(`  batches:     ${batches} x ${opts.batch}`);
   console.log(`  window:      ${opts.hours}h  (~${Math.round(gapMs / 1000)}s between batches)`);
