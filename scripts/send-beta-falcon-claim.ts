@@ -187,8 +187,17 @@ async function main() {
   /// single-letter TLD, and two numeric TLDs.
   const ADDRESS =
     /^[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}$/;
+  /// Domains Resend refuses outright, separately from address SYNTAX: RFC 2606
+  /// reserved names reserved for documentation and testing. 18 of these are on
+  /// the list (9 example.com, 9 test.com) and they are syntactically perfect,
+  /// so the whitelist above passes them and the API rejects the whole batch
+  /// with a different message than a malformed address gives. Nobody is
+  /// reachable at them.
+  const RESERVED_DOMAIN =
+    /^(example\.(com|net|org)|test\.(com|net|org)|localhost|invalid)$|\.(test|example|invalid|localhost|local)$/i;
   const mailable = (email: string) => {
     if (email !== email.trim() || email.length > 254) return false;
+    if (RESERVED_DOMAIN.test((email.split("@")[1] ?? "").toLowerCase())) return false;
     const local = email.split("@")[0] ?? "";
     if (local.length > 64) return false;
     if (/^\.|\.$|\.\./.test(local)) return false;
