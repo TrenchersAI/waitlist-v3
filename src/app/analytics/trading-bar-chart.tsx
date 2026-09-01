@@ -34,6 +34,12 @@ type Props = {
   unit?: string;
   botLegend?: string;
   manualLegend?: string;
+  /** When set, clicking a bar/day with activity calls this with its date
+   *  (YYYY-MM-DD). Turns the chart into the entry point for the per-day
+   *  manual/bot order drill-down. */
+  onPickDay?: (date: string) => void;
+  /** The currently drilled-into day, highlighted with a persistent marker. */
+  pickedDate?: string | null;
 };
 
 // ---- palette ---------------------------------------------------------------
@@ -114,6 +120,8 @@ export function TradingBarChart({
   unit = "SOL",
   botLegend = "Bot",
   manualLegend = "Manual",
+  onPickDay,
+  pickedDate = null,
 }: Props) {
   const [activeIdx, setActiveIdx] = React.useState<number | null>(null);
   const [mounted, setMounted] = React.useState(false);
@@ -166,19 +174,32 @@ export function TradingBarChart({
   const yFor = (v: number) => PAD_T + innerH - (v / maxY) * innerH;
   const tickStep = n <= 10 ? 1 : Math.ceil(n / 8);
 
-  const setIdxFromClientX = (clientX: number) => {
+  const idxFromClientX = (clientX: number): number | null => {
     const svg = svgRef.current;
-    if (!svg) return;
+    if (!svg) return null;
     const rect = svg.getBoundingClientRect();
     const insideX = ((clientX - rect.left) / rect.width) * W - PAD_L;
-    if (insideX < 0 || insideX > innerW) {
-      setActiveIdx(null);
-      return;
-    }
-    setActiveIdx(Math.min(n - 1, Math.max(0, Math.floor(insideX / colWidth))));
+    if (insideX < 0 || insideX > innerW) return null;
+    return Math.min(n - 1, Math.max(0, Math.floor(insideX / colWidth)));
+  };
+
+  const setIdxFromClientX = (clientX: number) => {
+    setActiveIdx(idxFromClientX(clientX));
+  };
+
+  // Clicking a bar/day with activity opens its manual/bot chooser. Empty days
+  // (total 0) are ignored — there is nothing to drill into.
+  const pickFromClientX = (clientX: number) => {
+    if (!onPickDay) return;
+    const idx = idxFromClientX(clientX);
+    if (idx == null) return;
+    const day = days[idx];
+    if (day && day.total > 0) onPickDay(day.date);
   };
 
   const activeRow = activeIdx != null ? series[activeIdx] : null;
+  const pickedIdx =
+    pickedDate != null ? days.findIndex((d) => d.date === pickedDate) : -1;
 
   // Cumulative area geometry.
   const botLine = series.map((d, i) => `${xCenter(i)},${yFor(d.bot)}`);
@@ -195,11 +216,15 @@ export function TradingBarChart({
       <svg
         ref={svgRef}
         viewBox={`0 0 ${W} ${H}`}
-        className="block h-auto w-full max-w-full select-none"
+        className={
+          "block h-auto w-full max-w-full select-none" +
+          (onPickDay ? " cursor-pointer" : "")
+        }
         role="img"
         aria-label="Trading total per day, split by bot and manual"
         onMouseMove={(e) => setIdxFromClientX(e.clientX)}
         onMouseLeave={() => setActiveIdx(null)}
+        onClick={(e) => pickFromClientX(e.clientX)}
         onTouchStart={(e) =>
           e.touches[0] && setIdxFromClientX(e.touches[0].clientX)
         }
@@ -266,6 +291,28 @@ export function TradingBarChart({
         >
           ◎
         </text>
+
+        {/* persistent highlight for the day being drilled into */}
+        {pickedIdx >= 0 ? (
+          <>
+            <rect
+              x={PAD_L + colWidth * pickedIdx}
+              y={PAD_T}
+              width={colWidth}
+              height={innerH}
+              fill="rgba(255,255,255,0.06)"
+              rx={4}
+            />
+            <rect
+              x={PAD_L + colWidth * pickedIdx + colWidth / 2 - 6}
+              y={baseline + 4}
+              width={12}
+              height={2.5}
+              rx={1.25}
+              fill="rgba(255,255,255,0.8)"
+            />
+          </>
+        ) : null}
 
         {/* active column highlight */}
         {activeIdx != null ? (
@@ -448,9 +495,11 @@ export function TradingBarChart({
           {manualLegend}
         </span>
         <span className="ml-auto hidden text-[10px] tracking-[0.12em] text-white/35 uppercase sm:inline">
-          {view === "cumulative"
-            ? "Running total · hover a day"
-            : "Per UTC day · hover a bar"}
+          {onPickDay
+            ? "Per UTC day · click a bar for orders"
+            : view === "cumulative"
+              ? "Running total · hover a day"
+              : "Per UTC day · hover a bar"}
         </span>
       </div>
     </div>

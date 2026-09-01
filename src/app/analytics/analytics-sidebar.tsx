@@ -1,6 +1,5 @@
 "use client";
 
-import * as React from "react";
 import {
   Activity,
   Bot,
@@ -15,14 +14,17 @@ import {
   Share2,
   TrendingUp,
   Trophy,
+  UserCheck,
   Users,
   Send,
+  type LucideIcon,
 } from "lucide-react";
 
 import { cn } from "@/src/lib/utils";
 
 export type AnalyticsSection =
   | "dashboard"
+  | "user-activity"
   | "pulse"
   | "referrals"
   | "top-referrers"
@@ -39,11 +41,12 @@ export type AnalyticsSection =
 type ItemDef = {
   id: AnalyticsSection;
   label: string;
-  icon: React.ElementType;
+  icon: LucideIcon;
 };
 
 const ITEMS: ReadonlyArray<ItemDef> = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { id: "user-activity", label: "User activity", icon: UserCheck },
   { id: "pulse", label: "Live pulse", icon: Activity },
   { id: "bots", label: "Bots", icon: Bot },
   { id: "router-trades", label: "Router trades", icon: Route },

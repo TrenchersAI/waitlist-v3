@@ -240,26 +240,10 @@ export function Timeline({
   );
 }
 
-function Legend({
-  swatch,
-  label,
-  outline,
-}: {
-  swatch: string;
-  label: string;
-  /// Draw the swatch as a bordered box, matching a series the chart renders
-  /// as an outline rather than a fill.
-  outline?: boolean;
-}) {
+function Legend({ swatch, label }: { swatch: string; label: string }) {
   return (
     <span className="inline-flex items-center gap-1.5">
-      <span
-        className="inline-block size-2 rounded-[2px]"
-        style={{
-          background: swatch,
-          border: outline ? "1px solid rgba(255,255,255,0.45)" : undefined,
-        }}
-      />
+      <span className="inline-block size-2 rounded-[2px]" style={{ background: swatch }} />
       {label}
     </span>
   );
@@ -390,58 +374,44 @@ export function CadenceBars({
             {clock(points[points.length - 1].bucket)} UTC
           </text>
         ) : null}
-        {/* Sent is the outline, delivered is the fill inside it.
-            Drawing them as two solid overlapping bars does not work: at a
-            healthy delivery rate the delivered bar covers the sent bar
-            completely, so the chart shows one series while the legend
-            promises two, and the gap between them (the thing actually worth
-            looking at) is exactly what disappears. As an outline the sent
-            bar is always visible, and a delivery shortfall reads as an
-            unfilled bar rather than as nothing at all. */}
-        {points.map((p, i) => {
-          const bx = x(i) + (bw - barW) / 2;
-          const isHover = hover === i;
-          return (
-            <g key={p.bucket} onMouseEnter={() => setHover(i)}>
+        {points.map((p, i) => (
+          <g key={p.bucket} onMouseEnter={() => setHover(i)}>
+            <rect
+              x={x(i)}
+              y={PAD_T}
+              width={bw}
+              height={H - PAD_T - PAD_B}
+              fill="transparent"
+            />
+            <rect
+              x={x(i) + (bw - barW) / 2}
+              y={y(p.sent)}
+              width={barW}
+              height={Math.max(0, y(0) - y(p.sent))}
+              rx="2"
+              fill={hover === i ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.55)"}
+            />
+            <rect
+              x={x(i) + (bw - barW) / 2}
+              y={y(p.delivered)}
+              width={barW}
+              height={Math.max(0, y(0) - y(p.delivered))}
+              rx="2"
+              fill={OK}
+              opacity={0.55}
+            />
+            {p.bounced > 0 ? (
               <rect
-                x={x(i)}
-                y={PAD_T}
-                width={bw}
-                height={H - PAD_T - PAD_B}
-                fill="transparent"
-              />
-              <rect
-                x={bx + 0.5}
-                y={y(p.sent)}
-                width={barW - 1}
-                height={Math.max(0, y(0) - y(p.sent))}
+                x={x(i) + (bw - barW) / 2}
+                y={y(p.bounced)}
+                width={barW}
+                height={Math.max(1, y(0) - y(p.bounced))}
                 rx="2"
-                fill="rgba(255,255,255,0.06)"
-                stroke={isHover ? "rgba(255,255,255,0.85)" : "rgba(255,255,255,0.45)"}
-                strokeWidth="1"
+                fill={BAD}
               />
-              <rect
-                x={bx + 2}
-                y={y(p.delivered) + 2}
-                width={barW - 4}
-                height={Math.max(0, y(0) - y(p.delivered) - 2)}
-                rx="1.5"
-                fill={OK}
-                opacity={isHover ? 0.95 : 0.8}
-              />
-              {p.bounced > 0 ? (
-                <rect
-                  x={bx + 2}
-                  y={y(p.bounced)}
-                  width={barW - 4}
-                  height={Math.max(2, y(0) - y(p.bounced))}
-                  rx="1.5"
-                  fill={BAD}
-                />
-              ) : null}
-            </g>
-          );
-        })}
+            ) : null}
+          </g>
+        ))}
         <line
           x1={PAD_L}
           y1={y(0)}
@@ -462,7 +432,7 @@ export function CadenceBars({
         </div>
       ) : null}
       <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-white/40">
-        <Legend swatch="rgba(255,255,255,0.06)" label="Sent" outline />
+        <Legend swatch="rgba(255,255,255,0.55)" label="Sent" />
         <Legend swatch={OK} label="Delivered" />
         <Legend swatch={BAD} label="Bounced" />
         <span className="text-white/30">Dashed line is the planned batch size</span>

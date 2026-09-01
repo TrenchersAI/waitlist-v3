@@ -26,6 +26,10 @@ type Props = {
   primaryLegend?: string;
   /** Legend label for the secondary bar / dot. */
   secondaryLegend?: string;
+  /** Single-series mode: suppress the secondary tooltip row entirely. Use when
+     the chart only has one meaningful series (e.g. active bots) and the
+     secondary would just duplicate the primary. */
+  hideSecondary?: boolean;
   className?: string;
 };
 
@@ -97,6 +101,7 @@ export function AnalyticsTimeseriesChart({
   secondaryLabel = "verified",
   primaryLegend = "New signups",
   secondaryLegend,
+  hideSecondary = false,
   className,
 }: Props) {
   const [activeIdx, setActiveIdx] = React.useState<number | null>(null);
@@ -325,6 +330,7 @@ export function AnalyticsTimeseriesChart({
           primaryLabel={primaryLabel}
           secondaryLabel={secondaryLabel}
           showSecondaryBar={showSecondaryBar}
+          hideSecondary={hideSecondary}
         />
       ) : null}
 
@@ -374,6 +380,7 @@ function ChartTooltip({
   primaryLabel,
   secondaryLabel,
   showSecondaryBar,
+  hideSecondary,
 }: {
   xPct: number;
   yPct: number;
@@ -384,6 +391,7 @@ function ChartTooltip({
   primaryLabel: string;
   secondaryLabel: string;
   showSecondaryBar: boolean;
+  hideSecondary?: boolean;
 }) {
   const niceDate = tooltipDateLabel(date, bucketType);
   return (
@@ -411,15 +419,17 @@ function ChartTooltip({
         <span className="tabular-nums">{primaryValue}</span>
         <span className="text-white/45">{primaryLabel}</span>
       </div>
-      <div className="mt-0.5 flex items-center gap-2">
-        <span
-          className="size-1.5 rounded-full"
-          style={{ background: showSecondaryBar ? SECONDARY_FILL : VERIFY_DOT }}
-          aria-hidden
-        />
-        <span className="tabular-nums">{secondaryValue}</span>
-        <span className="text-white/45">{secondaryLabel}</span>
-      </div>
+      {hideSecondary ? null : (
+        <div className="mt-0.5 flex items-center gap-2">
+          <span
+            className="size-1.5 rounded-full"
+            style={{ background: showSecondaryBar ? SECONDARY_FILL : VERIFY_DOT }}
+            aria-hidden
+          />
+          <span className="tabular-nums">{secondaryValue}</span>
+          <span className="text-white/45">{secondaryLabel}</span>
+        </div>
+      )}
     </div>
   );
 }

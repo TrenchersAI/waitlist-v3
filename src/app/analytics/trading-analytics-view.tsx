@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ArrowDownRight, ArrowUpRight } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, ChevronRight } from "lucide-react";
 
 import {
   TradingBarChart,
   type ChartView,
   type TradingDay,
 } from "@/src/app/analytics/trading-bar-chart";
+import { TradersPanel } from "@/src/app/analytics/traders-panel";
 import {
   Card,
   CardContent,
@@ -26,6 +27,9 @@ type TradingPayload = {
 
 /** Which dashboard this instance renders. */
 type Metric = "volume" | "revenue";
+
+/** Which per-user breakdown is open below the chart (volume dashboard only). */
+type TradersKind = "manual" | "bot";
 
 type RangeKey = "7d" | "14d" | "30d" | "all";
 const RANGES: { key: RangeKey; label: string; days: number | null }[] = [
@@ -73,6 +77,11 @@ export function TradingAnalyticsContent({ metric }: { metric: Metric }) {
   const [error, setError] = useState<string | null>(null);
   const [range, setRange] = useState<RangeKey>("all");
   const [view, setView] = useState<ChartView>("daily");
+  // Per-day order drill-down (volume dashboard only): click a bar to pick a
+  // day, then choose Manual or Bot to see that day's traders. `pickedDay` is
+  // the clicked UTC day; `pickedKind` is null until they choose a side.
+  const [pickedDay, setPickedDay] = useState<string | null>(null);
+  const [pickedKind, setPickedKind] = useState<TradersKind | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -233,10 +242,136 @@ export function TradingAnalyticsContent({ metric }: { metric: Metric }) {
             unit="SOL"
             botLegend="Bot"
             manualLegend="Manual"
+            onPickDay={
+              metric === "volume"
+                ? (date) => {
+                    setPickedDay(date);
+                    setPickedKind(null); // re-show the chooser for the new day
+                  }
+                : undefined
+            }
+            pickedDate={metric === "volume" ? pickedDay : null}
           />
         )}
+
+        {/* Per-day order drill-down: click a bar → choose Manual/Bot → list. */}
+        {metric === "volume" && pickedDay ? (
+          pickedKind ? (
+            <TradersPanel
+              kind={pickedKind}
+              date={pickedDay}
+              onBack={() => setPickedKind(null)}
+              onClose={() => {
+                setPickedDay(null);
+                setPickedKind(null);
+              }}
+            />
+          ) : (
+            <OrderKindChooser
+              day={days.find((d) => d.date === pickedDay) ?? null}
+              onPick={setPickedKind}
+              onClose={() => setPickedDay(null)}
+            />
+          )
+        ) : metric === "volume" && !loading && allDays.length > 0 ? (
+          <p className="text-center text-[11px] text-white/30">
+            Tip: click any{" "}
+            <span className="text-white/50">bar</span> to see the manual or bot
+            orders placed that day.
+          </p>
+        ) : null}
       </CardContent>
     </Card>
+  );
+}
+
+// After a bar is clicked, offer the two order types for that day. Each button
+// shows the day's SOL split (already known from the chart data) so the choice
+// is informed before we fetch the per-user list.
+function OrderKindChooser({
+  day,
+  onPick,
+  onClose,
+}: {
+  day: TradingDay | null;
+  onPick: (kind: TradersKind) => void;
+  onClose: () => void;
+}) {
+  const label = day
+    ? new Date(`${day.date}T00:00:00Z`).toLocaleDateString("en-US", {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+        timeZone: "UTC",
+      })
+    : "";
+  return (
+    <div className="rounded-xl border border-white/10 bg-black/40 p-4">
+      <div className="mb-3 flex items-center justify-between">
+        <p className="text-xs text-white/55">
+          <span className="font-medium text-white/85">{label}</span> — which
+          orders?
+        </p>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close"
+          className="text-[11px] text-white/40 transition-colors hover:text-white/80"
+        >
+          Cancel
+        </button>
+      </div>
+      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+        <OrderKindButton
+          kind="manual"
+          dotColor="#2dd4bf"
+          sol={day?.manual ?? 0}
+          onClick={() => onPick("manual")}
+        />
+        <OrderKindButton
+          kind="bot"
+          dotColor="#818cf8"
+          sol={day?.bot ?? 0}
+          onClick={() => onPick("bot")}
+        />
+      </div>
+    </div>
+  );
+}
+
+function OrderKindButton({
+  kind,
+  dotColor,
+  sol,
+  onClick,
+}: {
+  kind: TradersKind;
+  dotColor: string;
+  sol: number;
+  onClick: () => void;
+}) {
+  const title = kind === "manual" ? "Manual orders" : "Bot orders";
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="group flex items-center justify-between rounded-lg border border-white/10 bg-white/[0.02] px-4 py-3 text-left transition-colors hover:border-white/25 hover:bg-white/[0.05]"
+    >
+      <span className="flex items-center gap-2.5">
+        <span
+          aria-hidden
+          className="size-2.5 rounded-sm"
+          style={{ background: dotColor }}
+        />
+        <span className="text-sm font-medium text-white/90">{title}</span>
+      </span>
+      <span className="flex items-center gap-1.5">
+        <span className="font-mono text-sm tabular-nums text-white/70">
+          ◎{fmtSol(sol)}
+        </span>
+        <ChevronRight className="size-4 text-white/30 transition-transform group-hover:translate-x-0.5 group-hover:text-white/60" />
+      </span>
+    </button>
   );
 }
 
@@ -276,6 +411,8 @@ function StatCard({
   dotColor,
   trendPct,
   loading,
+  onClick,
+  active,
 }: {
   label: string;
   value: string;
@@ -284,10 +421,30 @@ function StatCard({
   dotColor?: string;
   trendPct?: number | null;
   loading: boolean;
+  /** When set, the card becomes a button that opens a drill-down. */
+  onClick?: () => void;
+  active?: boolean;
 }) {
   const up = trendPct != null && trendPct >= 0;
+  const clickable = Boolean(onClick);
+  // A real <button> when clickable (bulletproof hit target + keyboard support),
+  // a plain <div> otherwise. `text-left` + `w-full` keep the button visually
+  // identical to the static cards.
+  const Tag = clickable ? "button" : "div";
   return (
-    <div className="rounded-lg border border-white/10 bg-white/[0.02] p-3">
+    <Tag
+      {...(clickable
+        ? { type: "button" as const, onClick }
+        : {})}
+      className={cn(
+        "block w-full rounded-lg border p-3 text-left transition-colors",
+        active
+          ? "border-white/25 bg-white/[0.06]"
+          : "border-white/10 bg-white/[0.02]",
+        clickable &&
+          "cursor-pointer outline-none hover:border-white/20 hover:bg-white/[0.04] focus-visible:ring-2 focus-visible:ring-white/20",
+      )}
+    >
       <div className="flex items-center gap-1.5 text-xs text-white/50">
         {dotColor ? (
           <span
@@ -297,6 +454,15 @@ function StatCard({
           />
         ) : null}
         {label}
+        {clickable ? (
+          <ChevronRight
+            className={cn(
+              "ml-auto size-3.5 text-white/40 transition-transform",
+              active && "rotate-90 text-white/70",
+            )}
+            aria-hidden
+          />
+        ) : null}
       </div>
       {loading ? (
         <Skeleton className="mt-1.5 h-6 w-20" />
@@ -332,6 +498,6 @@ function StatCard({
       {sub && !loading ? (
         <div className="mt-0.5 truncate text-[11px] text-white/35">{sub}</div>
       ) : null}
-    </div>
+    </Tag>
   );
 }

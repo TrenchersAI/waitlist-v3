@@ -82,6 +82,24 @@ export type RouterTopUser = {
   volumeSol: number;
 };
 
+export type RouterVenueRow = {
+  venue: string;
+  trades: number;
+  volumeSol: number;
+  pct: number;
+};
+export type RouterFailureReason = { reason: string; count: number };
+export type RouterFailureWindow = {
+  window: RouterWindow;
+  confirmed: number;
+  failed: number;
+  ratePct: number;
+};
+export type RouterFailures = {
+  perWindow: RouterFailureWindow[];
+  reasons: RouterFailureReason[];
+};
+
 export type RouterTradesPayload = {
   overview: RouterOverviewRow[];
   buySellDaily: RouterBuySellDay[];
@@ -91,6 +109,12 @@ export type RouterTradesPayload = {
   pnlDaily: RouterPnlDay[];
   topBots: RouterTopBot[];
   topUsers: RouterTopUser[];
+  /** null = the `venue` column is not deployed yet (BE migration pending), so
+   *  the UI shows a "wiring up" panel rather than a guessed split. Fills recorded
+   *  before the column carry NULL and surface as 'unknown'. */
+  venueSplit: RouterVenueRow[] | null;
+  /** null = the `bot_trade_failures` table is not deployed yet -> "wiring up". */
+  failures: RouterFailures | null;
   /** False when TRENCHERS_DATABASE_URL is unset, so the UI can say so plainly
    *  instead of rendering a page of zeros that read as "nothing is trading". */
   available: boolean;
@@ -115,6 +139,8 @@ const EMPTY: RouterTradesPayload = {
   pnlDaily: [],
   topBots: [],
   topUsers: [],
+  venueSplit: null,
+  failures: null,
   available: false,
   generatedAt: new Date().toISOString(),
 };
@@ -169,12 +195,46 @@ function mapOverview(window: RouterWindow, r?: OverviewRaw): RouterOverviewRow {
   };
 }
 
+// Bound the aggregate fan-out. loadRouterTradesUncached() fires ~10 floor-bounded
+// history scans (plus the optional venue / failure queries) against the shared
+// 3-connection Trenchers pool, and every visible admin tab polls this endpoint
+// every 30s. Without a bound, N open tabs means N x ~10 full-history scans per
+// 30s, which can starve the pool and 502 sibling analytics routes. This
+// in-process memo collapses concurrent and near-simultaneous loads to ONE
+// fan-out per TTL window. It is deliberately NOT Next's route/data cache (which
+// the route disables for correctness): the payload is GLOBAL admin analytics,
+// identical for every viewer and never per-user, and the TTL is far below the
+// 30s poll, so the dashboard stays effectively live.
+const ROUTER_TRADES_MEMO_TTL_MS = 15_000;
+let routerTradesMemo: {
+  at: number;
+  payload: Promise<RouterTradesPayload>;
+} | null = null;
+
+export function loadRouterTrades(): Promise<RouterTradesPayload> {
+  const now = Date.now();
+  if (
+    routerTradesMemo &&
+    now - routerTradesMemo.at < ROUTER_TRADES_MEMO_TTL_MS
+  ) {
+    return routerTradesMemo.payload;
+  }
+  const payload = loadRouterTradesUncached();
+  routerTradesMemo = { at: now, payload };
+  // Never cache a rejection for the whole window: drop the memo on failure so
+  // the next poll retries against the DB instead of replaying the error.
+  payload.catch(() => {
+    if (routerTradesMemo?.payload === payload) routerTradesMemo = null;
+  });
+  return payload;
+}
+
 /**
  * One round-trip per concern, assembled in JS — same discipline as
  * `trenchers-bots.ts`. Every query is parametrized on the data floor ($1) and
  * carries the LIVE_GUARD. Nothing here writes; it is all read-only aggregates.
  */
-export async function loadRouterTrades(): Promise<RouterTradesPayload> {
+async function loadRouterTradesUncached(): Promise<RouterTradesPayload> {
   const pool = getTrenchersPool();
   if (!pool) return { ...EMPTY, generatedAt: new Date().toISOString() };
 
@@ -383,8 +443,90 @@ export async function loadRouterTrades(): Promise<RouterTradesPayload> {
     volumeSol: num(r.volume_sol),
   }));
 
+  // --- venue split + failure rate (BE-migration-gated) ----------------------
+  // These read `bot_trades.venue` and `bot_trade_failures`, added by a backend
+  // migration that may not be deployed yet. A missing column (42703) / table
+  // (42P01) is NOT an error here: it means the migration is pending, so the
+  // panel stays "wiring up" (null) rather than fabricating a split/rate. Any
+  // other error still propagates.
+  const migrationPending = (e: unknown): boolean => {
+    const code = (e as { code?: string } | null)?.code;
+    return code === "42P01" || code === "42703";
+  };
+
+  let venueSplit: RouterVenueRow[] | null = null;
+  try {
+    const vr = await pool.query<{ venue: string; trades: string; vol: string }>(
+      `SELECT COALESCE(venue, 'unknown')         AS venue,
+              count(*)                           AS trades,
+              COALESCE(sum(sol_amount), 0) / 1e9 AS vol
+         FROM bot_trades
+        WHERE ${LIVE_GUARD} AND created_at >= $1::date
+        GROUP BY 1
+        ORDER BY trades DESC`,
+      [floor],
+    );
+    const vTotal = vr.rows.reduce((s, r) => s + int(r.trades), 0);
+    venueSplit = vr.rows.map((r) => ({
+      venue: r.venue,
+      trades: int(r.trades),
+      volumeSol: num(r.vol),
+      pct: vTotal > 0 ? (int(r.trades) / vTotal) * 100 : 0,
+    }));
+  } catch (e) {
+    if (!migrationPending(e)) throw e;
+  }
+
+  let failures: RouterFailures | null = null;
+  try {
+    const [reasonsR, failedR] = await Promise.all([
+      pool.query<{ reason: string; count: string }>(
+        `SELECT reason, count(*) AS count
+           FROM bot_trade_failures
+          WHERE paper = false AND created_at >= $1::date
+          GROUP BY reason
+          ORDER BY count DESC`,
+        [floor],
+      ),
+      pool.query<{ window: string; failed: string }>(
+        `SELECT '24h' AS window, count(*) AS failed FROM bot_trade_failures WHERE paper = false AND created_at >= now() - interval '24 hours'
+         UNION ALL
+         SELECT '7d', count(*) FROM bot_trade_failures WHERE paper = false AND created_at >= now() - interval '7 days'
+         UNION ALL
+         SELECT 'all', count(*) FROM bot_trade_failures WHERE paper = false AND created_at >= $1::date`,
+        [floor],
+      ),
+    ]);
+    const failedByWindow = new Map<string, number>();
+    for (const r of failedR.rows) failedByWindow.set(r.window, int(r.failed));
+    const perWindow: RouterFailureWindow[] = (
+      ["24h", "7d", "all"] as RouterWindow[]
+    ).map((w) => {
+      const confirmed = overview.find((o) => o.window === w)?.trades ?? 0;
+      const failed = failedByWindow.get(w) ?? 0;
+      const denom = confirmed + failed;
+      return {
+        window: w,
+        confirmed,
+        failed,
+        ratePct: denom > 0 ? (failed / denom) * 100 : 0,
+      };
+    });
+    failures = {
+      perWindow,
+      reasons: reasonsR.rows.map((r) => ({
+        reason: r.reason,
+        count: int(r.count),
+      })),
+    };
+  } catch (e) {
+    if (!migrationPending(e)) throw e;
+  }
+
   return {
     overview,
+    venueSplit,
+    failures,
     buySellDaily,
     railWinRate,
     sellReasons,

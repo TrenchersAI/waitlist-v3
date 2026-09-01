@@ -57,6 +57,9 @@ export default function SiteFooter() {
             <Link href="/about-us" className={FOOTER_LINK_CLASS}>
               About
             </Link>
+            <Link href="/blog/tradingview" className={FOOTER_LINK_CLASS}>
+              TradingView
+            </Link>
             <a
               href="https://x.com/TrenchersAI"
               target="_blank"
@@ -74,7 +77,7 @@ export default function SiteFooter() {
               Telegram
             </a>
             <a
-              href="https://discord.gg/nsX9auArx"
+              href="https://discord.gg/5xBtTPqVq"
               target="_blank"
               rel="noreferrer"
               className={FOOTER_LINK_CLASS}

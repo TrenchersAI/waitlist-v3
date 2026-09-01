@@ -20,6 +20,7 @@ import { BotsAnalyticsContent } from "@/src/app/analytics/bots-view";
 import { RouterTradesContent } from "@/src/app/analytics/router-trades-view";
 import { PulseAnalyticsContent } from "@/src/app/analytics/pulse-view";
 import { TradingAnalyticsContent } from "@/src/app/analytics/trading-analytics-view";
+import { UserActivityContent } from "@/src/app/analytics/user-activity-view";
 import {
   ReferrersStrip,
   type ReferralsPayload,
@@ -704,6 +705,7 @@ export default function AnalyticsDashboard({
             section === "pulse" ||
             section === "volume" ||
             section === "revenue" ||
+            section === "user-activity" ||
             section === "platform-accounting" ? null : (
               <InPageNav
                 activeRangeKey={rangeKey}
@@ -719,6 +721,8 @@ export default function AnalyticsDashboard({
                 rangeKey={rangeKey}
                 range={appliedRange}
               />
+            ) : section === "user-activity" ? (
+              <UserActivityContent />
             ) : section === "referrals" ? (
               <ReferralsSection
                 referrals={referrals}
@@ -1005,6 +1009,7 @@ function UsersSection(props: React.ComponentProps<typeof SignupsTable>) {
 
 const SECTION_TITLE: Record<AnalyticsSection, string> = {
   dashboard: "Dashboard",
+  "user-activity": "User activity",
   pulse: "Live pulse",
   bots: "Bots",
   "router-trades": "Router trades",
@@ -1053,6 +1058,7 @@ function DashboardHeader({
       section === "pulse" ||
       section === "volume" ||
       section === "revenue" ||
+      section === "user-activity" ||
       section === "platform-accounting" ? null : (
         <RangePill rangeKey={rangeKey} range={range} />
       )}

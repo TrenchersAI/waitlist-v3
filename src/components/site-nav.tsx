@@ -24,7 +24,7 @@ export default function SiteNav({ analyticsActions }: Props = {}) {
     pathname === "/analytics" || pathname?.startsWith("/analytics/");
 
   return (
-    <header className="fixed inset-x-0 top-0 z-50 border-b border-white/6 bg-black/55 backdrop-blur-md">
+    <header className="fixed inset-x-0 top-0 z-50">
       <nav className="mx-auto flex w-full max-w-6xl items-center justify-between gap-2 px-4 py-3.5 sm:px-5 md:px-8">
         <Link
           href="/"
@@ -63,16 +63,16 @@ export default function SiteNav({ analyticsActions }: Props = {}) {
               colorVariant="ocean"
               duration={2.4}
               strength={0.62}
-              borderRadius={9999}
+              borderRadius={8}
               active={!prefersReducedMotion}
               className="shrink-0"
             >
-              <Link
-                href="/#waitlist"
-                className="inline-flex items-center rounded-full border border-white/15 bg-black px-5 py-3 text-[12px] font-medium text-white outline-none transition-colors hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-white/35"
+              <a
+                href="https://beta.trenchers.ai"
+                className="inline-flex items-center rounded-lg border border-white/15 bg-black px-3 py-1.5 text-sm font-medium text-white outline-none transition-colors hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-white/35"
               >
-                Get Early Access
-              </Link>
+                We are live now
+              </a>
             </BorderBeam>
           </div>
         )}
