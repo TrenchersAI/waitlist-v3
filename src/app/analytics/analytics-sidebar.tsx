@@ -16,6 +16,7 @@ import {
   TrendingUp,
   Trophy,
   Users,
+  Send,
 } from "lucide-react";
 
 import { cn } from "@/src/lib/utils";
@@ -28,6 +29,7 @@ export type AnalyticsSection =
   | "users"
   | "survey"
   | "beta"
+  | "falcon-claim"
   | "bots"
   | "router-trades"
   | "volume"
@@ -53,6 +55,7 @@ const ITEMS: ReadonlyArray<ItemDef> = [
   { id: "users", label: "Users", icon: Users },
   { id: "survey", label: "Survey", icon: ClipboardList },
   { id: "beta", label: "Beta access", icon: KeyRound },
+  { id: "falcon-claim", label: "Falcon claim", icon: Send },
 ];
 
 type Props = {

@@ -15,6 +15,7 @@ import { AnalyticsTimeseriesChart } from "@/src/app/analytics/analytics-timeseri
 import { SurveyAnalyticsContent } from "@/src/app/analytics/survey/survey-analytics-view";
 import { AccountingContent } from "@/src/app/analytics/accounting-view";
 import { BetaAnalyticsContent } from "@/src/app/analytics/beta/beta-analytics-view";
+import { FalconClaimContent } from "@/src/app/analytics/falcon/falcon-claim-view";
 import { BotsAnalyticsContent } from "@/src/app/analytics/bots-view";
 import { RouterTradesContent } from "@/src/app/analytics/router-trades-view";
 import { PulseAnalyticsContent } from "@/src/app/analytics/pulse-view";
@@ -697,6 +698,7 @@ export default function AnalyticsDashboard({
             section === "users" ||
             section === "survey" ||
             section === "beta" ||
+            section === "falcon-claim" ||
             section === "bots" ||
             section === "router-trades" ||
             section === "pulse" ||
@@ -730,6 +732,8 @@ export default function AnalyticsDashboard({
               <SurveyAnalyticsContent />
             ) : section === "beta" ? (
               <BetaAnalyticsContent />
+            ) : section === "falcon-claim" ? (
+              <FalconClaimContent />
             ) : section === "bots" ? (
               <BotsAnalyticsContent />
             ) : section === "router-trades" ? (
@@ -1011,6 +1015,7 @@ const SECTION_TITLE: Record<AnalyticsSection, string> = {
   users: "Users",
   survey: "Survey",
   beta: "Beta access",
+  "falcon-claim": "Falcon claim",
   "platform-accounting": "Platform accounting",
 };
 
