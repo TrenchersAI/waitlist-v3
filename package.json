@@ -50,13 +50,5 @@
     "tailwindcss": "^4.3.0",
     "tsx": "^4.22.3",
     "typescript": "^5"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "@prisma/engines",
-      "prisma",
-      "sharp",
-      "unrs-resolver"
-    ]
   }
 }
