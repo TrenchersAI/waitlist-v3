@@ -348,6 +348,80 @@ export async function POST(request: Request) {
       }
       return Response.json({ ok: true });
     }
+
+    // Seventh send: the public-beta Falcon CLAIM campaign.
+    //
+    // The FIRST send whose columns are not on `BetaInvite`. It goes to the
+    // whole waitlist, and 3,740 of those addresses have no invite row to hang
+    // a column on, so it stamps `WaitlistSubscriber` instead. The lookup has
+    // to follow it there.
+    //
+    // This branch is what makes that send's reputation gate real. Without it
+    // an id matches nothing, the handler still returns ok:true, and
+    // `falconClaimBouncedAt` is never written -- so the sender reads zero
+    // bounces however badly the run is going, and the mid-flight abort that
+    // is supposed to stop a bad list can never fire. Silent, and worst
+    // exactly when it matters most.
+    // MATCHED BY TAG FIRST, message id only as a fallback, and the order
+    // matters. Resend can deliver and fire `email.delivered` BEFORE the
+    // sender's stamping statement commits `falconClaimResendMsgId`, so an
+    // id-only lookup loses that race: the first live batch recorded 96
+    // deliveries and 1 bounce, and every one of them found no row and was
+    // dropped. That is not a cosmetic loss -- the sender's mid-flight abort
+    // reads `falconClaimBouncedAt`, so a lost bounce is an abort that cannot
+    // fire, which is the whole safety mechanism gone precisely when a bad
+    // list needs it. The `subscriberId` tag travels inside the event itself,
+    // so it cannot lose a race with our own write.
+    const claimSubId = extractTagValue(evt.data?.tags, "subscriberId");
+    const claimRow = await prisma.waitlistSubscriber.findFirst({
+      where: claimSubId
+        ? { id: claimSubId }
+        : { falconClaimResendMsgId: resendMsgId },
+      select: {
+        id: true,
+        falconClaimResendMsgId: true,
+        falconClaimDeliveredAt: true,
+        falconClaimBouncedAt: true,
+        falconClaimComplainedAt: true,
+        falconClaimSuppressedAt: true,
+      },
+    });
+    if (claimRow) {
+      const cdata: Record<string, Date | string> = {};
+      // Backfill the id when the tag got us here first, so later events for
+      // this message match either way and the row records what was sent.
+      if (!claimRow.falconClaimResendMsgId && resendMsgId) {
+        cdata.falconClaimResendMsgId = resendMsgId;
+      }
+      switch (evt.type) {
+        case "email.delivered":
+          if (!claimRow.falconClaimDeliveredAt) cdata.falconClaimDeliveredAt = occurredAt;
+          break;
+        case "email.bounced":
+        case "email.failed":
+          if (!claimRow.falconClaimBouncedAt) cdata.falconClaimBouncedAt = occurredAt;
+          break;
+        case "email.complained":
+          if (!claimRow.falconClaimComplainedAt) cdata.falconClaimComplainedAt = occurredAt;
+          break;
+        // Resend refused the send outright because the address is already on
+        // its suppression list. The message never left, so it costs no
+        // reputation, but the person is unreachable and must stop counting as
+        // pending or every later run retries them forever.
+        case "email.suppressed":
+          if (!claimRow.falconClaimSuppressedAt) cdata.falconClaimSuppressedAt = occurredAt;
+          break;
+        default:
+          break;
+      }
+      if (Object.keys(cdata).length > 0) {
+        await prisma.waitlistSubscriber.update({
+          where: { id: claimRow.id },
+          data: cdata,
+        });
+      }
+      return Response.json({ ok: true });
+    }
   }
 
   const invite = isBeta

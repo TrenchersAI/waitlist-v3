@@ -24,12 +24,45 @@ model WaitlistSubscriber {
   surveyInvite SurveyInvite?
   betaInvite   BetaInvite?
 
+  /// Subscriber-level unsubscribe token, and the reason it exists at THIS
+  /// level rather than on an invite. Opt-out tokens used to live only on
+  /// SurveyInvite/BetaInvite, so the 1,801 subscribers holding neither had a
+  /// `List-Unsubscribe` header and footer link that resolved to a 404. A
+  /// recipient who wants out and cannot get out reports spam instead, and
+  /// mailbox providers weigh a complaint far more heavily than an
+  /// unsubscribe -- on a whole-list send that is the fastest way to damage a
+  /// domain that also carries our OTP login mail.
+  unsubscribeToken String?          @unique
+  /// Global opt-out, mirroring the invite-level columns the unsubscribe route
+  /// already writes. Global because someone opting out of one mail means all
+  /// of them; a per-campaign flag would re-mail them on the next send.
+  unsubscribedAt   DateTime?
+
+  /// Seventh send: the public-beta Falcon CLAIM campaign. Tracked HERE and not
+  /// on BetaInvite, where the previous six live, because this one goes to the
+  /// whole waitlist (14,199) rather than a wave: 3,740 of those addresses have
+  /// no BetaInvite row to hang a column on. Own columns for the same reason
+  /// every send before it has them -- without them a bounce on the newest
+  /// rewrites the delivery record of the oldest.
+  falconClaimSentAt       DateTime?
+  falconClaimResendMsgId  String?
+  falconClaimDeliveredAt  DateTime?
+  falconClaimBouncedAt    DateTime?
+  falconClaimComplainedAt DateTime?
+  /// Resend refused the send outright (address already on its suppression
+  /// list). The message never left, so it costs no reputation, but the person
+  /// is unreachable and must stop appearing in pending counts.
+  falconClaimSuppressedAt DateTime?
+
   @@index([referredById])
   // Analytics aggregates date-bucket by createdAt / verifiedAt on every
   // dashboard load. As the table grows these indexes prevent the queries
   // from degrading to sequential scans.
   @@index([createdAt])
   @@index([verifiedAt])
+  @@index([unsubscribedAt])
+  @@index([falconClaimSentAt])
+  @@index([falconClaimResendMsgId])
 }
 
 /// One row per (campaign, subscriber). Created up-front by the send script

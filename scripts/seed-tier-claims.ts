@@ -92,7 +92,7 @@ async function main() {
     console.log(`Excluded waves:   ${excludeWaves.join(", ")} (${subs.length - kept.length} rows)`);
   }
   console.log(`Unique addresses: ${emails.length}`);
-  console.log(`Grants:           Falcon (rank ordinal ${FALCON_ORDINAL}), permanent`);
+  console.log(`Grants:           Falcon (rank ordinal ${FALCON_ORDINAL}), decays`);
   console.log(`Mode:             ${dryRun ? "DRY RUN — nothing is written" : "live"}\n`);
 
   if (dryRun) {
@@ -115,8 +115,16 @@ async function main() {
   for (let i = 0; i < emails.length; i += CHUNK) {
     const chunk = emails.slice(i, i + CHUNK);
     const res = await pool.query(
+      // EVERY parameter is cast explicitly, and $2 in particular MUST be.
+      // A bare `$2` under `INSERT ... SELECT` does not get its type from the
+      // target column the way `INSERT ... VALUES ($1, $2, $3)` does: the SELECT
+      // list is typed on its own, `pg` sends parameters in text mode, and
+      // Postgres settles on `text` — which fails against a SMALLINT column with
+      // "column \"tier\" is of type smallint but expression is of type text".
+      // The dry run cannot catch this, because it only ever runs a SELECT
+      // count and never types the INSERT.
       `INSERT INTO tier_claim_grants (email, tier, campaign)
-       SELECT DISTINCT unnest($1::text[]), $2, $3
+       SELECT DISTINCT unnest($1::text[]), $2::smallint, $3::text
        ON CONFLICT (email, campaign) DO NOTHING`,
       [chunk, FALCON_ORDINAL, CAMPAIGN],
     );

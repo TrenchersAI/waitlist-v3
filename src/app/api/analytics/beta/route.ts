@@ -656,6 +656,35 @@ export async function GET() {
     }
   }
 
+  // --- seventh send: the public-beta Falcon CLAIM campaign --------------
+  // Counted from `WaitlistSubscriber`, NOT from the `rows` loop above, and
+  // that is the whole point of it being separate: this send goes to the
+  // entire waitlist rather than a wave, and 3,740 of those addresses have no
+  // BetaInvite row at all. Aggregating it over `rows` would silently report
+  // only the invited slice and understate every number on the card.
+  const claimAgg = await prisma.waitlistSubscriber.aggregate({
+    _count: {
+      falconClaimSentAt: true,
+      falconClaimDeliveredAt: true,
+      falconClaimBouncedAt: true,
+      falconClaimComplainedAt: true,
+      falconClaimSuppressedAt: true,
+    },
+  });
+  const cSent = claimAgg._count.falconClaimSentAt;
+  const cDelivered = claimAgg._count.falconClaimDeliveredAt;
+  const cBounced = claimAgg._count.falconClaimBouncedAt;
+  const cComplained = claimAgg._count.falconClaimComplainedAt;
+  const cSuppressed = claimAgg._count.falconClaimSuppressedAt;
+  const cUnsub = await prisma.waitlistSubscriber.count({
+    where: { unsubscribedAt: { not: null } },
+  });
+  // Everyone still owed the mail. Excludes opt-outs, since they are not
+  // pending, they are done.
+  const cPending = await prisma.waitlistSubscriber.count({
+    where: { falconClaimSentAt: null, unsubscribedAt: null },
+  });
+
   // --- second send: the signup-issue reminder ---------------------------
   // Reported separately rather than folded into the totals. The two sends
   // went to different audiences for different reasons, so a single blended
@@ -765,7 +794,37 @@ export async function GET() {
         bounced: nBounced, complained: nComplained, unsubscribed: 0,
         openTracked: nOpened > 0,
       },
+      {
+        key: "falcon-claim",
+        label: "Falcon claim (public beta)",
+        audience: "Whole waitlist — 14,199 addresses",
+        sent: cSent, delivered: cDelivered, opened: 0,
+        bounced: cBounced, complained: cComplained, unsubscribed: cUnsub,
+        openTracked: false,
+      },
     ] satisfies SendRow[],
+    // Reported on its own terms as well as in `sends`, because it is the only
+    // campaign that can still be MID-FLIGHT when this page is read: it is
+    // paced across hours, so `pending` is a live number an operator watches
+    // rather than a historical one. `suppressed` is broken out because those
+    // messages never left and cost no reputation — folding them into bounces
+    // would make a healthy run look like a failing one.
+    falconClaim: {
+      sent: cSent,
+      delivered: cDelivered,
+      bounced: cBounced,
+      complained: cComplained,
+      suppressed: cSuppressed,
+      unsubscribed: cUnsub,
+      pending: cPending,
+      deliveryRate: rate(cDelivered, cSent),
+      bounceRate: rate(cBounced, cSent),
+      complaintRate: rate(cComplained, cSent),
+      // Same thresholds the sender's own mid-flight gate aborts on, so the
+      // dashboard and the script cannot disagree about what "too high" means.
+      bounceLimit: 0.04,
+      complaintLimit: 0.001,
+    },
     // True only if ANY send ever recorded an open. Open tracking is off by
     // default, so a flat zero means "not measured", not "nobody read it",
     // and the UI has to say which.

@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>You are Falcon</title>
+  </head>
+  <!--
+    Sixth touch: a tier-upgrade announcement to wave 1 (wave-1-completed,
+    1,364 mailed), thanking them for feedback and gifting Falcon, the top tier.
+
+    Same austere shell as the other five sends: no images, no <style> block,
+    no tables, no padded CTA button. The arrow link is inline text, not a
+    button, which keeps it out of bulk-template shape. The benefit list is a
+    plain <ul>, the one structural addition, because three bolded benefits
+    are the point of the mail and a run-on paragraph buries them.
+
+    PREREQUISITE 1, do not send before this is true. The copy states the tier
+    is already attached. At the time of writing it is NOT: only two accounts
+    platform-wide hold `user_points.plus_tier`, and neither is a bulk grant.
+    A Plus grant is applied per user via `PATCH /admin/users/{id}/plus-tier`
+    (migration 20260824000001) and there is no bulk script for it yet, unlike
+    grant-beta-access.ts. Run the grant first. Mailing first makes every
+    sentence below false on arrival.
+
+    PREREQUISITE 2, the grant has to be a Plus grant, because nothing else
+    exists. The founder asked for plain Falcon rather than Falcon Plus. There
+    is no supported way to do that: `PATCH /admin/users/{id}/plus-tier` is the
+    ONLY admin tier endpoint, and the plain `user_points.rank` column is owned
+    by the volume-derived award path and the tier job. Writing `rank` directly
+    would also not survive: `TIER_DEMOTION_PERIOD_DAYS` is 30, falling below
+    demotes one tier per period "all the way to Bronze", and 958 of these
+    recipients have zero volume, so a hand-set Falcon decays out from under
+    them. Use the Plus grant.
+
+    WHAT WAS ACTUALLY DONE, and why this copy makes no durability promise.
+    The 405 were granted the Plus floor and then, at the founder's direction,
+    the floor was REVOKED so their badge reads plain "Falcon" rather than
+    "Falcon Plus". Verified with scripts/check-plus-tier.ts: 405 rank=titan,
+    plus_tier=NULL, zero Plus badges.
+
+    The cost of that choice is that the tier is no longer permanent. Revoking
+    does not demote (grant_outcome leaves rank alone) but it restarts the
+    decay clock, and all 405 now have tier_below_since set. At
+    TIER_DEMOTION_PERIOD_DAYS = 30 they step down one tier per period, to
+    Bronze, unless they trade Falcon-level volume.
+
+    So "A gift, and yours to keep" was CUT from this copy. Do not reinstate it
+    or any other permanence wording ("keep", "forever", "never expires") while
+    the floor is revoked. It would be false within about 30 days.
+
+    Audience split, measured not assumed. Of the 1,364 wave-1 addresses only
+    406 have a terminal account, and only 81 of those have a points row at
+    all (bronze 56, silver 22, gold 1, diamond 1, titan 1). So 958 recipients
+    have never signed in. Two consequences for the copy:
+
+      - It never says "your trading earned this", because for 70% it did not.
+      - It never says cashback is already waiting to be claimed. Rakeback
+        accrues on fees actually paid, so a recipient who never traded has a
+        balance of exactly zero and "claim what is waiting" would be a lie to
+        most of the list.
+      - The closing line is "Not signed in yet? Sign in and get rewarded",
+        which is an INVITATION, not a statement of account state. That
+        wording matters: only the 405 recipients with an existing account can
+        actually be granted the tier, because a grant needs a user id. For
+        the 959 with no account there is nothing to attach Falcon to yet, so
+        an earlier draft's "Falcon is already on your account" was false for
+        exactly the people that line was written for. Do not restore any
+        phrasing that asserts the tier is already on their account unless a
+        grant-on-signup path exists.
+
+    Benefit accuracy, all three verified rather than taken from the frontend.
+
+      1. 50% cashback. Production has NO active `rakeback.tier_bps` row, NO
+         legacy `trading.sol_rakeback_bps` flat override and NO `fees.tier_bps`
+         row, so st-api falls through to the compiled
+         `RakebackTierTable::v1_default` = `[1000, 1500, 2000, 3000, 4000,
+         5000]`, Bronze 10% .. Titan 50% (st-gamification/src/rakeback.rs:
+         "1 SOL fee: Bronze (10%) = 0.10, Titan (50%) = 0.50"). Seeding any of
+         those rows makes this stale, so re-check before a resend.
+      2. "Highest rate we give at any tier" is safe: admin_bounds validates
+         every ladder entry at <= 5000 bps, so 50% is the ceiling by rule,
+         not just the current value.
+      3. 4x points. `RANK_MULTIPLIER.titan` is 4 against `bronze` 1, mirroring
+         `points::rank_multiplier`. "Four times what a new trader earns" is
+         exact, since a new account starts at Bronze.
+
+    Cashback wording: "Get half your trading fees back" is the founder's own
+    copy, kept verbatim at their explicit direction after the caveat below was
+    raised. Do not silently "correct" it.
+
+    The caveat, recorded so the decision stays informed. Rakeback is bps of
+    the PLATFORM fee ONLY. A trader also pays Solana network and priority
+    fees, plus the venue's own fee, and none of those are rebated. "Your
+    trading fees" (plural possessive) can therefore be read as half of
+    everything they spend to trade, which is more than they will receive.
+    The preceding sentence, "50% cashback on every fee", is what keeps our
+    fee as the implied base. The narrower phrasing, if it is ever wanted, is
+    "Get half our trading fee back".
+
+    Still to refuse outright: "50% cashback on every trade". That reads as
+    half the TRADE VALUE rather than half the fee, and is a wild over-claim
+    no context repairs.
+
+    The "reply to this email" line that closes the other five sends was cut
+    here, at the founder's direction. Do not restore it as an oversight.
+    RESEND_REPLY_TO is still set on the send, so replies continue to reach the
+    team; this mail simply does not invite them, which is a deliberate change
+    of tone for a thank-you rather than a feedback request.
+
+    "Falcon Plus" is no longer named in the copy, at the founder's direction.
+    The badge in the product still renders "Falcon Plus" whenever plus_tier
+    equals rank, so expect a small number of "why does mine say Plus" replies.
+    That is the accepted trade for a cleaner mail.
+
+    What this copy deliberately does NOT say: that anyone is making money
+    trading. The brief said "people are getting paid", which in an email about
+    a trading product reads as an earnings claim. Cashback is a mechanical
+    rebate on a fee already paid, so that is what is described, and nothing is
+    promised about trade outcomes.
+  -->
+  <body style="margin:0;padding:0;background:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;">
+    <div style="max-width:520px;margin:0 auto;padding:36px 24px 32px;color:#1a1a1a;font-size:16px;line-height:1.6;">
+      <p style="margin:0 0 18px;">Hello,</p>
+
+      <p style="margin:0 0 18px;">
+        You were in the first trench.
+      </p>
+
+      <p style="margin:0 0 22px;">
+        You did not just try Trenchers, you gave valuable feedback. Those replies mean more to us than anything else we have been given, and a lot of what the terminal does today started in one of them.
+      </p>
+
+      <p style="margin:0 0 22px;">
+        So we want to thank you properly. You now hold <strong>Falcon</strong>, our top tier:
+      </p>
+
+      <ul style="margin:0 0 22px;padding:0 0 0 22px;">
+        <li style="margin:0 0 10px;"><strong>50% cashback on every fee.</strong> Get half your trading fees back, paid in SOL. No tier earns more.</li>
+        <li style="margin:0;"><strong>4x points on every trade.</strong> Four times what a new trader earns.</li>
+      </ul>
+
+      <p style="margin:0 0 22px;">
+        Cashback lands on the Rewards page in SOL, and you claim it yourself.
+      </p>
+
+      <p style="margin:0 0 28px;">
+        Not signed in yet? Sign in and get rewarded &rarr; <a href="{{ACCESS_URL}}" style="font-weight:600;color:#1a1a1a;text-decoration:underline;">Trenchers</a>
+      </p>
+
+      <p style="margin:0 0 28px;color:#555;">Trenchers</p>
+
+      <p style="margin:0;color:#8a8a8a;font-size:13px;line-height:1.5;">
+        You are receiving this because you joined the Trenchers waitlist. If you would prefer not to hear from us, you can <a href="{{UNSUBSCRIBE_URL}}" style="color:#8a8a8a;">unsubscribe</a>.
+      </p>
+    </div>
+  </body>
+</html>

@@ -116,6 +116,41 @@ function parseArgs() {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+/// Retry a read that failed for infrastructure reasons rather than data ones.
+///
+/// A live send is a long-lived process on a laptop, and over three hours it
+/// will meet at least one transient network fault. This is not hypothetical:
+/// wave 2 died at batch 8 of 12 on `EAI_AGAIN`, a DNS lookup for the Supabase
+/// pooler that failed for a few seconds. 328 people went unmailed because a
+/// name server blinked.
+///
+/// Only wrap reads. A write that may have partially applied must not be blindly
+/// replayed, and the send path deliberately handles its own failures so that a
+/// provider error never becomes terminal for a recipient.
+async function withRetry<T>(
+  label: string,
+  fn: () => Promise<T>,
+  attempts = 5,
+): Promise<T | null> {
+  for (let i = 1; i <= attempts; i++) {
+    try {
+      return await fn();
+    } catch (err) {
+      const msg = (err as Error).message?.split("\n")[0] ?? String(err);
+      if (i === attempts) {
+        console.error(`  ${label}: failed after ${attempts} attempts - ${msg}`);
+        return null;
+      }
+      const wait = 2000 * 2 ** (i - 1); // 2s, 4s, 8s, 16s
+      console.warn(
+        `  ${label}: attempt ${i} failed (${msg}), retrying in ${wait / 1000}s`,
+      );
+      await sleep(wait);
+    }
+  }
+  return null;
+}
+
 async function reputation() {
   const prisma = getPrismaClient();
   const [sent, bounced, complained, unsubscribed] = await Promise.all([
@@ -246,8 +281,23 @@ async function main() {
     const chunk = pending.slice(i, i + batch);
     const started = Date.now();
 
-    // 1. reputation gate, re-read every batch so a spike stops the rest
-    const live = await reputation();
+    // 1. reputation gate, re-read every batch so a spike stops the rest.
+    //    Retried, because a transient DNS or network fault here is not a
+    //    reason to abandon a send that is otherwise healthy.
+    const live = await withRetry(`batch ${n} reputation read`, reputation);
+    if (live === null) {
+      // We genuinely cannot tell whether it is safe to keep going. Stopping
+      // is the right call, but stop cleanly and say how to resume: every
+      // recipient already mailed is stamped, so re-running skips them.
+      console.error(
+        `\nSTOPPED at batch ${n}: cannot read the reputation gate after ` +
+          `retries, so it is unknown whether bounce or complaint rates are ` +
+          `still safe. Refusing to keep sending blind.`,
+      );
+      console.error(`Sent ${sentCount} in this run. Re-run the same command ` +
+        `to resume; everyone already mailed is stamped and will be skipped.`);
+      process.exit(5);
+    }
     const stop = gate(live);
     if (stop) {
       console.error(`\nABORT mid-wave at batch ${n}: ${stop}`);
@@ -397,14 +447,20 @@ async function main() {
     }
   }
 
-  const final = await reputation();
+  const final = await withRetry("final reputation read", reputation);
   console.log(`\nWave ${wave} run complete.`);
   console.log(`  sent ${sentCount}, grant failures ${grantFailed}, send failures ${sendFailed}`);
-  console.log(
-    `  campaign totals: sent ${final.sent}, bounced ${final.bounced} (${(
-      final.bounceRate * 100
-    ).toFixed(2)}%), complained ${final.complained} (${(final.complaintRate * 100).toFixed(3)}%)`,
-  );
+  if (final) {
+    console.log(
+      `  campaign totals: sent ${final.sent}, bounced ${final.bounced} (${(
+        final.bounceRate * 100
+      ).toFixed(2)}%), complained ${final.complained} (${(final.complaintRate * 100).toFixed(3)}%)`,
+    );
+  } else {
+    // The run itself finished; only the closing summary could not be read.
+    // Say so rather than printing nothing and letting it look complete.
+    console.log("  campaign totals unavailable (database unreachable at finish)");
+  }
   console.log("\nLet the webhooks settle before starting the next wave.");
 }
 

@@ -793,3 +793,117 @@ async function buildOtpEmailHtml(otp: string) {
     .replace(/href="\/terms"/g, `href="${appUrl}/terms"`)
     .replace(/href="\/privacy"/g, `href="${appUrl}/privacy"`);
 }
+
+/// Subject for the Falcon tier-upgrade mail to wave 1.
+///
+/// Deliberately plain and declarative, per the rule stated above the invite
+/// subject: no emoji, no exclamation mark, no "exclusive" / "reward" language.
+/// This mail goes to 1,364 people at once and a Promotions-tab placement would
+/// cost more reach than an excited subject line buys.
+export const BETA_FALCON_SUBJECT = "You are now Falcon, our top tier";
+
+/// Seventh touch: public-beta launch, gifting Falcon to the WHOLE waitlist.
+/// Names the action rather than the feeling — the recipient has to click to
+/// redeem, so a subject that only celebrates would bury the one thing the
+/// mail needs them to do.
+export const BETA_FALCON_CLAIM_SUBJECT = "We are live. Your Falcon tier is waiting.";
+
+export async function buildBetaFalconHtml(params: BetaInviteCopy) {
+  const templatePath = join(
+    process.cwd(),
+    "src/email-templates/beta-falcon/index.html",
+  );
+  const templateHtml = await readFile(templatePath, "utf-8");
+  return templateHtml
+    .replace(/<!--[\s\S]*?-->/g, "")
+    .replaceAll("{{ACCESS_URL}}", params.accessUrl)
+    .replaceAll("{{UNSUBSCRIBE_URL}}", params.unsubscribeUrl)
+    .trim();
+}
+
+/// Plain-text mirror. Kept in step with beta-falcon/index.html by hand; if the
+/// HTML changes, change this too. Note it makes NO permanence claim, for the
+/// same reason the HTML does not: the Plus floor was revoked, so the tier
+/// decays after TIER_DEMOTION_PERIOD_DAYS without qualifying volume.
+export function buildBetaFalconText(params: BetaInviteCopy) {
+  return [
+    "Hello,",
+    "",
+    "You were in the first trench.",
+    "",
+    "You did not just try Trenchers, you gave valuable feedback. Those",
+    "replies mean more to us than anything else we have been given, and a",
+    "lot of what the terminal does today started in one of them.",
+    "",
+    "So we want to thank you properly. You now hold Falcon, our top tier:",
+    "",
+    "  * 50% cashback on every fee. Get half your trading fees back, paid",
+    "    in SOL. No tier earns more.",
+    "  * 4x points on every trade. Four times what a new trader earns.",
+    "",
+    "Cashback lands on the Rewards page in SOL, and you claim it yourself.",
+    "",
+    "Not signed in yet? Sign in and get rewarded:",
+    params.accessUrl,
+    "",
+    "Trenchers",
+    "",
+    "---",
+    "You are receiving this because you joined the Trenchers waitlist.",
+    `Unsubscribe: ${params.unsubscribeUrl}`,
+  ].join("\n");
+}
+
+export async function buildBetaFalconClaimHtml(params: BetaInviteCopy) {
+  const templatePath = join(
+    process.cwd(),
+    "src/email-templates/beta-falcon-claim/index.html",
+  );
+  const templateHtml = await readFile(templatePath, "utf-8");
+  return templateHtml
+    .replace(/<!--[\s\S]*?-->/g, "")
+    .replaceAll("{{ACCESS_URL}}", params.accessUrl)
+    .replaceAll("{{UNSUBSCRIBE_URL}}", params.unsubscribeUrl)
+    .trim();
+}
+
+/// Plain-text mirror. Kept in step with beta-falcon-claim/index.html by hand;
+/// if the HTML changes, change this too.
+///
+/// Like its predecessor it makes NO permanence claim, and unlike its
+/// predecessor it says why out loud: a claimed tier writes no `plus_tier`
+/// floor, so it decays after TIER_DEMOTION_PERIOD_DAYS without qualifying
+/// volume. Telling 14,199 people they hold the top tier and letting the
+/// step-down arrive unannounced is the failure mode that sentence prevents.
+export function buildBetaFalconClaimText(params: BetaInviteCopy) {
+  return [
+    "Hello,",
+    "",
+    "Trenchers is live in public beta.",
+    "",
+    "You signed up before there was much to sign up for. Early believers",
+    "are the only reason we got here, and we wanted to thank the people",
+    "who backed us when it was still a promise.",
+    "",
+    "So Falcon, our top tier, is a gift to you. It is sitting on your",
+    "account, waiting to be claimed:",
+    "",
+    "  * 50% cashback on every fee. Get half your trading fees back, paid",
+    "    in SOL. No tier earns more.",
+    "  * 4x points on every trade. Four times what a new trader earns.",
+    "",
+    "Sign in and you will see it. One click and it is yours.",
+    "",
+    "Falcon is a trading tier, so it is held by volume. Claiming gives you",
+    "a full 30 days at the top, and it stays as long as you keep trading.",
+    "",
+    "Claim your Falcon:",
+    params.accessUrl,
+    "",
+    "Trenchers",
+    "",
+    "---",
+    "You are receiving this because you joined the Trenchers waitlist.",
+    `Unsubscribe: ${params.unsubscribeUrl}`,
+  ].join("\n");
+}

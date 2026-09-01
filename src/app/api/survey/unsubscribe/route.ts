@@ -25,7 +25,15 @@ async function markUnsubscribed(token: string | null) {
   const prisma = getPrismaClient();
   const now = new Date();
 
-  const [surveyRow, betaRow] = await Promise.all([
+  // THREE token sources, and the third is not redundant. Opt-out tokens used
+  // to live only on the two invite tables, so a subscriber holding neither --
+  // 1,801 of them at the time of writing -- had an unsubscribe link that
+  // resolved to a 404. Whole-list sends reach exactly those people, and a
+  // recipient who wants out and cannot get out reports spam instead. Mailbox
+  // providers weigh a complaint far more heavily than an unsubscribe, so that
+  // 404 was a direct route to damaging a domain that also carries OTP login
+  // mail. `WaitlistSubscriber.unsubscribeToken` closes it.
+  const [surveyRow, betaRow, subRow] = await Promise.all([
     prisma.surveyInvite.findUnique({
       where: { token },
       select: { subscriberId: true },
@@ -34,13 +42,21 @@ async function markUnsubscribed(token: string | null) {
       where: { token },
       select: { subscriberId: true },
     }),
+    prisma.waitlistSubscriber.findUnique({
+      where: { unsubscribeToken: token },
+      select: { id: true },
+    }),
   ]);
 
-  const subscriberId = surveyRow?.subscriberId ?? betaRow?.subscriberId;
+  const subscriberId =
+    surveyRow?.subscriberId ?? betaRow?.subscriberId ?? subRow?.id;
   if (!subscriberId) {
     return new Response("Invalid token.", { status: 404 });
   }
 
+  // The subscriber row is stamped too, not just the invites. It is the only
+  // record that exists for every recipient, so it is the only one a
+  // whole-list send can filter on.
   await Promise.all([
     prisma.surveyInvite.updateMany({
       where: { subscriberId, unsubscribedAt: null },
@@ -48,6 +64,10 @@ async function markUnsubscribed(token: string | null) {
     }),
     prisma.betaInvite.updateMany({
       where: { subscriberId, unsubscribedAt: null },
+      data: { unsubscribedAt: now },
+    }),
+    prisma.waitlistSubscriber.updateMany({
+      where: { id: subscriberId, unsubscribedAt: null },
       data: { unsubscribedAt: now },
     }),
   ]);
