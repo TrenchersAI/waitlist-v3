@@ -1,5 +1,7 @@
 "use client";
 
+import dynamic from "next/dynamic";
+
 import SiteNav from "./site-nav";
 import {
   PreviewSection,
@@ -12,6 +14,10 @@ import SnipeIcon from "../icons/snipe-icon";
 import TrackingIcon from "../icons/tracking-icon";
 
 const START_TRADING_URL = "https://beta.trenchers.ai";
+
+/** Beams renders a WebGL `<Canvas>` (three.js / react-three-fiber), which needs
+   browser APIs. Load it client-only so it never runs during SSR/prerender. */
+const Beams = dynamic(() => import("./Beams"), { ssr: false });
 
 /** Items shown in the horizontal marquee above the headline. Source SVGs are
    drawn in black, so the wrapper's ⁠ [&_svg]:invert ⁠ flips them to white on
@@ -30,25 +36,33 @@ export default function Hero() {
 
       <section
         id="hero"
-        className="site-canvas-bg relative w-full overflow-hidden"
+        className="site-canvas-bg relative flex min-h-dvh w-full items-center justify-center overflow-hidden"
       >
-        {/* Soft top accent glow - single subtle indigo wash so the eye lands
-           on the headline. Sized in viewport units so it scales with display. */}
-        <div
-          aria-hidden
-          className="pointer-events-none absolute left-1/2 top-0 h-[460px] w-[min(900px,110vw)] -translate-x-1/2 bg-[radial-gradient(closest-side,rgba(94,104,255,0.22),transparent_72%)] blur-2xl"
-        />
+        {/* Animated Beams background. The canvas is transparent
+           (`backgroundColor={null}`) so the dark site canvas shows through. */}
+        <div aria-hidden className="pointer-events-none absolute inset-0">
+          <Beams
+            beamWidth={3}
+            beamHeight={30}
+            beamNumber={20}
+            speed={3}
+            noiseIntensity={1.75}
+            scale={0.2}
+            rotation={30}
+            backgroundColor={null}
+          />
+        </div>
 
         <div
           id="waitlist"
-          className="relative mx-auto flex w-full min-w-0 max-w-6xl flex-col items-center px-5 pb-20 pt-32 text-center md:px-8 md:pt-40 md:pb-28"
+          className="relative z-10 mx-auto flex w-full min-w-0 max-w-6xl flex-col items-center px-5 py-28 text-center md:px-8"
         >
           <div className="feature-strip-marquee mb-1 w-full max-w-[640px]">
+            {/* Items duplicated 4x so the track always spans wider than
+               any viewport. Keyframes translate -50% (i.e. 2 of the 4
+               sets), so the second half lands exactly where the first
+               half started - seamless infinite loop. */}
             <div className="feature-strip-track">
-              {/* Items duplicated 4x so the track always spans wider than
-                 any viewport. Keyframes translate -50% (i.e. 2 of the 4
-                 sets), so the second half lands exactly where the first
-                 half started - seamless infinite loop. */}
               {Array.from({ length: 4 })
                 .flatMap(() => FEATURE_STRIP_ITEMS)
                 .map((feature, index) => (
@@ -78,7 +92,7 @@ export default function Hero() {
           <div className="mt-10 flex w-full justify-center md:mt-11">
             <a
               href={START_TRADING_URL}
-              className="inline-flex min-h-11 items-center justify-center rounded-lg bg-white px-8 text-sm font-semibold text-zinc-950 shadow-sm transition-colors hover:bg-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/35 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
+              className="inline-flex min-h-11 items-center justify-center rounded-lg bg-white px-8 text-base font-semibold text-zinc-950 shadow-sm transition-colors hover:bg-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/35 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
             >
               Start trading
             </a>
