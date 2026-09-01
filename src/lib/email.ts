@@ -854,7 +854,9 @@ export function buildBetaFalconText(params: BetaInviteCopy) {
   ].join("\n");
 }
 
-export async function buildBetaFalconClaimHtml(params: BetaInviteCopy) {
+export async function buildBetaFalconClaimHtml(
+  params: BetaInviteCopy & { claimUrl?: string },
+) {
   const templatePath = join(
     process.cwd(),
     "src/email-templates/beta-falcon-claim/index.html",
@@ -862,6 +864,10 @@ export async function buildBetaFalconClaimHtml(params: BetaInviteCopy) {
   const templateHtml = await readFile(templatePath, "utf-8");
   return templateHtml
     .replace(/<!--[\s\S]*?-->/g, "")
+    // Falls back to the untracked URL when no token is supplied, so a preview
+    // or a one-off test send still produces a working mail rather than a link
+    // to nowhere.
+    .replaceAll("{{CLAIM_URL}}", params.claimUrl ?? params.accessUrl)
     .replaceAll("{{ACCESS_URL}}", params.accessUrl)
     .replaceAll("{{UNSUBSCRIBE_URL}}", params.unsubscribeUrl)
     .trim();
@@ -875,7 +881,9 @@ export async function buildBetaFalconClaimHtml(params: BetaInviteCopy) {
 /// floor, so it decays after TIER_DEMOTION_PERIOD_DAYS without qualifying
 /// volume. Telling 14,199 people they hold the top tier and letting the
 /// step-down arrive unannounced is the failure mode that sentence prevents.
-export function buildBetaFalconClaimText(params: BetaInviteCopy) {
+export function buildBetaFalconClaimText(
+  params: BetaInviteCopy & { claimUrl?: string },
+) {
   return [
     "Hello,",
     "",
@@ -898,7 +906,7 @@ export function buildBetaFalconClaimText(params: BetaInviteCopy) {
     "a full 30 days at the top, and it stays as long as you keep trading.",
     "",
     "Claim your Falcon:",
-    params.accessUrl,
+    params.claimUrl ?? params.accessUrl,
     "",
     "Trenchers",
     "",

@@ -87,7 +87,7 @@ export function FalconClaimContent() {
   }
   if (!data) return null;
 
-  const { send, claim, unmeasured } = data;
+  const { send, claim, attribution, unmeasured } = data;
   const bounceTone =
     send.bounceRate != null && send.bounceRate > send.bounceLimit
       ? "bad"
@@ -150,6 +150,25 @@ export function FalconClaimContent() {
             sub="never left, costs nothing"
           />
         </div>
+        {send.openTracked || send.clickTracked ? (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {send.openTracked ? (
+              <Stat
+                label="Opened"
+                value={pct(send.openRate, 1)}
+                sub={`${num(send.opened)} of delivered`}
+              />
+            ) : null}
+            {send.clickTracked ? (
+              <Stat
+                label="Clicked the CTA"
+                value={pct(send.clickRate, 2)}
+                sub={`${num(send.clicked)} first-party, of delivered`}
+                tone="good"
+              />
+            ) : null}
+          </div>
+        ) : null}
         <p className="text-xs leading-relaxed text-white/40">
           Delivery confirmations arrive by webhook a little behind the send, so
           while a run is in flight this rate reads low and catches up. Bounce and
@@ -189,6 +208,44 @@ export function FalconClaimContent() {
           bigger ask than the mail makes. Measuring claims against everyone
           mailed therefore understates the mail; measuring against people who
           already have an account is what tells you whether the copy worked.
+        </p>
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-base font-semibold text-white">Response, attributed</h2>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <Stat
+            label="Signed up after the mail"
+            value={num(attribution.signedUpAfter)}
+            sub={`${pct(attribution.signupRateOfNoAccount, 2)} of those with no account`}
+            tone="good"
+          />
+          <Stat
+            label="Claimed after the mail"
+            value={num(attribution.claimedAfter)}
+            sub="timestamped after their send"
+            tone="good"
+          />
+          <Stat
+            label="Could act on it"
+            value={num(attribution.hadAccountBefore + attribution.signedUpAfter)}
+            sub={`${num(attribution.hadAccountBefore)} already had an account`}
+          />
+          <Stat
+            label="Of those, claimed"
+            value={pct(attribution.claimRateOfReachable, 1)}
+            sub="the campaign's real conversion"
+          />
+        </div>
+        <p className="text-xs leading-relaxed text-white/40">
+          <strong className="text-white/60">Attributed by timestamp, not inferred.</strong>{" "}
+          A signup or claim recorded AFTER an address was mailed is one the mail
+          could have caused; one recorded before it plainly could not. This is
+          what stands in for the click-through this send did not instrument:
+          weaker than a tracked click, but real, and it measures the thing that
+          matters rather than the thing that is easy to count. Signing up is by
+          far the harder ask — the mail says &ldquo;one click&rdquo;, which is
+          only true for someone who already has an account.
         </p>
       </section>
 

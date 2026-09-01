@@ -234,6 +234,7 @@ async function main() {
       id: true,
       email: true,
       unsubscribeToken: true,
+      claimClickToken: true,
       falconClaimSentAt: true,
       unsubscribedAt: true,
       betaInvite: {
@@ -404,7 +405,13 @@ async function main() {
     const payload = await Promise.all(
       chunk.map(async (row) => {
         const unsubscribeUrl = `${siteUrl}/api/survey/unsubscribe?token=${row.unsubscribeToken}&c=falcon-claim`;
-        const copy = { accessUrl, unsubscribeUrl, recipientEmail: row.email };
+        // First-party click attribution. Falls back to the plain URL if this
+        // recipient has no token, because a mail that still reaches them
+        // untracked beats one that does not go out at all.
+        const claimUrl = row.claimClickToken
+          ? `${siteUrl}/api/claim/${row.claimClickToken}`
+          : accessUrl;
+        const copy = { accessUrl, claimUrl, unsubscribeUrl, recipientEmail: row.email };
         return {
           from: fromEmail,
           to: row.email,

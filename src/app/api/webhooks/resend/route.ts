@@ -381,6 +381,7 @@ export async function POST(request: Request) {
         id: true,
         falconClaimResendMsgId: true,
         falconClaimDeliveredAt: true,
+        falconClaimOpenedAt: true,
         falconClaimBouncedAt: true,
         falconClaimComplainedAt: true,
         falconClaimSuppressedAt: true,
@@ -396,6 +397,12 @@ export async function POST(request: Request) {
       switch (evt.type) {
         case "email.delivered":
           if (!claimRow.falconClaimDeliveredAt) cdata.falconClaimDeliveredAt = occurredAt;
+          break;
+        // Only ever arrives when the send was run with `--track-opens`. Recorded
+        // whenever it does, so turning tracking on for one campaign needs no
+        // further change here.
+        case "email.opened":
+          if (!claimRow.falconClaimOpenedAt) cdata.falconClaimOpenedAt = occurredAt;
           break;
         case "email.bounced":
         case "email.failed":
