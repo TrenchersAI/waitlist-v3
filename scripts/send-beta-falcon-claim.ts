@@ -52,6 +52,7 @@ import { closeSync, openSync, readFileSync, unlinkSync, writeSync } from "node:f
 import { Resend } from "resend";
 
 import { getPrismaClient } from "../src/lib/prisma";
+import { isMailable, isSuppressed } from "../src/lib/falcon-claim-audience";
 import {
   BETA_FALCON_CLAIM_SUBJECT,
   buildBetaFalconClaimHtml,
@@ -247,6 +248,11 @@ async function main() {
       surveyInvite: { select: { unsubscribedAt: true } },
     },
   });
+
+  // `isMailable` and `isSuppressed` come from src/lib/falcon-claim-audience so
+  // this script and the analytics dashboard cannot disagree about who is owed
+  // the mail. They did once: the dashboard counted people as "still to send"
+  // that this sender would never process.
 
   /// Addresses a provider will actually accept.
   ///

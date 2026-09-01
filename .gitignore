@@ -46,3 +46,9 @@ next-env.d.ts
 
 # local agent state
 /.claude/
+
+# Send logs from the Falcon claim campaign runs (scripts/send-beta-falcon-claim.ts).
+# Local operational output, not source.
+falcon-claim-*.log
+# Scratch render checks.
+scripts/tmp-*.ts

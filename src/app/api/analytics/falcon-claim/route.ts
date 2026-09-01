@@ -1,4 +1,10 @@
 import { getAnalyticsSessionFromCookies } from "@/src/lib/analytics-internal";
+import {
+  FALCON_CLAIM_CAMPAIGN,
+  isMailable,
+  isPending,
+  isSuppressed,
+} from "@/src/lib/falcon-claim-audience";
 import { getPrismaClient } from "@/src/lib/prisma";
 import { getTrenchersPool } from "@/src/lib/trenchers-db";
 
@@ -74,8 +80,7 @@ export async function GET() {
 
   const prisma = getPrismaClient();
 
-  const [listTotal, agg, pending, mailedRows] = await Promise.all([
-    prisma.waitlistSubscriber.count(),
+  const [agg, everyone] = await Promise.all([
     prisma.waitlistSubscriber.aggregate({
       _count: {
         falconClaimSentAt: true,
@@ -85,17 +90,40 @@ export async function GET() {
         falconClaimSuppressedAt: true,
       },
     }),
-    prisma.waitlistSubscriber.count({
-      where: { falconClaimSentAt: null, unsubscribedAt: null },
-    }),
+    // The whole list, then counted with the SENDER's own predicate. Counting
+    // pending in SQL with a looser condition is what produced the bug this
+    // replaces: rows suppressed through an invite, or holding an address the
+    // sender refuses, were reported as "still to send" even though nothing
+    // would ever process them, and `unmailable` was then derived by
+    // subtraction from that wrong number. 14,199 rows is nothing to hold.
     prisma.waitlistSubscriber.findMany({
-      where: { falconClaimSentAt: { not: null } },
-      select: { email: true },
+      select: {
+        email: true,
+        falconClaimSentAt: true,
+        unsubscribedAt: true,
+        betaInvite: {
+          select: {
+            unsubscribedAt: true,
+            bouncedAt: true,
+            complainedAt: true,
+            suppressedAt: true,
+          },
+        },
+        surveyInvite: { select: { unsubscribedAt: true } },
+      },
     }),
   ]);
 
   const c = agg._count;
   const mailed = c.falconClaimSentAt;
+  const listTotal = everyone.length;
+  const pending = everyone.filter(isPending).length;
+  // Counted directly, never inferred: an address the sender will not touch is
+  // a fact about the row, not the remainder of two other numbers.
+  const unmailable = everyone.filter(
+    (r) => r.falconClaimSentAt == null && !isSuppressed(r) && !isMailable(r.email),
+  ).length;
+  const mailedRows = everyone.filter((r) => r.falconClaimSentAt != null);
 
   // The claim side lives in the TERMINAL's database, not this one. Joined on
   // the address because that is what the grant is keyed by: a tier attaches to
@@ -109,16 +137,23 @@ export async function GET() {
   if (pool) {
     const emails = mailedRows.map((r) => r.email.toLowerCase());
     const [all, mine, accounts] = await Promise.all([
+      // Scoped to THIS campaign. `tier_claim_grants` is explicitly designed
+      // to hold more than one at a time -- that is why it has a `campaign`
+      // column and why the seed writes one -- so an unscoped count would fold
+      // a future campaign's claims into these rates and silently overstate
+      // how well this mail worked.
       pool.query<{ total: string; claimed: string }>(
         `SELECT count(*)::text AS total,
                 count(*) FILTER (WHERE claimed_at IS NOT NULL)::text AS claimed
-           FROM tier_claim_grants`,
+           FROM tier_claim_grants WHERE campaign = $1`,
+        [FALCON_CLAIM_CAMPAIGN],
       ),
       emails.length
         ? pool.query<{ claimed: string }>(
             `SELECT count(*) FILTER (WHERE claimed_at IS NOT NULL)::text AS claimed
-               FROM tier_claim_grants WHERE email = ANY($1::text[])`,
-            [emails],
+               FROM tier_claim_grants
+              WHERE campaign = $2 AND email = ANY($1::text[])`,
+            [emails, FALCON_CLAIM_CAMPAIGN],
           )
         : Promise.resolve({ rows: [{ claimed: "0" }] }),
       emails.length
@@ -140,9 +175,7 @@ export async function GET() {
       listTotal,
       mailed,
       pending,
-      // Addresses the sender refuses: malformed syntax, or an RFC 2606
-      // reserved domain. Nobody is reachable at them.
-      unmailable: Math.max(0, listTotal - mailed - pending),
+      unmailable,
       delivered: c.falconClaimDeliveredAt,
       bounced: c.falconClaimBouncedAt,
       complained: c.falconClaimComplainedAt,
