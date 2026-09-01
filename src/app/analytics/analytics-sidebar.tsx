@@ -1,6 +1,5 @@
 "use client";
 
-import * as React from "react";
 import {
   Activity,
   Bot,
@@ -17,6 +16,7 @@ import {
   Trophy,
   UserCheck,
   Users,
+  type LucideIcon,
 } from "lucide-react";
 
 import { cn } from "@/src/lib/utils";
@@ -39,7 +39,7 @@ export type AnalyticsSection =
 type ItemDef = {
   id: AnalyticsSection;
   label: string;
-  icon: React.ElementType;
+  icon: LucideIcon;
 };
 
 const ITEMS: ReadonlyArray<ItemDef> = [
