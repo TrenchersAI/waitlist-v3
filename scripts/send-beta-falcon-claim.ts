@@ -47,6 +47,8 @@
 
 import "dotenv/config";
 
+import { closeSync, openSync, readFileSync, unlinkSync, writeSync } from "node:fs";
+
 import { Resend } from "resend";
 
 import { getPrismaClient } from "../src/lib/prisma";
@@ -117,8 +119,86 @@ function gate(s: { sent: number; bounced: number; complained: number }) {
   return null;
 }
 
+/// Refuse to start while another copy of this script is alive.
+///
+/// THIS IS NOT DEFENSIVE PADDING. Two senders ran concurrently once, because a
+/// kill was verified with a process pattern that also matched the verifying
+/// shell -- it reported "not running" against a live process, and a second run
+/// was launched on top of it. Both then selected pending rows independently,
+/// and since a row is only stamped AFTER its message is accepted, the two
+/// selections overlapped: 3,674 people received the mail twice.
+///
+/// A lock makes that impossible to repeat regardless of how carefully anyone
+/// checks. `wx` is an atomic create-or-fail, so two processes racing to start
+/// cannot both win. A stale lock from a crashed run is taken over rather than
+/// blocking forever -- the PID inside is checked for liveness first, since
+/// refusing to start after a crash would be its own outage.
+const LOCK = "/tmp/falcon-claim-send.lock";
+
+function acquireLock() {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const fd = openSync(LOCK, "wx");
+      writeSync(fd, String(process.pid));
+      closeSync(fd);
+      return;
+    } catch {
+      let holder = 0;
+      try {
+        holder = Number(readFileSync(LOCK, "utf-8").trim());
+      } catch {
+        /* unreadable lock is treated as stale */
+      }
+      let alive = false;
+      if (holder > 0) {
+        try {
+          // Signal 0 tests for existence without touching the process.
+          process.kill(holder, 0);
+          alive = true;
+        } catch {
+          alive = false;
+        }
+      }
+      if (alive) {
+        console.error(
+          `\nREFUSING TO START: another send is already running (pid ${holder}).\n` +
+            `Two concurrent senders double-mail everyone they both select.\n` +
+            `Stop it first, or delete ${LOCK} if you are certain it is stale.\n`,
+        );
+        process.exit(4);
+      }
+      console.warn(`  taking over stale lock from dead pid ${holder}`);
+      try {
+        unlinkSync(LOCK);
+      } catch {
+        /* raced with another taker; the retry will settle it */
+      }
+    }
+  }
+  console.error("\nCould not acquire the send lock.\n");
+  process.exit(4);
+}
+
+function releaseLock() {
+  try {
+    unlinkSync(LOCK);
+  } catch {
+    /* already gone */
+  }
+}
+
 async function main() {
   const opts = parseArgs();
+  if (opts.send) {
+    acquireLock();
+    for (const sig of ["SIGINT", "SIGTERM", "SIGHUP"] as const) {
+      process.on(sig, () => {
+        releaseLock();
+        process.exit(130);
+      });
+    }
+    process.on("exit", releaseLock);
+  }
   const prisma = getPrismaClient();
 
   const apiKey = process.env.RESEND_API_KEY;
