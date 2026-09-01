@@ -276,6 +276,33 @@ async function main() {
   let sentCount = 0;
   let failed = 0;
 
+  /// Stamp a delivered slice in ONE statement. N updates inside
+  /// `prisma.$transaction` blew Prisma's 5s interactive limit at 5,214ms
+  /// against the pooler and left 100 delivered messages unrecorded, which is
+  /// the one failure that causes a DOUBLE SEND on resume.
+  ///
+  /// Returns false if it could not stamp; the caller must stop rather than
+  /// continue holding mail that is already out.
+  const stampSent = async (subIds: string[], msgIds: string[]) => {
+    if (subIds.length === 0) return true;
+    for (let attempt = 1; attempt <= 4; attempt++) {
+      try {
+        await prisma.$executeRaw`
+          UPDATE "WaitlistSubscriber" AS w
+             SET "falconClaimSentAt" = now(),
+                 "falconClaimResendMsgId" = NULLIF(v.msg, '')
+            FROM (SELECT unnest(${subIds}::text[]) AS id,
+                         unnest(${msgIds}::text[]) AS msg) v
+           WHERE w.id = v.id AND w."falconClaimSentAt" IS NULL`;
+        return true;
+      } catch (e) {
+        console.warn(`  stamp attempt ${attempt} failed — ${(e as Error).message}`);
+        await sleep(1500 * attempt);
+      }
+    }
+    return false;
+  };
+
   for (let i = 0; i < pending.length; i += opts.batch) {
     const n = Math.floor(i / opts.batch) + 1;
     const chunk = pending.slice(i, i + opts.batch);
@@ -327,43 +354,58 @@ async function main() {
         );
       }
       if (result.error) {
-        console.warn(`  batch ${n}: failed after retries, ${chunk.length} left pending`);
-        failed += chunk.length;
-      } else {
-        const ids = result.data?.data ?? [];
-        // ONE stamping statement per batch, not N. Parallel per-row writes are
-        // what exhausted the Supabase pooler and killed an earlier send.
-        // Retried hard, because the mail is already delivered: an unstamped
-        // row looks pending and gets mailed a SECOND time on the next run.
-        // ONE statement, not N updates in a transaction. The first live batch
-        // delivered 100 messages and then could not stamp them: 100 sequential
-        // updates through the Supabase pooler blew Prisma's 5s interactive
-        // limit at 5,214ms, all four retries hit the same wall, and the run
-        // aborted holding mail that was already out. `unnest` of two arrays
-        // does the same work in a single round trip.
-        const subIds = chunk.map((r) => r.id);
-        const msgIds = chunk.map((_, k) => ids[k]?.id ?? "");
-        let stamped = false;
-        for (let attempt = 1; attempt <= 4 && !stamped; attempt++) {
+        // ISOLATE, DO NOT DISCARD. Resend rejects an ENTIRE batch if a single
+        // `to` is unacceptable, and names neither the address nor always the
+        // same reason -- we hit malformed syntax and RFC 2606 reserved domains
+        // as two different messages, and there is no reason to believe that is
+        // the complete list. Enumerating every rejection class up front is a
+        // losing game, so the batch is re-sent one message at a time instead:
+        // the bad address costs only itself, the other ~99 go out, and the
+        // offender is printed so the list can be cleaned.
+        //
+        // Only on the failure path, so the cost is 100 extra API calls on a
+        // rare batch rather than on every batch.
+        console.warn(`  batch ${n}: batch rejected (${result.error.message})`);
+        console.warn(`  batch ${n}: re-sending individually to isolate it`);
+        const okIds: string[] = [];
+        const okMsgs: string[] = [];
+        const rejected: string[] = [];
+        for (let k = 0; k < chunk.length; k++) {
           try {
-            await prisma.$executeRaw`
-              UPDATE "WaitlistSubscriber" AS w
-                 SET "falconClaimSentAt" = now(),
-                     "falconClaimResendMsgId" = NULLIF(v.msg, '')
-                FROM (SELECT unnest(${subIds}::text[]) AS id,
-                             unnest(${msgIds}::text[]) AS msg) v
-               WHERE w.id = v.id AND w."falconClaimSentAt" IS NULL`;
-            stamped = true;
+            const one = await resend.emails.send(
+              payload[k] as unknown as Parameters<typeof resend.emails.send>[0],
+            );
+            if (one.error) {
+              rejected.push(`${chunk[k].email} — ${one.error.message}`);
+              continue;
+            }
+            okIds.push(chunk[k].id);
+            okMsgs.push(one.data?.id ?? "");
           } catch (e) {
-            console.warn(`  batch ${n}: stamp attempt ${attempt} failed — ${(e as Error).message}`);
-            await sleep(1500 * attempt);
+            rejected.push(`${chunk[k].email} — ${(e as Error).message}`);
           }
         }
-        if (!stamped) {
+        if (!(await stampSent(okIds, okMsgs))) {
+          console.error(
+            `\nABORT: ${okIds.length} messages in batch ${n} were DELIVERED but ` +
+              `could not be stamped. Re-running now would mail them twice.\n` +
+              `Recover with: pnpm exec tsx scripts/repair-falcon-claim-stamps.ts\n`,
+          );
+          process.exit(3);
+        }
+        sentCount += okIds.length;
+        failed += rejected.length;
+        console.warn(`  batch ${n}: ${okIds.length} sent individually, ${rejected.length} rejected`);
+        for (const r of rejected) console.warn(`      rejected: ${r}`);
+      } else {
+        const ids = result.data?.data ?? [];
+        const subIds = chunk.map((r) => r.id);
+        const msgIds = chunk.map((_, k) => ids[k]?.id ?? "");
+        if (!(await stampSent(subIds, msgIds))) {
           console.error(
             `\nABORT: batch ${n} was DELIVERED but could not be stamped. ` +
-              `Re-running now would mail those ${chunk.length} people twice. ` +
-              `Fix the database before resuming.\n`,
+              `Re-running now would mail those ${chunk.length} people twice.\n` +
+              `Recover with: pnpm exec tsx scripts/repair-falcon-claim-stamps.ts\n`,
           );
           process.exit(3);
         }
