@@ -82,7 +82,7 @@ async function main() {
   // exactly "all stamped, but some deliveries lost the race".
   if (dryRun) return;
   if (unstamped.length === 0) {
-    await reconcileOutcomes(prisma);
+    await reconcileOutcomes(prisma, found);
     return;
   }
 
@@ -105,7 +105,7 @@ async function main() {
   console.log(`  stamped:    ${n}`);
   console.log(`  still null: ${left}   (expect 0)\n`);
 
-  await reconcileOutcomes(prisma);
+  await reconcileOutcomes(prisma, found);
 }
 
 /// Replay delivery outcomes that the webhook could not match at the time.
@@ -120,7 +120,10 @@ async function main() {
 /// It matters beyond tidiness: the sender's mid-flight abort reads
 /// `falconClaimBouncedAt`, so bounces that never landed are an abort that
 /// cannot fire.
-async function reconcileOutcomes(prisma: ReturnType<typeof getPrismaClient>) {
+async function reconcileOutcomes(
+  prisma: ReturnType<typeof getPrismaClient>,
+  newestMessage: Map<string, string>,
+) {
   // Paged for the same reason the send lookup above is.
   const events: { type: string; payload: unknown }[] = [];
   const PAGE = 5_000;
@@ -149,6 +152,13 @@ async function reconcileOutcomes(prisma: ReturnType<typeof getPrismaClient>) {
     const c = col[e.type];
     const sub = d.tags.subscriberId;
     if (!c || !sub) continue;
+    // Only the message this row actually records. 3,674 addresses were mailed
+    // TWICE by an earlier concurrency bug, so a subscriber can have outcomes
+    // from two different sends: if the first bounced and the resend delivered,
+    // replaying both would leave `falconClaimBouncedAt` set against a message
+    // that arrived fine and inflate the campaign's bounce rate for good.
+    const newest = newestMessage.get(sub);
+    if (newest && d.email_id && d.email_id !== newest) continue;
     if (!byCol.has(c)) byCol.set(c, new Set());
     byCol.get(c)!.add(sub);
   }
