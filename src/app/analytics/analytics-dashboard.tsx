@@ -1053,6 +1053,7 @@ function DashboardHeader({
       section === "users" ||
       section === "survey" ||
       section === "beta" ||
+      section === "falcon-claim" ||
       section === "bots" ||
       section === "router-trades" ||
       section === "pulse" ||

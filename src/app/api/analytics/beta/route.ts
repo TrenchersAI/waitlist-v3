@@ -676,9 +676,17 @@ export async function GET() {
   const cBounced = claimAgg._count.falconClaimBouncedAt;
   const cComplained = claimAgg._count.falconClaimComplainedAt;
   const cSuppressed = claimAgg._count.falconClaimSuppressedAt;
-  const cUnsub = await prisma.waitlistSubscriber.count({
-    where: { unsubscribedAt: { not: null } },
-  });
+  // Scoped to people this campaign actually MAILED, and only opt-outs recorded
+  // AFTER their message went out. Counting every unsubscribe on the list
+  // attributed opt-outs from earlier sends -- and from people this campaign
+  // never touched -- to this one, which is the difference between a mail that
+  // annoyed people and a mail that inherited a number.
+  const cUnsubRows = await prisma.$queryRaw<{ n: bigint }[]>`
+    SELECT count(*)::bigint AS n FROM "WaitlistSubscriber"
+     WHERE "falconClaimSentAt" IS NOT NULL
+       AND "unsubscribedAt" IS NOT NULL
+       AND "unsubscribedAt" >= "falconClaimSentAt"`;
+  const cUnsub = Number(cUnsubRows[0]?.n ?? 0);
   // Everyone still owed the mail. Excludes opt-outs, since they are not
   // pending, they are done.
   const cPending = await prisma.waitlistSubscriber.count({

@@ -38,12 +38,24 @@ async function main() {
   const dryRun = process.argv.includes("--dry-run");
   const prisma = getPrismaClient();
 
-  const events = await prisma.emailEvent.findMany({
-    where: { type: "email.sent" },
-    select: { payload: true },
-    orderBy: { occurredAt: "desc" },
-    take: 20_000,
-  });
+  // PAGED, not truncated. A fixed `take` silently caps the reconciliation: the
+  // campaign alone produced tens of thousands of events, so the oldest sends
+  // fall off the end and are reported as unstamped forever -- and the count
+  // shrinks as the table grows, which is the worst kind of wrong because it
+  // looks stable.
+  const events: { payload: unknown }[] = [];
+  const PAGE = 5_000;
+  for (let skip = 0; ; skip += PAGE) {
+    const page = await prisma.emailEvent.findMany({
+      where: { type: "email.sent" },
+      select: { payload: true },
+      orderBy: { occurredAt: "desc" },
+      skip,
+      take: PAGE,
+    });
+    events.push(...page);
+    if (page.length < PAGE) break;
+  }
 
   // subscriberId -> message id. Last write wins, which is what we want: a
   // resend of the same address should record the newest message.
@@ -109,11 +121,19 @@ async function main() {
 /// `falconClaimBouncedAt`, so bounces that never landed are an abort that
 /// cannot fire.
 async function reconcileOutcomes(prisma: ReturnType<typeof getPrismaClient>) {
-  const events = await prisma.emailEvent.findMany({
-    select: { type: true, payload: true },
-    orderBy: { occurredAt: "desc" },
-    take: 20_000,
-  });
+  // Paged for the same reason the send lookup above is.
+  const events: { type: string; payload: unknown }[] = [];
+  const PAGE = 5_000;
+  for (let skip = 0; ; skip += PAGE) {
+    const page = await prisma.emailEvent.findMany({
+      select: { type: true, payload: true },
+      orderBy: { occurredAt: "desc" },
+      skip,
+      take: PAGE,
+    });
+    events.push(...page);
+    if (page.length < PAGE) break;
+  }
 
   const col: Record<string, string> = {
     "email.delivered": "falconClaimDeliveredAt",

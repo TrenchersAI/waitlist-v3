@@ -1,6 +1,7 @@
 import { getAnalyticsSessionFromCookies } from "@/src/lib/analytics-internal";
 import {
   FALCON_CLAIM_CAMPAIGN,
+  AUDIENCE_SELECT,
   isMailable,
   isPending,
   isSuppressed,
@@ -46,6 +47,15 @@ export type FalconClaimStats = {
     mailed: number;
     pending: number;
     unmailable: number;
+    /// Pending, broken down by the wave each person belongs to.
+    ///
+    /// The sender's `--exclude-waves` is a PER-RUN operator choice and is
+    /// persisted nowhere, so this route cannot know a future run will skip a
+    /// wave -- reporting a single "still to send" number therefore overstates
+    /// what the campaign will actually process. Rather than guess, the number
+    /// is shown with its composition, so an operator who excluded a wave can
+    /// see exactly how much of the remainder is that wave.
+    pendingByWave: { wave: string; n: number }[];
     delivered: number;
     bounced: number;
     complained: number;
@@ -119,18 +129,8 @@ export async function GET() {
     // subtraction from that wrong number. 14,199 rows is nothing to hold.
     prisma.waitlistSubscriber.findMany({
       select: {
-        email: true,
-        falconClaimSentAt: true,
-        unsubscribedAt: true,
-        betaInvite: {
-          select: {
-            unsubscribedAt: true,
-            bouncedAt: true,
-            complainedAt: true,
-            suppressedAt: true,
-          },
-        },
-        surveyInvite: { select: { unsubscribedAt: true } },
+        ...AUDIENCE_SELECT,
+        betaInvite: { select: { ...AUDIENCE_SELECT.betaInvite.select, wave: true } },
       },
     }),
   ]);
@@ -145,6 +145,15 @@ export async function GET() {
     (r) => r.falconClaimSentAt == null && !isSuppressed(r) && !isMailable(r.email),
   ).length;
   const mailedRows = everyone.filter((r) => r.falconClaimSentAt != null);
+  const waveCounts = new Map<string, number>();
+  for (const r of everyone) {
+    if (!isPending(r)) continue;
+    const w = r.betaInvite?.wave ?? "(no invite)";
+    waveCounts.set(w, (waveCounts.get(w) ?? 0) + 1);
+  }
+  const pendingByWave = [...waveCounts]
+    .map(([wave, n]) => ({ wave, n }))
+    .sort((a, b) => b.n - a.n);
 
   // The claim side lives in the TERMINAL's database, not this one. Joined on
   // the address because that is what the grant is keyed by: a tier attaches to
@@ -230,6 +239,7 @@ export async function GET() {
       mailed,
       pending,
       unmailable,
+      pendingByWave,
       delivered: c.falconClaimDeliveredAt,
       bounced: c.falconClaimBouncedAt,
       complained: c.falconClaimComplainedAt,
