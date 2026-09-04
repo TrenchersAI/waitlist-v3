@@ -21,24 +21,56 @@ export type AudienceRow = {
   unsubscribedAt: Date | null;
   betaInvite: {
     unsubscribedAt: Date | null;
+    // The FIRST send's outcome...
     bouncedAt: Date | null;
     complainedAt: Date | null;
     suppressedAt: Date | null;
+    // ...and every later send's, because a hard failure is a fact about the
+    // ADDRESS, not about the campaign that happened to discover it. An address
+    // that bounced the activation nudge is just as unreachable here.
+    reminderBouncedAt: Date | null;
+    reminderComplainedAt: Date | null;
+    nudgeBouncedAt: Date | null;
+    nudgeComplainedAt: Date | null;
+    featureBouncedAt: Date | null;
+    featureComplainedAt: Date | null;
+    falconBouncedAt: Date | null;
+    falconComplainedAt: Date | null;
   } | null;
-  surveyInvite: { unsubscribedAt: Date | null } | null;
+  surveyInvite: {
+    unsubscribedAt: Date | null;
+    bouncedAt: Date | null;
+    complainedAt: Date | null;
+  } | null;
 };
 
 /// An opt-out is GLOBAL, so it counts from wherever it was recorded. A hard
 /// bounce or a Resend suppression means the address is unreachable: mailing it
 /// again cannot succeed, and costs reputation to fail.
 export function isSuppressed(r: AudienceRow): boolean {
+  const b = r.betaInvite;
+  const s = r.surveyInvite;
   return (
     r.unsubscribedAt != null ||
-    r.surveyInvite?.unsubscribedAt != null ||
-    r.betaInvite?.unsubscribedAt != null ||
-    r.betaInvite?.bouncedAt != null ||
-    r.betaInvite?.complainedAt != null ||
-    r.betaInvite?.suppressedAt != null
+    s?.unsubscribedAt != null ||
+    b?.unsubscribedAt != null ||
+    // A bounce or complaint on ANY previous send. Checking only the first
+    // send's columns missed five later ones, so an address that hard-bounced
+    // the nudge or the Falcon mail was still treated as reachable -- mailing
+    // it again cannot succeed and costs reputation to fail.
+    s?.bouncedAt != null ||
+    s?.complainedAt != null ||
+    b?.bouncedAt != null ||
+    b?.complainedAt != null ||
+    b?.suppressedAt != null ||
+    b?.reminderBouncedAt != null ||
+    b?.reminderComplainedAt != null ||
+    b?.nudgeBouncedAt != null ||
+    b?.nudgeComplainedAt != null ||
+    b?.featureBouncedAt != null ||
+    b?.featureComplainedAt != null ||
+    b?.falconBouncedAt != null ||
+    b?.falconComplainedAt != null
   );
 }
 
@@ -76,3 +108,35 @@ export function isMailable(email: string): boolean {
 export function isPending(r: AudienceRow & { email: string }): boolean {
   return r.falconClaimSentAt == null && !isSuppressed(r) && isMailable(r.email);
 }
+
+/// The exact Prisma `select` [`isSuppressed`] needs.
+///
+/// Exported so the sender and the dashboard cannot select DIFFERENT subsets and
+/// silently disagree: a caller that omits a column would have that clause read
+/// as `undefined`, which is falsy, so an address suppressed by the missing
+/// column would quietly become mailable again. Sharing the predicate without
+/// sharing its inputs only moves the drift somewhere harder to see.
+export const AUDIENCE_SELECT = {
+  email: true,
+  falconClaimSentAt: true,
+  unsubscribedAt: true,
+  betaInvite: {
+    select: {
+      unsubscribedAt: true,
+      bouncedAt: true,
+      complainedAt: true,
+      suppressedAt: true,
+      reminderBouncedAt: true,
+      reminderComplainedAt: true,
+      nudgeBouncedAt: true,
+      nudgeComplainedAt: true,
+      featureBouncedAt: true,
+      featureComplainedAt: true,
+      falconBouncedAt: true,
+      falconComplainedAt: true,
+    },
+  },
+  surveyInvite: {
+    select: { unsubscribedAt: true, bouncedAt: true, complainedAt: true },
+  },
+} as const;

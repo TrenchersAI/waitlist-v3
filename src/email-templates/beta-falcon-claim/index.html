@@ -42,6 +42,12 @@
        unreachable and makes the gift feel hollow. "Held by volume" is the
        true and useful half.
 
+    THE CTA IS TOKENISED ({{CLAIM_URL}}), which is how clicks are attributed
+    without letting the ESP rewrite links through its redirect domain. That
+    rewrite is itself a bulk-mail signal, so this measures the same thing at no
+    deliverability cost. The link still lands on beta.trenchers.ai; the token
+    only lets us record that this recipient pressed it.
+
     KEEP IN STEP with buildBetaFalconClaimText in src/lib/email.ts. The
     plain-text mirror is maintained by hand, and some clients (and every
     screen reader in reading mode) show only that version.
@@ -76,7 +82,7 @@
       </p>
 
       <p style="margin:0 0 28px;">
-        Claim your Falcon &rarr; <a href="{{ACCESS_URL}}" style="font-weight:600;color:#1a1a1a;text-decoration:underline;">Trenchers</a>
+        Claim your Falcon &rarr; <a href="{{CLAIM_URL}}" style="font-weight:600;color:#1a1a1a;text-decoration:underline;">Trenchers</a>
       </p>
 
       <p style="margin:0 0 28px;color:#555;">Trenchers</p>

@@ -83,11 +83,24 @@ export async function POST(request: Request) {
   return markUnsubscribed(url.searchParams.get("token"));
 }
 
+/// GET CHANGES NOTHING. It hands the token to a page that asks the person to
+/// confirm, and that page POSTs.
+///
+/// A GET that mutates is opted out by machines. Mail security scanners fetch
+/// every URL in every message before it reaches the inbox, link previewers
+/// fetch them again, and corporate proxies fetch them a third time -- none of
+/// which is the recipient deciding anything. On a whole-list send that is a
+/// silent, un-auditable opt-out of people who never asked, and unsubscribing is
+/// GLOBAL here: one fetch stops every future mail to that address.
+///
+/// The one-click header path is unaffected. RFC 8058 requires
+/// `List-Unsubscribe-Post`, which providers send as a POST, so the button in
+/// Gmail still works in one press and still lands on the mutating handler
+/// below.
 export async function GET(request: Request) {
   const url = new URL(request.url);
-  const res = await markUnsubscribed(url.searchParams.get("token"));
-  if (res.status !== 200) return res;
-  // Redirect a human-initiated GET to a friendly confirmation page so the
-  // browser shows something rather than a bare "Unsubscribed."
-  return Response.redirect(new URL("/survey/unsubscribed", url), 302);
+  const token = url.searchParams.get("token") ?? "";
+  const confirm = new URL("/survey/unsubscribe", url);
+  if (token) confirm.searchParams.set("token", token);
+  return Response.redirect(confirm, 302);
 }

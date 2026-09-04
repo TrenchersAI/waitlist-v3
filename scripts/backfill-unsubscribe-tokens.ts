@@ -1,4 +1,7 @@
-// Give every waitlist subscriber an unsubscribe token.
+// Give every waitlist subscriber their per-recipient tokens: one for
+// unsubscribing, one behind the tracked CTA. Separate on purpose -- a click
+// link is pasted, forwarded and crawled, and sharing one token would let
+// anyone holding a click URL unsubscribe that person.
 //
 // WHY THIS EXISTS. Opt-out tokens used to live only on SurveyInvite and
 // BetaInvite. A subscriber holding neither -- 1,801 of 14,199 -- had a
@@ -41,7 +44,7 @@ async function main() {
   const prisma = getPrismaClient();
 
   const missing = await prisma.waitlistSubscriber.count({
-    where: { unsubscribeToken: null },
+    where: { OR: [{ unsubscribeToken: null }, { claimClickToken: null }] },
   });
 
   console.log(`\nBackfill unsubscribe tokens`);
@@ -54,13 +57,16 @@ async function main() {
   // other authentication.
   const filled = await prisma.$executeRaw`
     UPDATE "WaitlistSubscriber"
-       SET "unsubscribeToken" =
+       SET "unsubscribeToken" = COALESCE("unsubscribeToken",
              replace(gen_random_uuid()::text, '-', '') ||
-             replace(gen_random_uuid()::text, '-', '')
-     WHERE "unsubscribeToken" IS NULL`;
+             replace(gen_random_uuid()::text, '-', '')),
+           "claimClickToken" = COALESCE("claimClickToken",
+             replace(gen_random_uuid()::text, '-', '') ||
+             replace(gen_random_uuid()::text, '-', ''))
+     WHERE "unsubscribeToken" IS NULL OR "claimClickToken" IS NULL`;
 
   const left = await prisma.waitlistSubscriber.count({
-    where: { unsubscribeToken: null },
+    where: { OR: [{ unsubscribeToken: null }, { claimClickToken: null }] },
   });
   const dupes = await prisma.$queryRaw<{ n: bigint }[]>`
     SELECT count(*)::bigint AS n FROM (

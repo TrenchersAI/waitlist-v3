@@ -18,6 +18,7 @@ import {
   Users,
   Send,
   type LucideIcon,
+  Handshake,
 } from "lucide-react";
 
 import { cn } from "@/src/lib/utils";
@@ -32,6 +33,7 @@ export type AnalyticsSection =
   | "survey"
   | "beta"
   | "falcon-claim"
+  | "partners"
   | "bots"
   | "router-trades"
   | "volume"
@@ -59,6 +61,7 @@ const ITEMS: ReadonlyArray<ItemDef> = [
   { id: "survey", label: "Survey", icon: ClipboardList },
   { id: "beta", label: "Beta access", icon: KeyRound },
   { id: "falcon-claim", label: "Falcon claim", icon: Send },
+  { id: "partners", label: "Partners", icon: Handshake },
 ];
 
 type Props = {

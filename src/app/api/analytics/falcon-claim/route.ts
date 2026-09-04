@@ -1,6 +1,7 @@
 import { getAnalyticsSessionFromCookies } from "@/src/lib/analytics-internal";
 import {
   FALCON_CLAIM_CAMPAIGN,
+  AUDIENCE_SELECT,
   isMailable,
   isPending,
   isSuppressed,
@@ -46,10 +47,25 @@ export type FalconClaimStats = {
     mailed: number;
     pending: number;
     unmailable: number;
+    /// Pending, broken down by the wave each person belongs to.
+    ///
+    /// The sender's `--exclude-waves` is a PER-RUN operator choice and is
+    /// persisted nowhere, so this route cannot know a future run will skip a
+    /// wave -- reporting a single "still to send" number therefore overstates
+    /// what the campaign will actually process. Rather than guess, the number
+    /// is shown with its composition, so an operator who excluded a wave can
+    /// see exactly how much of the remainder is that wave.
+    pendingByWave: { wave: string; n: number }[];
     delivered: number;
     bounced: number;
     complained: number;
     suppressed: number;
+    opened: number;
+    clicked: number;
+    openRate: number | null;
+    clickRate: number | null;
+    openTracked: boolean;
+    clickTracked: boolean;
     deliveryRate: number | null;
     bounceRate: number | null;
     complaintRate: number | null;
@@ -65,6 +81,19 @@ export type FalconClaimStats = {
     accountRate: number | null;
     claimRateOfMailed: number | null;
     claimRateOfAccounts: number | null;
+  };
+  /// Response ATTRIBUTED to the mail by timestamp, not inferred. A signup or a
+  /// claim that happened AFTER this address was mailed is one the mail could
+  /// have caused; one that happened before it plainly could not. This is what
+  /// stands in for the click-through the send did not instrument -- weaker
+  /// than a tracked click, but real, and it measures the thing that actually
+  /// matters rather than the thing that is easy to count.
+  attribution: {
+    hadAccountBefore: number;
+    signedUpAfter: number;
+    claimedAfter: number;
+    signupRateOfNoAccount: number | null;
+    claimRateOfReachable: number | null;
   };
   unmeasured: { metric: string; reason: string }[];
   generatedAt: string;
@@ -88,6 +117,8 @@ export async function GET() {
         falconClaimBouncedAt: true,
         falconClaimComplainedAt: true,
         falconClaimSuppressedAt: true,
+        falconClaimOpenedAt: true,
+        falconClaimClickedAt: true,
       },
     }),
     // The whole list, then counted with the SENDER's own predicate. Counting
@@ -98,18 +129,8 @@ export async function GET() {
     // subtraction from that wrong number. 14,199 rows is nothing to hold.
     prisma.waitlistSubscriber.findMany({
       select: {
-        email: true,
-        falconClaimSentAt: true,
-        unsubscribedAt: true,
-        betaInvite: {
-          select: {
-            unsubscribedAt: true,
-            bouncedAt: true,
-            complainedAt: true,
-            suppressedAt: true,
-          },
-        },
-        surveyInvite: { select: { unsubscribedAt: true } },
+        ...AUDIENCE_SELECT,
+        betaInvite: { select: { ...AUDIENCE_SELECT.betaInvite.select, wave: true } },
       },
     }),
   ]);
@@ -124,6 +145,15 @@ export async function GET() {
     (r) => r.falconClaimSentAt == null && !isSuppressed(r) && !isMailable(r.email),
   ).length;
   const mailedRows = everyone.filter((r) => r.falconClaimSentAt != null);
+  const waveCounts = new Map<string, number>();
+  for (const r of everyone) {
+    if (!isPending(r)) continue;
+    const w = r.betaInvite?.wave ?? "(no invite)";
+    waveCounts.set(w, (waveCounts.get(w) ?? 0) + 1);
+  }
+  const pendingByWave = [...waveCounts]
+    .map(([wave, n]) => ({ wave, n }))
+    .sort((a, b) => b.n - a.n);
 
   // The claim side lives in the TERMINAL's database, not this one. Joined on
   // the address because that is what the grant is keyed by: a tier attaches to
@@ -132,6 +162,9 @@ export async function GET() {
   let claimedTotal = 0;
   let mailedWithAccount = 0;
   let mailedClaimed = 0;
+  let hadAccountBefore = 0;
+  let signedUpAfter = 0;
+  let claimedAfter = 0;
 
   const pool = getTrenchersPool();
   if (pool) {
@@ -168,6 +201,36 @@ export async function GET() {
     claimedTotal = Number(all.rows[0]?.claimed ?? 0);
     mailedClaimed = Number(mine.rows[0]?.claimed ?? 0);
     mailedWithAccount = Number(accounts.rows[0]?.n ?? 0);
+
+    // Attribution by timestamp. `min(created_at)` because a few addresses have
+    // more than one account, and the FIRST one is what decides whether this
+    // person already had somewhere to claim into when the mail arrived.
+    const sentAt = new Map<string, Date>();
+    for (const r of mailedRows) {
+      if (r.falconClaimSentAt) sentAt.set(r.email.toLowerCase(), r.falconClaimSentAt);
+    }
+    const [signups, claims] = await Promise.all([
+      pool.query<{ email: string; created_at: Date }>(
+        `SELECT lower(email) AS email, min(created_at) AS created_at FROM users
+          WHERE lower(email) = ANY($1::text[]) GROUP BY 1`,
+        [emails],
+      ),
+      pool.query<{ email: string; claimed_at: Date }>(
+        `SELECT email, claimed_at FROM tier_claim_grants
+          WHERE campaign = $2 AND claimed_at IS NOT NULL AND email = ANY($1::text[])`,
+        [emails, FALCON_CLAIM_CAMPAIGN],
+      ),
+    ]);
+    for (const r of signups.rows) {
+      const t = sentAt.get(r.email);
+      if (!t) continue;
+      if (new Date(r.created_at) > t) signedUpAfter += 1;
+      else hadAccountBefore += 1;
+    }
+    for (const r of claims.rows) {
+      const t = sentAt.get(r.email);
+      if (t && new Date(r.claimed_at) > t) claimedAfter += 1;
+    }
   }
 
   const stats: FalconClaimStats = {
@@ -176,10 +239,19 @@ export async function GET() {
       mailed,
       pending,
       unmailable,
+      pendingByWave,
       delivered: c.falconClaimDeliveredAt,
       bounced: c.falconClaimBouncedAt,
       complained: c.falconClaimComplainedAt,
       suppressed: c.falconClaimSuppressedAt,
+      opened: c.falconClaimOpenedAt,
+      clicked: c.falconClaimClickedAt,
+      openRate: rate(c.falconClaimOpenedAt, c.falconClaimDeliveredAt),
+      clickRate: rate(c.falconClaimClickedAt, c.falconClaimDeliveredAt),
+      // A flat zero means "not measured" for these two, and the UI has to say
+      // which -- so it is told, rather than left to guess from the number.
+      openTracked: c.falconClaimOpenedAt > 0,
+      clickTracked: c.falconClaimClickedAt > 0,
       deliveryRate: rate(c.falconClaimDeliveredAt, mailed),
       bounceRate: rate(c.falconClaimBouncedAt, mailed),
       complaintRate: rate(c.falconClaimComplainedAt, mailed),
@@ -201,21 +273,40 @@ export async function GET() {
       // how many did.
       claimRateOfAccounts: rate(mailedClaimed, mailedWithAccount),
     },
+    attribution: {
+      hadAccountBefore,
+      signedUpAfter,
+      claimedAfter,
+      // Of the people who had NOWHERE to claim into when the mail landed, how
+      // many went and made one. The hardest ask in the campaign.
+      signupRateOfNoAccount: rate(signedUpAfter, Math.max(0, mailed - hadAccountBefore)),
+      // Of everyone who could act -- already had an account, or made one after
+      // the mail -- how many actually claimed.
+      claimRateOfReachable: rate(claimedAfter, hadAccountBefore + signedUpAfter),
+    },
     unmeasured: [
-      {
-        metric: "Opens",
-        reason:
-          "Open tracking was off for this send. It works by embedding a tracking pixel, which is itself a Promotions-tab signal, so the campaign chose deliverability over the metric. It cannot be recovered after the fact.",
-      },
-      {
-        metric: "Clicks",
-        reason:
-          "Click tracking was off for the same reason: it rewrites every link through a redirect domain. The earlier beta invites carried a per-recipient token for first-party attribution; this mail's CTA is a plain link, so there is nothing to attribute against.",
-      },
+      ...(c.falconClaimOpenedAt > 0
+        ? []
+        : [
+            {
+              metric: "Opens",
+              reason:
+                "Open tracking was off for the send that has run so far. It works by embedding a pixel, which is itself a Promotions-tab signal, so it is a per-send choice. It is now supported: run the sender with --track-opens and this fills in. It cannot be recovered for mail already delivered.",
+            },
+          ]),
+      ...(c.falconClaimClickedAt > 0
+        ? []
+        : [
+            {
+              metric: "Clicks",
+              reason:
+                "The mail that has gone out carries a plain CTA, so there is nothing to attribute against. The template is now tokenised and /api/claim/[token] records the first click first-party, without the ESP link rewriting that costs deliverability. Future sends fill this in.",
+            },
+          ]),
       {
         metric: "Inbox vs Promotions vs Spam",
         reason:
-          "Not knowable by any sender. No mailbox provider reports placement back, and no ESP can see it. It can only be sampled with seed accounts you control across providers.",
+          "Not knowable by any sender. No mailbox provider reports placement back, and no ESP can see it. The only real method is a seed panel: accounts you control across Gmail, Outlook and Yahoo, included in the send and checked by hand or over IMAP.",
       },
     ],
     generatedAt: new Date().toISOString(),

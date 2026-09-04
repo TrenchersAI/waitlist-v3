@@ -53,6 +53,21 @@ model WaitlistSubscriber {
   /// list). The message never left, so it costs no reputation, but the person
   /// is unreachable and must stop appearing in pending counts.
   falconClaimSuppressedAt DateTime?
+  /// Opened, when open tracking is on for the send (`--track-opens`). It works
+  /// by embedding a pixel, which is itself a Promotions-tab signal, so it is a
+  /// per-send choice rather than a default: a campaign to a cold list is worth
+  /// more delivered than measured.
+  falconClaimOpenedAt     DateTime?
+  /// Clicked the CTA. Attributed FIRST-PARTY through `claimClickToken` rather
+  /// than by letting the ESP rewrite every link through a redirect domain,
+  /// which costs deliverability. This is the measurement the campaign wanted
+  /// and did not have.
+  falconClaimClickedAt    DateTime?
+  /// Opaque per-recipient token behind the tracked CTA. SEPARATE from
+  /// `unsubscribeToken` on purpose: a click link is pasted, forwarded and
+  /// crawled, and sharing one token would let anyone holding a click URL
+  /// unsubscribe that person.
+  claimClickToken         String?   @unique
 
   @@index([referredById])
   // Analytics aggregates date-bucket by createdAt / verifiedAt on every
@@ -62,6 +77,7 @@ model WaitlistSubscriber {
   @@index([verifiedAt])
   @@index([unsubscribedAt])
   @@index([falconClaimSentAt])
+  @@index([falconClaimClickedAt])
   @@index([falconClaimResendMsgId])
 }
 

@@ -16,6 +16,7 @@ import { SurveyAnalyticsContent } from "@/src/app/analytics/survey/survey-analyt
 import { AccountingContent } from "@/src/app/analytics/accounting-view";
 import { BetaAnalyticsContent } from "@/src/app/analytics/beta/beta-analytics-view";
 import { FalconClaimContent } from "@/src/app/analytics/falcon/falcon-claim-view";
+import { PartnersContent } from "@/src/app/analytics/partners/partners-view";
 import { BotsAnalyticsContent } from "@/src/app/analytics/bots-view";
 import { RouterTradesContent } from "@/src/app/analytics/router-trades-view";
 import { PulseAnalyticsContent } from "@/src/app/analytics/pulse-view";
@@ -700,6 +701,7 @@ export default function AnalyticsDashboard({
             section === "survey" ||
             section === "beta" ||
             section === "falcon-claim" ||
+            section === "partners" ||
             section === "bots" ||
             section === "router-trades" ||
             section === "pulse" ||
@@ -738,6 +740,8 @@ export default function AnalyticsDashboard({
               <BetaAnalyticsContent />
             ) : section === "falcon-claim" ? (
               <FalconClaimContent />
+            ) : section === "partners" ? (
+              <PartnersContent />
             ) : section === "bots" ? (
               <BotsAnalyticsContent />
             ) : section === "router-trades" ? (
@@ -1021,6 +1025,7 @@ const SECTION_TITLE: Record<AnalyticsSection, string> = {
   survey: "Survey",
   beta: "Beta access",
   "falcon-claim": "Falcon claim",
+  partners: "Partners",
   "platform-accounting": "Platform accounting",
 };
 
@@ -1053,6 +1058,7 @@ function DashboardHeader({
       section === "users" ||
       section === "survey" ||
       section === "beta" ||
+      section === "falcon-claim" ||
       section === "bots" ||
       section === "router-trades" ||
       section === "pulse" ||

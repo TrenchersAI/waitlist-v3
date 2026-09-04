@@ -27,8 +27,20 @@ export function getTrenchersPool(): Pool | null {
     // Strip `sslmode` from the URL: recent `pg` treats `sslmode=require` as
     // `verify-full`, which rejects Supabase's self-signed pooler cert chain
     // ("self-signed certificate in certificate chain"). We instead drive TLS
-    // via the explicit `ssl` option below — still encrypted, just no chain
-    // verification (acceptable for a read-only analytics reader).
+    // via the explicit `ssl` option below — still encrypted, but WITHOUT chain
+    // verification.
+    //
+    // ⚠️ The original justification for that ("acceptable for a read-only
+    // analytics reader") no longer holds: this pool now carries writes too --
+    // the tier-claim seed inserted 14,199 rows through it. Unverified TLS is
+    // encrypted against a passive listener and not against an active one, so
+    // the honest description is "encrypted, unauthenticated", and the fix is a
+    // CA bundle (`PGSSLROOTCERT` / `ssl.ca`) rather than a comment.
+    //
+    // Left as-is here deliberately: turning verification on without the right
+    // CA breaks every connection at once, including the analytics dashboards,
+    // so it is a change to make with the certificate in hand rather than
+    // inside an unrelated PR.
     const noSslMode = connectionString.replace(/[?&]sslmode=[^&]*/i, "");
     // A local Postgres (dev, or the throwaway container `scripts/verify-pulse.ts`
     // runs against) is not built with SSL support, and forcing it there fails

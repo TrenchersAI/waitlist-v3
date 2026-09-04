@@ -52,7 +52,11 @@ import { closeSync, openSync, readFileSync, unlinkSync, writeSync } from "node:f
 import { Resend } from "resend";
 
 import { getPrismaClient } from "../src/lib/prisma";
-import { isMailable, isSuppressed } from "../src/lib/falcon-claim-audience";
+import {
+  AUDIENCE_SELECT,
+  isMailable,
+  isSuppressed,
+} from "../src/lib/falcon-claim-audience";
 import {
   BETA_FALCON_CLAIM_SUBJECT,
   buildBetaFalconClaimHtml,
@@ -66,6 +70,35 @@ const MAX_BATCH = 100;
 const DEFAULT_HOURS = 10;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/// Enough of an address to recognise it, not enough to be a mailing list.
+///
+/// These logs are redirected to a file and, on a hosted run, into CI output
+/// that outlives the campaign. A full address there is a copy of the list in a
+/// place nobody is treating as one; the local part's first two characters plus
+/// the domain identify a row for whoever is debugging it without reproducing
+/// PII.
+function maskEmail(email: string) {
+  const [local = "", domain = ""] = email.split("@");
+  const head = local.slice(0, 2);
+  return `${head}${"*".repeat(Math.max(1, local.length - head.length))}@${domain}`;
+}
+
+/// `--hours` decides the gap between batches, so a bad value is not a cosmetic
+/// problem. `--hours=typo` yields NaN and every computed wait becomes NaN,
+/// which `setTimeout` treats as 0 -- the whole list goes out as fast as the API
+/// allows, which is the volume spike the pacing exists to prevent. A negative
+/// value produces a negative gap with the same effect. Both are refused rather
+/// than clamped, because silently sending 14,000 messages at a pace nobody
+/// asked for is worse than not starting.
+function validHours(v: number | undefined) {
+  if (v == null) return DEFAULT_HOURS;
+  if (!Number.isFinite(v) || v <= 0) {
+    console.error(`\n--hours must be a positive number, got ${JSON.stringify(v)}.\n`);
+    process.exit(1);
+  }
+  return v;
+}
 
 function parseArgs() {
   const args = process.argv.slice(2);
@@ -81,7 +114,7 @@ function parseArgs() {
     send: args.includes("--send"),
     dryRun: args.includes("--dry-run") || !args.includes("--send"),
     trackOpens: args.includes("--track-opens"),
-    hours: num(read("--hours")) ?? DEFAULT_HOURS,
+    hours: validHours(num(read("--hours"))),
     // Only override when --batch was actually PASSED: clamping an absent flag
     // through Math.max(1, ...) yields 1, which is truthy, so a `|| default`
     // fallback never fires and every send silently becomes one API call each.
@@ -231,21 +264,16 @@ async function main() {
   // is nothing to hold in memory.
   const everyone = await prisma.waitlistSubscriber.findMany({
     select: {
+      // The shared audience columns, plus the three only the SENDER needs.
+      // Spread rather than restated so a new suppression column reaches both
+      // callers the moment it is added to AUDIENCE_SELECT.
+      ...AUDIENCE_SELECT,
       id: true,
-      email: true,
       unsubscribeToken: true,
-      falconClaimSentAt: true,
-      unsubscribedAt: true,
+      claimClickToken: true,
       betaInvite: {
-        select: {
-          wave: true,
-          unsubscribedAt: true,
-          bouncedAt: true,
-          complainedAt: true,
-          suppressedAt: true,
-        },
+        select: { ...AUDIENCE_SELECT.betaInvite.select, wave: true },
       },
-      surveyInvite: { select: { unsubscribedAt: true } },
     },
   });
 
@@ -343,7 +371,7 @@ async function main() {
   console.log(`  suppressed:  ${excludedSuppressed} (opted out, bounced or unreachable)`);
   if (unmailable.length > 0) {
     console.log(`  unmailable:  ${unmailable.length} (malformed address, would fail its whole batch)`);
-    for (const u of unmailable) console.log(`      ${JSON.stringify(u.email)}`);
+    for (const u of unmailable) console.log(`      ${maskEmail(u.email)}`);
   }
   if (opts.excludeWaves.length) console.log(`  excluded:    ${opts.excludeWaves.join(", ")}`);
   console.log(`  batches:     ${batches} x ${opts.batch}`);
@@ -354,7 +382,7 @@ async function main() {
   const start = await reputation();
   console.log(`  campaign so far: sent ${start.sent}, bounced ${start.bounced}, complained ${start.complained}`);
   if (opts.dryRun) {
-    console.log(`  sample: ${pending.slice(0, 3).map((r) => r.email).join(", ")}\n`);
+    console.log(`  sample: ${pending.slice(0, 3).map((r) => maskEmail(r.email)).join(", ")}\n`);
     return;
   }
 
@@ -404,7 +432,13 @@ async function main() {
     const payload = await Promise.all(
       chunk.map(async (row) => {
         const unsubscribeUrl = `${siteUrl}/api/survey/unsubscribe?token=${row.unsubscribeToken}&c=falcon-claim`;
-        const copy = { accessUrl, unsubscribeUrl, recipientEmail: row.email };
+        // First-party click attribution. Falls back to the plain URL if this
+        // recipient has no token, because a mail that still reaches them
+        // untracked beats one that does not go out at all.
+        const claimUrl = row.claimClickToken
+          ? `${siteUrl}/api/claim/${row.claimClickToken}`
+          : accessUrl;
+        const copy = { accessUrl, claimUrl, unsubscribeUrl, recipientEmail: row.email };
         return {
           from: fromEmail,
           to: row.email,
@@ -428,15 +462,30 @@ async function main() {
       }),
     );
 
+    // IDEMPOTENCY KEY, derived from the campaign and the batch's first
+    // subscriber id -- stable across retries of THIS batch and unique to it.
+    //
+    // Without one, a retry after a lost response duplicates: the API accepted
+    // the send, the acknowledgement never arrived, and the retry is a second
+    // real delivery. That is the same outcome as the concurrency bug that
+    // mailed 3,674 people twice, arrived at from the opposite direction, and
+    // the retry loop below exists precisely to make it likely.
+    //
+    // Keyed on the first subscriber rather than the batch index because the
+    // index shifts between runs as people are stamped, so it would give the
+    // same key to different recipients.
+    const batchKey = `${CAMPAIGN}:${chunk[0]?.id ?? n}`;
     try {
       let result = await resend.batch.send(
         payload as unknown as Parameters<typeof resend.batch.send>[0],
+        { idempotencyKey: batchKey } as never,
       );
       for (let a = 1; a < 3 && result.error; a++) {
         console.warn(`  batch ${n}: error (attempt ${a}) — ${result.error.message}`);
         await sleep(2000 * a);
         result = await resend.batch.send(
           payload as unknown as Parameters<typeof resend.batch.send>[0],
+          { idempotencyKey: batchKey } as never,
         );
       }
       if (result.error) {
@@ -458,17 +507,21 @@ async function main() {
         const rejected: string[] = [];
         for (let k = 0; k < chunk.length; k++) {
           try {
+            // Its OWN key, per recipient. The fallback runs after a batch
+            // the API may already have accepted, so without this it is the
+            // most likely place in the whole script to double-send.
             const one = await resend.emails.send(
               payload[k] as unknown as Parameters<typeof resend.emails.send>[0],
+              { idempotencyKey: `${CAMPAIGN}:${chunk[k].id}` } as never,
             );
             if (one.error) {
-              rejected.push(`${chunk[k].email} — ${one.error.message}`);
+              rejected.push(`${maskEmail(chunk[k].email)} — ${one.error.message}`);
               continue;
             }
             okIds.push(chunk[k].id);
             okMsgs.push(one.data?.id ?? "");
           } catch (e) {
-            rejected.push(`${chunk[k].email} — ${(e as Error).message}`);
+            rejected.push(`${maskEmail(chunk[k].email)} — ${(e as Error).message}`);
           }
         }
         if (!(await stampSent(okIds, okMsgs))) {
