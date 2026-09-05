@@ -818,6 +818,13 @@ export const FOUNDING_FALCON_SUBJECT = "Your Founding Falcon access";
 /// Wave 2: traders already using the product, below the Founding Falcon bar.
 export const TRADER_ROLE_SUBJECT = "Claim your trader role in the Trenchers community";
 
+/// Wave 3: people who created an account and never made a trade.
+///
+/// Asks a question rather than announcing something. The reason they have not
+/// traded is unknown to us and knowable to them, so the subject that earns a
+/// reply is the one that admits that.
+export const FIRST_TRADE_SUBJECT = "Stuck on your first trade?";
+
 export async function buildBetaFalconHtml(params: BetaInviteCopy) {
   const templatePath = join(
     process.cwd(),
@@ -891,6 +898,43 @@ export function buildBetaFalconText(params: BetaInviteCopy) {
 /// It does NOT mention volume, rank, or why they fell below the Falcon bar.
 /// The segmentation is ours to know; telling someone they are in the
 /// second tier is a worse email than simply welcoming them.
+/// Wave 3 invitation: an account, but no trade yet.
+///
+/// THE GOAL IS A REPLY, NOT A CLICK. Roughly 1,100 people created an account
+/// and stopped, and we do not know why -- it could be funding, fees, a bug, or
+/// simply not getting round to it. An email that guesses the reason will be
+/// wrong most of the time, so this one asks instead and makes answering easy.
+///
+/// It does NOT sell the tier, the rewards or the product. They already signed
+/// up; the pitch worked. What did not work is whatever came next, and adding
+/// another pitch on top of that reads as though nobody noticed.
+export function buildFirstTradeText(params: { unsubscribeUrl: string }) {
+  return [
+    "Hi,",
+    "",
+    "You created a Trenchers account but haven't made a trade yet. Usually",
+    "that's one small thing in the way, and it's faster to ask than to work",
+    "it out alone.",
+    "",
+    "Telegram is where traders and the team answer setup questions.",
+    "https://t.me/trenchersai/1",
+    "",
+    "Discord is where you can get support and follow what's shipping.",
+    "https://discord.gg/hwYc9Z6gb",
+    "",
+    "Or just reply to this email and tell us where you got stuck. A real",
+    "person reads it.",
+    "",
+    "Nobody from Trenchers will ever ask for your seed phrase, private key,",
+    "or wallet export, and we will never message you first asking for them.",
+    "",
+    "Trenchers",
+    "",
+    "---",
+    `Unsubscribe: ${params.unsubscribeUrl}`,
+  ].join("\n");
+}
+
 export function buildTraderRoleText(params: { unsubscribeUrl: string }) {
   return [
     "Hi,",
