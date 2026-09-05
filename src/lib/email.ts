@@ -825,6 +825,9 @@ export const TRADER_ROLE_SUBJECT = "Claim your trader role in the Trenchers comm
 /// reply is the one that admits that.
 export const FIRST_TRADE_SUBJECT = "Stuck on your first trade?";
 
+/// Wave 4: the waitlist majority, who have a Falcon grant and no account.
+export const FALCON_UNCLAIMED_SUBJECT = "Your Falcon tier is still unclaimed";
+
 export async function buildBetaFalconHtml(params: BetaInviteCopy) {
   const templatePath = join(
     process.cwd(),
@@ -908,6 +911,53 @@ export function buildBetaFalconText(params: BetaInviteCopy) {
 /// It does NOT sell the tier, the rewards or the product. They already signed
 /// up; the pitch worked. What did not work is whatever came next, and adding
 /// another pitch on top of that reads as though nobody noticed.
+/// Wave 4: 13,444 people on the waitlist with no account.
+///
+/// EVERY ONE OF THEM ALREADY HAD THE FALCON MAIL, and every one still has an
+/// unclaimed grant. So this is a second message to the same people days later,
+/// and the document's original framing for it -- "the beta is available, come
+/// and join the community" -- would ignore the concrete thing already sitting
+/// on their account. The community is the support path here, not the offer.
+///
+/// IT NAMES THE FRICTION INSTEAD OF HIDING IT. These people did not claim
+/// because claiming needs an account, and the first mail said "one click",
+/// which is only true for someone who already has one. Repeating that would
+/// be repeating the thing that did not work. Saying "this takes a couple of
+/// minutes" is both true and a smaller promise than the silence implies.
+///
+/// It repeats the decay sentence rather than assuming they remember: it is the
+/// one line that stops a step-down in 30 days from arriving as a surprise.
+export function buildFalconUnclaimedText(params: { unsubscribeUrl: string }) {
+  return [
+    "Hi,",
+    "",
+    "A while back we put Falcon, our top tier, on your account: 50% cashback",
+    "on every fee, and 4x points on every trade. It is still there, unclaimed.",
+    "",
+    "It needs an account to land in, so it takes a couple of minutes rather",
+    "than one click. That is the only thing standing between you and it.",
+    "",
+    "https://beta.trenchers.ai",
+    "",
+    "If something gets in the way, ask us. The community is the fastest place",
+    "to get an answer.",
+    "",
+    "Telegram: https://t.me/trenchersai/1",
+    "Discord:  https://discord.gg/hwYc9Z6gb",
+    "",
+    "Falcon is a trading tier, so it is held by volume. Claiming gives you a",
+    "full 30 days at the top, and it stays as long as you keep trading.",
+    "",
+    "Nobody from Trenchers will ever ask for your seed phrase, private key,",
+    "or wallet export, and we will never message you first asking for them.",
+    "",
+    "Trenchers",
+    "",
+    "---",
+    `Unsubscribe: ${params.unsubscribeUrl}`,
+  ].join("\n");
+}
+
 export function buildFirstTradeText(params: { unsubscribeUrl: string }) {
   return [
     "Hi,",
