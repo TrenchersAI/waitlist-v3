@@ -288,3 +288,50 @@ model AnalyticsSession {
 
   @@index([email])
 }
+
+/// A send to an audience that is NOT the waitlist.
+///
+/// WHY THIS EXISTS. Every campaign so far has been tracked on
+/// `WaitlistSubscriber`, because every audience so far WAS the waitlist. The
+/// Founding Falcon cohort is defined by trading volume instead, and 37 of its
+/// 109 members never joined the waitlist at all -- they signed up to the
+/// product directly. Hanging another column off `WaitlistSubscriber` would
+/// silently drop exactly the people the campaign most wants to reach.
+///
+/// Keyed by EMAIL rather than by a user id, because that is the only
+/// identifier both databases share: the cohort is computed in the terminal's
+/// database and mailed from this one.
+///
+/// Deliberately generic. The Founding Falcon send is the first of five planned
+/// segments, and the next four are the same shape.
+model CampaignSend {
+  id       String @id @default(cuid())
+  campaign String
+  email    String
+
+  /// Per-recipient unsubscribe token. Carried HERE because a recipient who is
+  /// not on the waitlist has no `WaitlistSubscriber.unsubscribeToken`, and a
+  /// `List-Unsubscribe` header that 404s turns someone who wants out into a
+  /// spam complaint -- the single most expensive signal a sending domain can
+  /// produce.
+  token String @unique
+
+  sentAt         DateTime?
+  resendMsgId    String?
+  deliveredAt    DateTime?
+  openedAt       DateTime?
+  bouncedAt      DateTime?
+  complainedAt   DateTime?
+  suppressedAt   DateTime?
+  unsubscribedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// One row per person per campaign, so a re-run tops up new members and can
+  /// never hand anyone a second copy.
+  @@unique([campaign, email])
+  @@index([campaign, sentAt])
+  @@index([resendMsgId])
+  @@index([email])
+}

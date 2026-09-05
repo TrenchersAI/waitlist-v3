@@ -424,6 +424,55 @@ export async function POST(request: Request) {
     }
   }
 
+  // A send to an audience that is not the waitlist tracks on `CampaignSend`,
+  // so its events resolve there. Matched on the `sendId` tag first for the
+  // same reason the Falcon claim branch is: Resend can deliver before the
+  // sender commits its message id, and an id-only lookup loses that race --
+  // which silently drops the bounces a campaign's own safety checks read.
+  const sendId = extractTagValue(evt.data?.tags, "sendId");
+  if (sendId || resendMsgId) {
+    const row = await prisma.campaignSend.findFirst({
+      where: sendId ? { id: sendId } : { resendMsgId },
+      select: {
+        id: true,
+        resendMsgId: true,
+        deliveredAt: true,
+        openedAt: true,
+        bouncedAt: true,
+        complainedAt: true,
+        suppressedAt: true,
+      },
+    });
+    if (row) {
+      const d: Record<string, Date | string> = {};
+      if (!row.resendMsgId && resendMsgId) d.resendMsgId = resendMsgId;
+      switch (evt.type) {
+        case "email.delivered":
+          if (!row.deliveredAt) d.deliveredAt = occurredAt;
+          break;
+        case "email.opened":
+          if (!row.openedAt) d.openedAt = occurredAt;
+          break;
+        case "email.bounced":
+        case "email.failed":
+          if (!row.bouncedAt) d.bouncedAt = occurredAt;
+          break;
+        case "email.complained":
+          if (!row.complainedAt) d.complainedAt = occurredAt;
+          break;
+        case "email.suppressed":
+          if (!row.suppressedAt) d.suppressedAt = occurredAt;
+          break;
+        default:
+          break;
+      }
+      if (Object.keys(d).length > 0) {
+        await prisma.campaignSend.update({ where: { id: row.id }, data: d });
+      }
+      return Response.json({ ok: true });
+    }
+  }
+
   const invite = isBeta
     ? await prisma.betaInvite.findFirst({ where, select })
     : await prisma.surveyInvite.findFirst({ where, select });

@@ -808,6 +808,13 @@ export const BETA_FALCON_SUBJECT = "You are now Falcon, our top tier";
 /// mail needs them to do.
 export const BETA_FALCON_CLAIM_SUBJECT = "We are live. Your Falcon tier is waiting.";
 
+/// The Founding Falcon programme: a private room for the earliest traders.
+///
+/// Named after the access rather than the tier, because the tier is not what
+/// is new here -- most of this cohort already holds Falcon. What they are
+/// being given is the room.
+export const FOUNDING_FALCON_SUBJECT = "Your Founding Falcon access";
+
 export async function buildBetaFalconHtml(params: BetaInviteCopy) {
   const templatePath = join(
     process.cwd(),
@@ -850,6 +857,50 @@ export function buildBetaFalconText(params: BetaInviteCopy) {
     "",
     "---",
     "You are receiving this because you joined the Trenchers waitlist.",
+    `Unsubscribe: ${params.unsubscribeUrl}`,
+  ].join("\n");
+}
+
+/// Founding Falcon invitation. PLAIN TEXT ONLY, and that is the point.
+///
+/// Every other campaign mail has an HTML twin. This one deliberately does not:
+/// it goes to 108 people from a founder, and an HTML template with a padded
+/// button is the exact shape of the bulk mail it is trying not to be. Resend
+/// sends the text part alone quite happily, and a text-only message from a
+/// domain that usually sends HTML is also the least likely thing to land in
+/// Promotions.
+///
+/// The copy is the founder's, sent verbatim. The private Telegram link is
+/// included inline at their explicit instruction, having been told that the
+/// link is a bearer token: anyone holding it can join, so "do not forward"
+/// is a request rather than a control. Turning on "Approve new members" on
+/// the group is what would make it one.
+export function buildFoundingFalconText(params: { unsubscribeUrl: string }) {
+  return [
+    "Hi,",
+    "",
+    "You were one of the first traders to put real activity through Trenchers,",
+    "back when it was still proving itself. That group is small enough that we",
+    "know who you are.",
+    "",
+    "We have opened a private room for it: Founding Falcons.",
+    "",
+    "  * Private Founding Falcon Telegram group( https://t.me/+rYddE5zB5jRiNjFl ), with the team in it",
+    "  * The Founding Falcon role on Discord, and the channels behind it",
+    "  * Early access to features before they ship",
+    "  * Product sessions with us directly",
+    "  * Priority support",
+    "  * Your Falcon trading benefits",
+    "",
+    "You will be asked to sign in to Trenchers. It will never ask for your seed",
+    "phrase, private key, password, or wallet export, and nobody from Trenchers",
+    "will message you first asking for them.",
+    "",
+    "This invitation is tied to your account. Please do not forward it.",
+    "",
+    "Trenchers",
+    "",
+    "---",
     `Unsubscribe: ${params.unsubscribeUrl}`,
   ].join("\n");
 }

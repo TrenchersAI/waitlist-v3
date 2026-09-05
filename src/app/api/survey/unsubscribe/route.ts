@@ -33,7 +33,7 @@ async function markUnsubscribed(token: string | null) {
   // providers weigh a complaint far more heavily than an unsubscribe, so that
   // 404 was a direct route to damaging a domain that also carries OTP login
   // mail. `WaitlistSubscriber.unsubscribeToken` closes it.
-  const [surveyRow, betaRow, subRow] = await Promise.all([
+  const [surveyRow, betaRow, subRow, campaignRow] = await Promise.all([
     prisma.surveyInvite.findUnique({
       where: { token },
       select: { subscriberId: true },
@@ -46,7 +46,35 @@ async function markUnsubscribed(token: string | null) {
       where: { unsubscribeToken: token },
       select: { id: true },
     }),
+    // A FOURTH source, and not a redundant one: a campaign sent to an audience
+    // that is not the waitlist has recipients with no subscriber row at all.
+    // 37 of the 109 Founding Falcons signed up to the product directly and
+    // never joined the list, so without this their unsubscribe link 404s and
+    // the only way out is a spam complaint.
+    prisma.campaignSend.findFirst({
+      where: { token },
+      select: { id: true, email: true },
+    }),
   ]);
+
+  // A campaign-only recipient is opted out on their campaign rows and, if they
+  // also happen to be on the list, on the subscriber row too -- an opt-out is
+  // GLOBAL, so it must stop every future send regardless of which audience
+  // produced this particular link.
+  if (campaignRow) {
+    const email = campaignRow.email;
+    await Promise.all([
+      prisma.campaignSend.updateMany({
+        where: { email, unsubscribedAt: null },
+        data: { unsubscribedAt: now },
+      }),
+      prisma.waitlistSubscriber.updateMany({
+        where: { email, unsubscribedAt: null },
+        data: { unsubscribedAt: now },
+      }),
+    ]);
+    return new Response("Unsubscribed.", { status: 200 });
+  }
 
   const subscriberId =
     surveyRow?.subscriberId ?? betaRow?.subscriberId ?? subRow?.id;
