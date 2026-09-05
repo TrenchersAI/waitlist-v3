@@ -815,6 +815,9 @@ export const BETA_FALCON_CLAIM_SUBJECT = "We are live. Your Falcon tier is waiti
 /// being given is the room.
 export const FOUNDING_FALCON_SUBJECT = "Your Founding Falcon access";
 
+/// Wave 2: traders already using the product, below the Founding Falcon bar.
+export const TRADER_ROLE_SUBJECT = "Claim your trader role in the Trenchers community";
+
 export async function buildBetaFalconHtml(params: BetaInviteCopy) {
   const templatePath = join(
     process.cwd(),
@@ -875,6 +878,46 @@ export function buildBetaFalconText(params: BetaInviteCopy) {
 /// link is a bearer token: anyone holding it can join, so "do not forward"
 /// is a request rather than a control. Turning on "Approve new members" on
 /// the group is what would make it one.
+/// Wave 2 invitation: active traders below the Founding Falcon threshold.
+///
+/// PLAIN TEXT, like the Founding Falcon mail and for the same reason: this is
+/// an invitation to a room, not a product announcement, and an HTML template
+/// with a padded button is the shape of the bulk mail it is trying not to be.
+///
+/// PUBLIC links only. The private Founding Falcon group is a separate cohort
+/// and its invite is a bearer token -- putting it here would hand it to
+/// everyone the programme deliberately excluded.
+///
+/// It does NOT mention volume, rank, or why they fell below the Falcon bar.
+/// The segmentation is ours to know; telling someone they are in the
+/// second tier is a worse email than simply welcoming them.
+export function buildTraderRoleText(params: { unsubscribeUrl: string }) {
+  return [
+    "Hi,",
+    "",
+    "You're already trading on Trenchers, which puts you ahead of most people",
+    "reading this.",
+    "",
+    "We've opened the community for traders using the product:",
+    "",
+    "Telegram is where the conversation happens. Live updates, what's working,",
+    "what isn't, and the team in the room.",
+    "https://t.me/trenchersai/1",
+    "",
+    "Discord is where you claim your trader role and get support.",
+    "https://discord.gg/hwYc9Z6gb",
+    "",
+    "Same account, same email. Nobody from Trenchers will ever ask for your",
+    "seed phrase, private key, or wallet export, and we will never message you",
+    "first asking for them.",
+    "",
+    "Trenchers",
+    "",
+    "---",
+    `Unsubscribe: ${params.unsubscribeUrl}`,
+  ].join("\n");
+}
+
 export function buildFoundingFalconText(params: { unsubscribeUrl: string }) {
   return [
     "Hi,",
