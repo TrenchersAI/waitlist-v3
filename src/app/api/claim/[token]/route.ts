@@ -32,7 +32,7 @@ export async function GET(
   ctx: { params: Promise<{ token: string }> },
 ) {
   const siteUrl = (
-    process.env.BETA_ACCESS_URL ?? "https://beta.trenchers.ai"
+    process.env.BETA_ACCESS_URL ?? "https://trenchers.ai"
   ).replace(/\/$/, "");
 
   try {

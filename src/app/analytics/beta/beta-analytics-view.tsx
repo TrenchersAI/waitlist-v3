@@ -260,7 +260,7 @@ export function BetaAnalyticsContent() {
           floor rather than a measurement, and the send script&apos;s abort
           gates cannot fire. Point the webhook at{" "}
           <code className="text-white/80">
-            www.trenchers.ai/api/webhooks/resend
+            waitlist.trenchers.ai/api/webhooks/resend
           </code>{" "}
           and set <code className="text-white/80">RESEND_WEBHOOK_SECRET</code>.
         </Banner>

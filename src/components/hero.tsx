@@ -13,7 +13,7 @@ import CopyIcon from "../icons/copy-icon";
 import SnipeIcon from "../icons/snipe-icon";
 import TrackingIcon from "../icons/tracking-icon";
 
-const START_TRADING_URL = "https://beta.trenchers.ai";
+const START_TRADING_URL = "https://trenchers.ai";
 
 /** Beams renders a WebGL `<Canvas>` (three.js / react-three-fiber), which needs
    browser APIs. Load it client-only so it never runs during SSR/prerender. */
