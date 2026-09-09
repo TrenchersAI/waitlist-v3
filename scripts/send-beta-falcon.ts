@@ -122,8 +122,8 @@ async function main() {
     process.exit(1);
   }
 
-  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.trenchers.ai").replace(/\/$/, "");
-  const accessUrl = process.env.BETA_ACCESS_URL ?? "https://beta.trenchers.ai";
+  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://waitlist.trenchers.ai").replace(/\/$/, "");
+  const accessUrl = process.env.BETA_ACCESS_URL ?? "https://trenchers.ai";
   const replyTo = process.env.RESEND_REPLY_TO ?? "team@trenchers.ai";
 
   // Same exclusion set as the feature send: anyone who bounced or complained

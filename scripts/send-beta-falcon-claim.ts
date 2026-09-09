@@ -241,8 +241,8 @@ async function main() {
     console.error("RESEND_API_KEY and RESEND_FROM_EMAIL must be set.");
     process.exit(1);
   }
-  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.trenchers.ai").replace(/\/$/, "");
-  const accessUrl = process.env.BETA_ACCESS_URL ?? "https://beta.trenchers.ai";
+  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://waitlist.trenchers.ai").replace(/\/$/, "");
+  const accessUrl = process.env.BETA_ACCESS_URL ?? "https://trenchers.ai";
   const replyTo = process.env.RESEND_REPLY_TO ?? "team@trenchers.ai";
 
   // ONE fetch, then filter in TypeScript, and that is deliberate rather than

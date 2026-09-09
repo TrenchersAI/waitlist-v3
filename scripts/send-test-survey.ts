@@ -101,7 +101,7 @@ async function main() {
   const siteUrl =
     process.env.SURVEY_TEST_SITE_URL ??
     process.env.NEXT_PUBLIC_SITE_URL ??
-    "https://trenchers.ai";
+    "https://waitlist.trenchers.ai";
 
   const prisma = getPrismaClient();
 

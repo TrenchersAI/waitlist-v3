@@ -414,7 +414,7 @@ async function buildWelcomeEmailHtml() {
   const appUrl =
     process.env.NEXT_PUBLIC_SITE_URL ??
     process.env.WAITLIST_SITE_URL ??
-    "https://trenchers.ai";
+    "https://waitlist.trenchers.ai";
   const assetsUrl =
     process.env.EMAIL_ASSETS_URL ??
     "https://assets.trenchers.ai/email-assets";
@@ -783,7 +783,7 @@ async function buildOtpEmailHtml(otp: string) {
   const appUrl =
     process.env.NEXT_PUBLIC_SITE_URL ??
     process.env.WAITLIST_SITE_URL ??
-    "https://trenchers.ai";
+    "https://waitlist.trenchers.ai";
   return templateHtml
     .replace(
       '<link rel="stylesheet" href="./styles.css" />',
