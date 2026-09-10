@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, X } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, X } from "lucide-react";
 
 import { Skeleton } from "@/src/components/ui/skeleton";
 import { cn } from "@/src/lib/utils";
+import { deskProfileUrl } from "@/src/lib/ops-desk";
 
 // One row of the per-user breakdown, mirrored from `trenchers-traders.ts`.
 type TraderRow = {
@@ -245,7 +246,10 @@ export function TradersPanel({
                   <th className="py-2 pr-3 text-right font-medium">PnL</th>
                 </>
               ) : null}
-              <th className="py-2 pr-4 text-right font-medium">Last (UTC)</th>
+              <th className="py-2 pr-3 text-right font-medium">Last (UTC)</th>
+              <th className="w-10 py-2 pr-3 text-right font-medium">
+                <span className="sr-only">Open in Trench Desk</span>
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -256,7 +260,7 @@ export function TradersPanel({
             ) : error ? (
               <tr>
                 <td
-                  colSpan={kind === "bot" ? 7 : 5}
+                  colSpan={kind === "bot" ? 8 : 6}
                   className="px-4 py-8 text-center text-sm text-red-400/80"
                 >
                   Couldn&apos;t load traders ({error}).
@@ -265,7 +269,7 @@ export function TradersPanel({
             ) : filtered.length === 0 ? (
               <tr>
                 <td
-                  colSpan={kind === "bot" ? 7 : 5}
+                  colSpan={kind === "bot" ? 8 : 6}
                   className="px-4 py-8 text-center text-sm text-white/50"
                 >
                   {search
@@ -333,8 +337,31 @@ export function TradersPanel({
                       </td>
                     </>
                   ) : null}
-                  <td className="py-2.5 pr-4 text-right font-mono text-[11px] whitespace-nowrap text-white/45">
+                  <td className="py-2.5 pr-3 text-right font-mono text-[11px] whitespace-nowrap text-white/45">
                     {fmtClock(r.lastTradeAt)}
+                  </td>
+                  <td className="py-2.5 pr-3 text-right">
+                    {r.userId ? (
+                      <a
+                        href={deskProfileUrl(r.userId)}
+                        target="_blank"
+                        rel="noreferrer"
+                        aria-label={`Open ${traderLabel(r)} in Trench Desk`}
+                        title="Open in Trench Desk"
+                        className="inline-flex size-7 items-center justify-center rounded-md border border-white/10 bg-white/[0.03] text-white/55 transition-colors hover:border-white/20 hover:bg-white/[0.08] hover:text-white"
+                      >
+                        <ArrowUpRight className="size-3.5" />
+                      </a>
+                    ) : (
+                      // A wallet-only row (no platform account) has no desk profile.
+                      <span
+                        aria-hidden
+                        title="No platform account for this wallet"
+                        className="inline-flex size-7 items-center justify-center text-white/20"
+                      >
+                        –
+                      </span>
+                    )}
                   </td>
                 </tr>
               ))
@@ -374,8 +401,11 @@ function SkeletonRow({ bot }: { bot: boolean }) {
           </td>
         </>
       ) : null}
-      <td className="py-2.5 pr-4 text-right">
+      <td className="py-2.5 pr-3 text-right">
         <Skeleton className="ml-auto h-3 w-12" />
+      </td>
+      <td className="py-2.5 pr-3 text-right">
+        <Skeleton className="ml-auto size-7 rounded-md" />
       </td>
     </tr>
   );
