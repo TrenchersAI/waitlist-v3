@@ -1,7 +1,8 @@
 # Beta access invite runbook
 
 Campaign: `beta-access-v1`. Audience: waitlist v3 verified subscribers.
-Destination: `beta.trenchers.ai`.
+Destination: the app, `https://trenchers.ai` (`BETA_ACCESS_URL`; it was
+`beta.trenchers.ai` when the campaign ran, which now 308s to the apex).
 
 ## What the pre-send audit found
 
@@ -136,23 +137,27 @@ is reserved" screen. Grant first, always.
    substitute and it protects against Resend's 4% ceiling on the first big
    wave.
 
-## Canonical host: always use www.trenchers.ai
+## Canonical host: always use waitlist.trenchers.ai
 
-`trenchers.ai` issues a **308 redirect to `www.trenchers.ai`**. Browsers
-follow it, so survey links worked fine. Machine-to-machine POSTs generally
-do not, which silently broke two things:
+Since the apex launch (2026-09-10) this site answers on
+`https://waitlist.trenchers.ai`; `trenchers.ai` and `www.trenchers.ai` serve
+the trading app. Any machine-to-machine URL that lands on the app host first
+goes through a redirect, and POSTs generally do not survive redirects, which
+is exactly what silently broke two things in the past:
 
-* **The Resend webhook.** Pointed at the apex it received a 308 and never
-  reached the handler, so zero events were ever recorded. The endpoint must
-  be `https://www.trenchers.ai/api/webhooks/resend`.
+* **The Resend webhook.** Behind a redirect it never reached the handler, so
+  zero events were recorded. The endpoint must be
+  `https://waitlist.trenchers.ai/api/webhooks/resend`.
 * **RFC 8058 one-click unsubscribe.** Gmail and Yahoo POST to the
-  List-Unsubscribe URL. Against the apex that POST hits a redirect, so the
-  opt-out can fail silently, and a user whose unsubscribe does nothing
-  reaches for the spam button instead. That feeds complaint rate, which is
-  the tightest constraint we have.
+  List-Unsubscribe URL. Behind a redirect that POST can fail silently, and a
+  user whose unsubscribe does nothing reaches for the spam button instead.
+  That feeds complaint rate, which is the tightest constraint we have.
 
-`NEXT_PUBLIC_SITE_URL` must therefore be `https://www.trenchers.ai`
-everywhere, locally and in Vercel. Worth noting the survey campaign
+`NEXT_PUBLIC_SITE_URL` must therefore be `https://waitlist.trenchers.ai`
+everywhere, locally and in Vercel. Links already in the wild that point at
+`www.trenchers.ai/api/survey/*`, `/api/claim/*` or `/api/waitlist` are
+rescued by method-preserving 307 redirects in the app's `vercel.json`
+(trenchers_fe `docs/apex-domain.md`). Worth noting the survey campaign
 recorded only 9 unsubscribes across 10,474 emails (0.086%), which is low
 for a list of that age and consistent with some opt-outs having failed.
 
