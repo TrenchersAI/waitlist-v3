@@ -35,7 +35,7 @@ const DELETED_ITEMS = [
   },
   {
     title: "Your login identity.",
-    body: "The email, Google, or X account linked to your Trenchers login.",
+    body: "The email or Google account linked to your Trenchers login.",
   },
   {
     title: "Rewards data.",
@@ -221,42 +221,55 @@ export default function DeleteAccountPage() {
               or have already uninstalled Trenchers.
             </p>
             <p className="mt-5">
-              Email{" "}
+              <strong className="font-semibold text-white">
+                We must verify that you own the account before we delete it.
+              </strong>{" "}
+              Deleting an account destroys the keys to its wallets, so an
+              unverified request could permanently destroy someone else&apos;s
+              funds. We will not act on a request we cannot verify — no
+              exceptions.
+            </p>
+            <h3 className="mt-8 text-[20px] font-semibold tracking-[-0.02em] text-white sm:text-[22px]">
+              If you signed in with email, or Google
+            </h3>
+            <p className="mt-4">
+              Your account has an email address on file. Send the request{" "}
+              <strong className="font-semibold text-white">
+                from that email address
+              </strong>{" "}
+              to{" "}
               <a href={`mailto:${SUPPORT_EMAIL}`} className={LINK_CLASS}>
                 {SUPPORT_EMAIL}
-              </a>{" "}
-              with the subject{" "}
+              </a>
+              , with the subject{" "}
               <strong className="font-semibold text-white">
                 &quot;Delete my account&quot;
               </strong>
               .
             </p>
-            <p className="mt-5">Include:</p>
-            <ol className="mt-3 list-decimal space-y-3 pl-5">
-              <li>
-                The{" "}
-                <strong className="font-semibold text-white">
-                  email address or wallet address
-                </strong>{" "}
-                registered to your Trenchers account
-              </li>
+            <p className="mt-5">
+              We will reply with a confirmation code.{" "}
+              <strong className="font-semibold text-white">
+                Your account is not deleted until you reply with that code.
+              </strong>
+            </p>
+
+            <h3 className="mt-8 text-[20px] font-semibold tracking-[-0.02em] text-white sm:text-[22px]">
+              Also include
+            </h3>
+            <ul className="mt-5 list-disc space-y-3 pl-5">
               <li>Your Trenchers username, if you set one</li>
               <li>
                 The words &quot;I want my account and associated data
                 deleted&quot;
               </li>
-            </ol>
+            </ul>
             <p className="mt-5">
               We will confirm by email once deletion is complete,{" "}
               <strong className="font-semibold text-white">
-                within 30 days of the request
+                within 30 days of the verified request
               </strong>
               .
-            </p>
-            <p className="mt-5">
-              We may ask you to confirm from the registered email address
-              before we act. This is to stop someone else deleting your
-              account.
             </p>
           </section>
 
