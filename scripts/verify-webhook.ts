@@ -118,7 +118,7 @@ async function main() {
   console.error(
     "\nCheck, in order:\n" +
       "  1. Resend dashboard > Webhooks: endpoint is\n" +
-      "     https://trenchers.ai/api/webhooks/resend and is enabled.\n" +
+      "     https://docs.trenchers.ai/api/webhooks/resend and is enabled.\n" +
       "  2. RESEND_WEBHOOK_SECRET is set in the deployed environment and\n" +
       "     matches the signing secret Resend shows (starts whsec_).\n" +
       "     A mismatch returns 401 and Resend will show failed deliveries.\n" +
