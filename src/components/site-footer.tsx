@@ -54,6 +54,9 @@ export default function SiteFooter() {
             <Link href="/privacy" className={FOOTER_LINK_CLASS}>
               Privacy
             </Link>
+            <Link href="/delete-account" className={FOOTER_LINK_CLASS}>
+              Delete account
+            </Link>
             <Link href="/about-us" className={FOOTER_LINK_CLASS}>
               About
             </Link>
