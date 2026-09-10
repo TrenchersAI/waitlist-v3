@@ -13,7 +13,8 @@ export default function FinalCtaSection() {
     pathname === "/analytics" ||
     pathname?.startsWith("/analytics/") ||
     pathname?.startsWith("/survey") ||
-    pathname?.startsWith("/blog")
+    pathname?.startsWith("/blog") ||
+    pathname === "/delete-account"
   ) {
     return null;
   }
