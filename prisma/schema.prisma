@@ -247,7 +247,8 @@ model BetaInvite {
 
   /// When beta access was actually provisioned for this address.
   accessGrantedAt DateTime?
-  /// First observed sign-in on beta.trenchers.ai with this email. The
+  /// First observed sign-in on the app (trenchers.ai, formerly beta.trenchers.ai)
+  /// with this email. The
   /// bottom of the funnel: invited -> delivered -> clicked -> signed in.
   activatedAt  DateTime?
 

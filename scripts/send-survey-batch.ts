@@ -81,7 +81,7 @@ async function main() {
   const siteUrl = (
     process.env.NEXT_PUBLIC_SITE_URL ??
     process.env.WAITLIST_SITE_URL ??
-    "https://waitlist.trenchers.ai"
+    "https://docs.trenchers.ai"
   ).replace(/\/$/, "");
 
   const replyTo = process.env.RESEND_REPLY_TO ?? "prakhar@trenchers.ai";

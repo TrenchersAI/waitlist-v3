@@ -142,7 +142,7 @@ async function main() {
   const tpl = VARIANTS[variant];
 
   const siteUrl = (
-    process.env.NEXT_PUBLIC_SITE_URL ?? "https://waitlist.trenchers.ai"
+    process.env.NEXT_PUBLIC_SITE_URL ?? "https://docs.trenchers.ai"
   ).replace(/\/$/, "");
   const accessUrl = process.env.BETA_ACCESS_URL ?? "https://trenchers.ai";
   const fromEmail = process.env.RESEND_FROM_EMAIL;
