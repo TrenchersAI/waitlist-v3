@@ -73,13 +73,47 @@ function useCurrentSection(
   return currentId;
 }
 
+/** Scrolls a contents list — never the page — so the link for `currentId`
+   sits in its vertical middle. No-op when the list does not overflow. */
+function useKeepCurrentInView(
+  listRef: RefObject<HTMLElement | null>,
+  currentId: string | null,
+  active = true,
+) {
+  useEffect(() => {
+    const list = listRef.current;
+    if (!active || !list || !currentId) return;
+
+    const link = list.querySelector<HTMLElement>(`a[href="#${currentId}"]`);
+    if (!link) return;
+
+    const reduceMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    list.scrollTo({
+      top: Math.max(
+        link.offsetTop - (list.clientHeight - link.offsetHeight) / 2,
+        0,
+      ),
+      behavior: reduceMotion ? "auto" : "smooth",
+    });
+  }, [listRef, currentId, active]);
+}
+
 /** Sticky contents rail beside the document on large screens. */
 export function LegalTocDesktop({ sections, bodyId, label }: TocProps) {
+  const railRef = useRef<HTMLDivElement>(null);
   const currentId = useCurrentSection(sections, bodyId);
+  // A long document's rail is taller than the viewport; follow the reader
+  // down it instead of making them scroll the rail separately.
+  useKeepCurrentInView(railRef, currentId);
 
   return (
     <nav aria-label={`${label} sections`} className="hidden lg:block">
-      <div className="scrollbar-minimal-black sticky top-24 max-h-[calc(100dvh-7rem)] overflow-y-auto overscroll-contain pb-8">
+      <div
+        ref={railRef}
+        className="scrollbar-minimal-black sticky top-24 max-h-[calc(100dvh-7rem)] overflow-y-auto overscroll-contain pb-8"
+      >
         <p className="text-[11px] font-semibold tracking-[0.18em] text-white/45 uppercase">
           On this page
         </p>
@@ -134,8 +168,11 @@ export function LegalTocMobile({ sections, bodyId, label }: TocProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const progressRef = useRef<HTMLSpanElement>(null);
+  const listRef = useRef<HTMLElement>(null);
   const currentId = useCurrentSection(sections, bodyId, progressRef);
   const current = sections.find(({ id }) => id === currentId);
+  // Open the menu scrolled to where the reader is, not back at section 1.
+  useKeepCurrentInView(listRef, currentId, open);
 
   useEffect(() => {
     if (!open) return;
@@ -194,6 +231,7 @@ export function LegalTocMobile({ sections, bodyId, label }: TocProps) {
       </button>
 
       <nav
+        ref={listRef}
         id="legal-contents"
         aria-label={`${label} sections`}
         hidden={!open}
