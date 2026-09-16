@@ -23,6 +23,9 @@ export const SOCIAL_PREVIEW_IMAGE_WIDTH = 2048;
 export const SOCIAL_PREVIEW_IMAGE_HEIGHT = 1154;
 export const TRENCHERS_X_HANDLE = "@TrenchersAI";
 
+/** Monitored inbox published on the legal pages (privacy, terms, deletion). */
+export const SUPPORT_EMAIL = "support@trenchers.ai";
+
 const REFERRAL_CODE_PATTERN = /^[a-z0-9]{6,12}$/;
 
 export function resolveReferralPath(rawRef: string | undefined): string | null {
