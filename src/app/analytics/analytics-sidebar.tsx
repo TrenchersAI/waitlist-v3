@@ -7,6 +7,7 @@ import {
   ChevronsRight,
   ClipboardList,
   Coins,
+  FlaskConical,
   Scale,
   KeyRound,
   LayoutDashboard,
@@ -37,6 +38,7 @@ export type AnalyticsSection =
   | "bots"
   | "router-trades"
   | "volume"
+  | "paper-volume"
   | "revenue"
   | "platform-accounting";
 
@@ -53,6 +55,7 @@ const ITEMS: ReadonlyArray<ItemDef> = [
   { id: "bots", label: "Bots", icon: Bot },
   { id: "router-trades", label: "Router trades", icon: Route },
   { id: "volume", label: "Trading volume", icon: TrendingUp },
+  { id: "paper-volume", label: "Paper volume", icon: FlaskConical },
   { id: "revenue", label: "Trading revenue", icon: Coins },
   { id: "platform-accounting", label: "Platform accounting", icon: Scale },
   { id: "referrals", label: "Referrals", icon: Share2 },
