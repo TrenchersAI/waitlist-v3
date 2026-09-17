@@ -27,12 +27,22 @@ type TradersPayload = {
   bot: TraderRow[];
 };
 
-type TradersKind = "manual" | "bot";
+/** The paper endpoint returns one list (there is no manual leg in paper). */
+type PaperTradersPayload = {
+  floor: string;
+  date: string;
+  paper: TraderRow[];
+};
+
+/** `manual` / `bot` come from the Trading volume drill-down (live fills);
+ *  `paper` is the Paper volume drill-down (paper bot fills, own endpoint). */
+export type TradersKind = "manual" | "bot" | "paper";
 
 // Module-level cache keyed by day so switching Manual↔Bot for the same day (or
 // re-opening it) doesn't re-hit the endpoint. The API itself is 60s-cached;
 // this just avoids redundant round-trips within a session.
 const cacheByDate = new Map<string, TradersPayload>();
+const paperCacheByDate = new Map<string, PaperTradersPayload>();
 
 function loadTradersForDate(date: string): Promise<TradersPayload> {
   const cached = cacheByDate.get(date);
@@ -49,6 +59,50 @@ function loadTradersForDate(date: string): Promise<TradersPayload> {
       cacheByDate.set(date, p);
       return p;
     });
+}
+
+function loadPaperTradersForDate(date: string): Promise<PaperTradersPayload> {
+  const cached = paperCacheByDate.get(date);
+  if (cached) return Promise.resolve(cached);
+  return fetch(
+    `/api/analytics/paper/traders?date=${encodeURIComponent(date)}`,
+    { cache: "no-store" },
+  )
+    .then(async (r) => {
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return (await r.json()) as PaperTradersPayload;
+    })
+    .then((p) => {
+      paperCacheByDate.set(date, p);
+      return p;
+    });
+}
+
+/** Rows + the server-confirmed day for a kind, from whichever endpoint owns it. */
+type Loaded = { date: string; rows: TraderRow[] };
+
+function loadForKind(kind: TradersKind, date: string): Promise<Loaded> {
+  if (kind === "paper") {
+    return loadPaperTradersForDate(date).then((p) => ({
+      date: p.date,
+      rows: p.paper,
+    }));
+  }
+  return loadTradersForDate(date).then((p) => ({
+    date: p.date,
+    rows: kind === "manual" ? p.manual : p.bot,
+  }));
+}
+
+function cachedForKind(kind: TradersKind, date: string): Loaded | null {
+  if (kind === "paper") {
+    const p = paperCacheByDate.get(date);
+    return p ? { date: p.date, rows: p.paper } : null;
+  }
+  const p = cacheByDate.get(date);
+  return p
+    ? { date: p.date, rows: kind === "manual" ? p.manual : p.bot }
+    : null;
 }
 
 // ◎ SOL formatting, identical to the trading dashboards.
@@ -114,6 +168,7 @@ function traderInitial(r: TraderRow): string {
 const COPY: Record<TradersKind, { title: string; noun: string; dot: string }> = {
   manual: { title: "Manual orders", noun: "manual swaps", dot: "#2dd4bf" },
   bot: { title: "Bot orders", noun: "bot fills", dot: "#818cf8" },
+  paper: { title: "Paper bot orders", noun: "paper bot fills", dot: "#818cf8" },
 };
 
 export function TradersPanel({
@@ -125,22 +180,23 @@ export function TradersPanel({
   kind: TradersKind;
   /** The UTC day (YYYY-MM-DD) picked on the chart. */
   date: string;
-  /** Back to the Manual/Bot chooser for the same day. */
-  onBack: () => void;
+  /** Back to the Manual/Bot chooser for the same day. Omit (paper) to hide
+   *  the button — paper has only one order kind, so there is no chooser. */
+  onBack?: () => void;
   /** Close the whole drill-down. */
   onClose: () => void;
 }) {
-  const [payload, setPayload] = useState<TradersPayload | null>(
-    cacheByDate.get(date) ?? null,
+  const [payload, setPayload] = useState<Loaded | null>(
+    cachedForKind(kind, date),
   );
-  const [loading, setLoading] = useState(!cacheByDate.get(date));
+  const [loading, setLoading] = useState(!cachedForKind(kind, date));
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
 
   // `loading` starts `true` on a cache miss, so no synchronous setState here.
   useEffect(() => {
     let cancelled = false;
-    loadTradersForDate(date)
+    loadForKind(kind, date)
       .then((p) => {
         if (!cancelled) setPayload(p);
       })
@@ -155,10 +211,12 @@ export function TradersPanel({
     return () => {
       cancelled = true;
     };
-  }, [date]);
+  }, [kind, date]);
 
   const copy = COPY[kind];
-  const rows = kind === "manual" ? payload?.manual : payload?.bot;
+  const rows = payload?.rows;
+  // Bot-shaped rows (live bot or paper bot) carry bots-fired + realized PnL.
+  const botCols = kind !== "manual";
   // Prefer the day the server actually returned; falls back to the requested
   // day while loading. These agree in normal operation — this just guarantees
   // the header can never label a day the rows don't belong to.
@@ -186,14 +244,16 @@ export function TradersPanel({
     <div className="rounded-xl border border-white/10 bg-black/40">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/8 px-4 py-3">
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={onBack}
-            className="flex items-center gap-1 rounded-lg border border-white/10 px-2 py-1 text-[11px] text-white/55 transition-colors hover:bg-white/[0.05] hover:text-white"
-          >
-            <ArrowLeft className="size-3.5" />
-            Back
-          </button>
+          {onBack ? (
+            <button
+              type="button"
+              onClick={onBack}
+              className="flex items-center gap-1 rounded-lg border border-white/10 px-2 py-1 text-[11px] text-white/55 transition-colors hover:bg-white/[0.05] hover:text-white"
+            >
+              <ArrowLeft className="size-3.5" />
+              Back
+            </button>
+          ) : null}
           <span
             aria-hidden
             className="size-2 rounded-sm"
@@ -240,7 +300,7 @@ export function TradersPanel({
               <th className="py-2 pr-3 font-medium">User</th>
               <th className="py-2 pr-3 text-right font-medium">Volume</th>
               <th className="py-2 pr-3 text-right font-medium">Trades</th>
-              {kind === "bot" ? (
+              {botCols ? (
                 <>
                   <th className="py-2 pr-3 text-right font-medium">Bots</th>
                   <th className="py-2 pr-3 text-right font-medium">PnL</th>
@@ -255,12 +315,12 @@ export function TradersPanel({
           <tbody>
             {loading ? (
               Array.from({ length: 6 }).map((_, i) => (
-                <SkeletonRow key={i} bot={kind === "bot"} />
+                <SkeletonRow key={i} bot={botCols} />
               ))
             ) : error ? (
               <tr>
                 <td
-                  colSpan={kind === "bot" ? 8 : 6}
+                  colSpan={botCols ? 8 : 6}
                   className="px-4 py-8 text-center text-sm text-red-400/80"
                 >
                   Couldn&apos;t load traders ({error}).
@@ -269,7 +329,7 @@ export function TradersPanel({
             ) : filtered.length === 0 ? (
               <tr>
                 <td
-                  colSpan={kind === "bot" ? 8 : 6}
+                  colSpan={botCols ? 8 : 6}
                   className="px-4 py-8 text-center text-sm text-white/50"
                 >
                   {search
@@ -318,7 +378,7 @@ export function TradersPanel({
                   <td className="py-2.5 pr-3 text-right tabular-nums text-white/60">
                     {fmtInt(r.trades)}
                   </td>
-                  {kind === "bot" ? (
+                  {botCols ? (
                     <>
                       <td className="py-2.5 pr-3 text-right tabular-nums text-white/60">
                         {fmtInt(r.bots ?? 0)}

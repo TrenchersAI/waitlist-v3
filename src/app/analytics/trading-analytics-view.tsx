@@ -31,16 +31,16 @@ type Metric = "volume" | "revenue";
 /** Which per-user breakdown is open below the chart (volume dashboard only). */
 type TradersKind = "manual" | "bot";
 
-type RangeKey = "7d" | "14d" | "30d" | "all";
-const RANGES: { key: RangeKey; label: string; days: number | null }[] = [
+export type RangeKey = "7d" | "14d" | "30d" | "all";
+export const RANGES: { key: RangeKey; label: string; days: number | null }[] = [
   { key: "7d", label: "7D", days: 7 },
   { key: "14d", label: "14D", days: 14 },
   { key: "30d", label: "30D", days: 30 },
   { key: "all", label: "All", days: null },
 ];
 
-// ◎ SOL formatting shared with the summary cards.
-function fmtSol(n: number): string {
+// ◎ SOL formatting shared with the summary cards (and the Paper volume twin).
+export function fmtSol(n: number): string {
   const a = Math.abs(n);
   if (a >= 100_000) return `${(n / 1000).toFixed(0)}k`;
   if (a >= 1000) return Math.round(n).toLocaleString("en-US");
@@ -375,7 +375,7 @@ function OrderKindButton({
   );
 }
 
-function ViewToggle({
+export function ViewToggle({
   view,
   onChange,
 }: {
@@ -403,7 +403,7 @@ function ViewToggle({
   );
 }
 
-function StatCard({
+export function StatCard({
   label,
   value,
   sub,

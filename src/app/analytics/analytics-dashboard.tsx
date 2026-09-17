@@ -20,6 +20,7 @@ import { PartnersContent } from "@/src/app/analytics/partners/partners-view";
 import { BotsAnalyticsContent } from "@/src/app/analytics/bots-view";
 import { RouterTradesContent } from "@/src/app/analytics/router-trades-view";
 import { PulseAnalyticsContent } from "@/src/app/analytics/pulse-view";
+import { PaperAnalyticsContent } from "@/src/app/analytics/paper-analytics-view";
 import { TradingAnalyticsContent } from "@/src/app/analytics/trading-analytics-view";
 import { UserActivityContent } from "@/src/app/analytics/user-activity-view";
 import {
@@ -706,6 +707,7 @@ export default function AnalyticsDashboard({
             section === "router-trades" ||
             section === "pulse" ||
             section === "volume" ||
+            section === "paper-volume" ||
             section === "revenue" ||
             section === "user-activity" ||
             section === "platform-accounting" ? null : (
@@ -750,6 +752,8 @@ export default function AnalyticsDashboard({
               <PulseAnalyticsContent />
             ) : section === "volume" ? (
               <TradingAnalyticsContent metric="volume" />
+            ) : section === "paper-volume" ? (
+              <PaperAnalyticsContent />
             ) : section === "revenue" ? (
               <TradingAnalyticsContent metric="revenue" />
             ) : section === "platform-accounting" ? (
@@ -1018,6 +1022,7 @@ const SECTION_TITLE: Record<AnalyticsSection, string> = {
   bots: "Bots",
   "router-trades": "Router trades",
   volume: "Trading volume",
+  "paper-volume": "Paper volume",
   revenue: "Trading revenue",
   referrals: "Referrals",
   "top-referrers": "Top referrers",
@@ -1063,6 +1068,7 @@ function DashboardHeader({
       section === "router-trades" ||
       section === "pulse" ||
       section === "volume" ||
+      section === "paper-volume" ||
       section === "revenue" ||
       section === "user-activity" ||
       section === "platform-accounting" ? null : (
