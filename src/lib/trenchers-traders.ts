@@ -29,7 +29,7 @@ import { TRADING_FLOOR_ISO } from "@/src/lib/trenchers-analytics";
 import { getTrenchersPool } from "@/src/lib/trenchers-db";
 
 /** One row of the per-user breakdown. `bots` / `pnlSol` are only populated for
- *  the bot list; the manual list leaves them null. */
+ *  the bot list; the manual list leaves them null. `pnlSol` is net of fees. */
 export type TraderRow = {
   userId: string | null;
   username: string | null;
@@ -73,8 +73,12 @@ export async function fetchTradersForDay(
   if (!pool) return { manual: [], bot: [] };
 
   // Bot volume per user for the day — mirrors `loadVolume`'s bot leg, grouped
-  // by user and joined to identity. `pnl_lamports` sums to realized PnL (only
-  // sells carry it). `count(DISTINCT bot_id)` = how many of their bots fired.
+  // by user and joined to identity. PnL is NET: `pnl_lamports` is computed on
+  // the GROSS swap output (only sells carry it), so we subtract `fees_lamports`
+  // (platform fee, priority fee, tip, base fee, rent — on buys too), the same
+  // `SUM(COALESCE(pnl,0) - fees)` the terminal uses in repo_bots.rs. COALESCE is
+  // load-bearing: buy rows have NULL PnL and would otherwise drop their fee.
+  // `count(DISTINCT bot_id)` = how many of their bots fired.
   const botQ = pool.query<{
     user_id: string | null;
     username: string | null;
@@ -93,7 +97,7 @@ export async function fetchTradersForDay(
             count(*)                              AS trades,
             count(DISTINCT bt.bot_id)             AS bots,
             sum(bt.sol_amount) / 1e9              AS volume_sol,
-            sum(bt.pnl_lamports) / 1e9            AS pnl_sol,
+            sum(COALESCE(bt.pnl_lamports, 0) - bt.fees_lamports) / 1e9 AS pnl_sol,
             max(bt.created_at)                    AS last_trade_at
        FROM bot_trades bt
        LEFT JOIN users u ON u.id = bt.user_id

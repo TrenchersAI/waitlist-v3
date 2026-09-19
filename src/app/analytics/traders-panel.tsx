@@ -215,7 +215,7 @@ export function TradersPanel({
 
   const copy = COPY[kind];
   const rows = payload?.rows;
-  // Bot-shaped rows (live bot or paper bot) carry bots-fired + realized PnL.
+  // Bot-shaped rows (live bot or paper bot) carry bots-fired + net realized PnL (after fees).
   const botCols = kind !== "manual";
   // Prefer the day the server actually returned; falls back to the requested
   // day while loading. These agree in normal operation — this just guarantees
@@ -303,7 +303,7 @@ export function TradersPanel({
               {botCols ? (
                 <>
                   <th className="py-2 pr-3 text-right font-medium">Bots</th>
-                  <th className="py-2 pr-3 text-right font-medium">PnL</th>
+                  <th className="py-2 pr-3 text-right font-medium">Net PnL</th>
                 </>
               ) : null}
               <th className="py-2 pr-3 text-right font-medium">Last (UTC)</th>
