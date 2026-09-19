@@ -145,7 +145,7 @@ export async function fetchPaperTradersForDay(
             count(*)                              AS trades,
             count(DISTINCT bt.bot_id)             AS bots,
             sum(bt.sol_amount) / 1e9              AS volume_sol,
-            sum(bt.pnl_lamports) / 1e9            AS pnl_sol,
+            sum(COALESCE(bt.pnl_lamports, 0) - bt.fees_lamports) / 1e9 AS pnl_sol,
             max(bt.created_at)                    AS last_trade_at
        FROM bot_trades bt
        LEFT JOIN users u ON u.id = bt.user_id
