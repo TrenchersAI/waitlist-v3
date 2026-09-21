@@ -1,0 +1,78 @@
+# Vercel only builds a git push when the commit author's GitHub login belongs to
+# a Vercel team member (Pro seat check). The team is down to one seat, so a
+# merge authored by anyone else lands BLOCKED (seatBlock.blockCode =
+# TEAM_ACCESS_REQUIRED) and docs.trenchers.ai silently keeps serving the old
+# build. A deployment created with a team token is owned by the token, not by
+# the commit author, and skips that check.
+#
+# This job does nothing when the git integration already built the push; it only
+# steps in when that deployment is BLOCKED or never appeared. Mirrors
+# trenchers_fe/.github/workflows/vercel-deploy.yml.
+name: vercel-deploy
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: vercel-deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      TEAM_ID: team_1XxB0Qb6UKKCGvM7OBqyq668
+      PROJECT_ID: prj_4kRXvNZvELVwiqlS1GnEIUwR6Ou5
+      GITHUB_REPO_ID: "1236636931"
+      SHA: ${{ github.sha }}
+      REF: ${{ github.ref_name }}
+    steps:
+      - name: Wait for the git-integration deployment
+        id: check
+        run: |
+          set -euo pipefail
+          api() { curl -sS -H "Authorization: Bearer $VERCEL_TOKEN" "$@"; }
+          state=""
+          # The git integration usually creates its deployment within seconds;
+          # 6 x 20s covers a slow webhook without stalling the workflow.
+          for _ in $(seq 1 6); do
+            state=$(api "https://api.vercel.com/v6/deployments?teamId=$TEAM_ID&projectId=$PROJECT_ID&limit=20" \
+              | jq -r --arg sha "$SHA" '[.deployments[] | select(.meta.githubCommitSha == $sha)] | map(.readyState) | if length == 0 then "NONE" elif any(. != "BLOCKED") then "OK" else "BLOCKED" end')
+            echo "sha=$SHA state=$state"
+            [ "$state" = "NONE" ] || break
+            sleep 20
+          done
+          echo "state=$state" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy with the team token
+        if: steps.check.outputs.state != 'OK'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          api() { curl -sS -H "Authorization: Bearer $VERCEL_TOKEN" "$@"; }
+          # Never ship a commit the branch has already moved past: the newer
+          # push has its own run, and deploying this one would walk it back.
+          tip=$(gh api "repos/$GITHUB_REPOSITORY/commits/$REF" --jq .sha)
+          if [ "$tip" != "$SHA" ]; then
+            echo "::notice::$REF is now $tip, skipping ${SHA:0:8}"
+            exit 0
+          fi
+          body=$(printf '{"name":"final_waitlist","project":"%s","target":"production","gitSource":{"type":"github","repoId":%s,"ref":"%s","sha":"%s"}}' \
+            "$PROJECT_ID" "$GITHUB_REPO_ID" "$REF" "$SHA")
+          id=$(api -X POST -H 'Content-Type: application/json' \
+            "https://api.vercel.com/v13/deployments?teamId=$TEAM_ID&forceNew=1" -d "$body" \
+            | jq -r '.id // (.error | tostring)')
+          case "$id" in dpl_*) ;; *) echo "::error::deployment not created: $id"; exit 1 ;; esac
+          echo "::notice::created $id for $REF@${SHA:0:8}"
+          for _ in $(seq 1 60); do
+            state=$(api "https://api.vercel.com/v13/deployments/$id?teamId=$TEAM_ID" | jq -r .readyState)
+            case "$state" in
+              READY) echo "::notice::$id READY"; exit 0 ;;
+              ERROR|CANCELED) echo "::error::$id ended $state"; exit 1 ;;
+            esac
+            sleep 20
+          done
+          echo "::error::$id still $state after 20 minutes"; exit 1
