@@ -1,7 +1,7 @@
 # Vercel only builds a git push when the commit author's GitHub login belongs to
 # a Vercel team member (Pro seat check). The team is down to one seat, so a
 # merge authored by anyone else lands BLOCKED (seatBlock.blockCode =
-# TEAM_ACCESS_REQUIRED) and docs.trenchers.ai silently keeps serving the old
+# TEAM_ACCESS_REQUIRED) and waitlist.trenchers.ai silently keeps serving the old
 # build. A deployment created with a team token is owned by the token, not by
 # the commit author, and skips that check.
 #
