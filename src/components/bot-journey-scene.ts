@@ -111,74 +111,250 @@ export class TokenField {
   }
 }
 
-function tokenMark(ctx: CanvasRenderingContext2D, mark: number, x: number, y: number, size: number) {
-  ctx.save(); ctx.translate(x, y); ctx.scale(size / 40, size / 40);
-  ctx.lineWidth = 2.3; ctx.lineCap = "round"; ctx.lineJoin = "round";
-  switch (mark) {
-    case 0: { // SOL
-      const gradient = ctx.createLinearGradient(-18, 18, 18, -18);
-      gradient.addColorStop(0, "#8e63ee"); gradient.addColorStop(1, "#52cbb5"); ctx.fillStyle = gradient;
-      for (let i = 0; i < 3; i++) {
-        const top = -15 + i * 12, shift = i === 1 ? -1 : 1;
-        ctx.beginPath(); ctx.moveTo(-18 + 5 * shift, top); ctx.lineTo(18 + 5 * shift, top);
-        ctx.lineTo(18 - 5 * shift, top + 7); ctx.lineTo(-18 - 5 * shift, top + 7); ctx.closePath(); ctx.fill();
-      }
-      break;
-    }
-    case 1: // USD token
-      ctx.fillStyle = "#397ac2"; ctx.beginPath(); ctx.arc(0, 0, 21, 0, TAU); ctx.fill();
-      ctx.fillStyle = "#fff"; ctx.font = "500 30px Arial"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("$", 0, 1);
-      ctx.strokeStyle = "#ffffffd0";
-      for (const angle of [-.6, Math.PI - .6]) { ctx.beginPath(); ctx.arc(0, 0, 16, angle, angle + 1.2); ctx.stroke(); }
-      break;
-    case 2: // Jupiter-style striped mark
-      ctx.save(); ctx.beginPath(); ctx.arc(0, 0, 21, 0, TAU); ctx.clip();
-      ctx.fillStyle = "#202b21"; ctx.fillRect(-22, -22, 44, 44);
-      ctx.strokeStyle = "#b6d690"; ctx.lineWidth = 2.8;
-      for (let i = -4; i < 7; i++) { ctx.beginPath(); ctx.ellipse(0, -13 + i * 7, 33, 13, -.18, 0, TAU); ctx.stroke(); }
-      ctx.restore();
-      break;
-    case 3: // RAY
-      ctx.strokeStyle = "#a7a2ee"; ctx.beginPath();
-      for (let i = 0; i < 6; i++) { const a = Math.PI / 3 * i - Math.PI / 2; const x = Math.cos(a) * 22, y = Math.sin(a) * 22; if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); }
-      ctx.closePath(); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(-8, 11); ctx.lineTo(-8, -10); ctx.lineTo(3, -10); ctx.quadraticCurveTo(15, -10, 10, 0); ctx.lineTo(0, 0); ctx.lineTo(12, 12); ctx.stroke();
-      break;
-    case 4: // PYTH
-      ctx.strokeStyle = "#b7a1ce"; ctx.lineWidth = 4;
-      ctx.beginPath(); ctx.moveTo(-10, 18); ctx.lineTo(-10, -5); ctx.bezierCurveTo(-10, -26, 20, -26, 20, -5); ctx.lineTo(20, 5); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(-1, 18); ctx.lineTo(-1, -4); ctx.bezierCurveTo(-1, -15, 11, -15, 11, -4); ctx.lineTo(11, 5); ctx.stroke();
-      break;
-    case 5: // JTO
-      ctx.fillStyle = "#172a20"; ctx.beginPath(); ctx.arc(0, 0, 21, 0, TAU); ctx.fill();
-      ctx.strokeStyle = "#b0e86d"; ctx.lineWidth = 4;
-      ctx.beginPath(); ctx.moveTo(-10, -10); ctx.lineTo(12, -10); ctx.lineTo(1, 12); ctx.quadraticCurveTo(-3, 18, -10, 10); ctx.stroke();
-      break;
-    case 6: // Token with an interlocking mark
-      ctx.strokeStyle = "#d1d9e5"; ctx.lineWidth = 5;
-      ctx.beginPath(); ctx.moveTo(-20, -10); ctx.bezierCurveTo(-9, -11, -10, 16, 0, 12); ctx.bezierCurveTo(11, 9, 7, -16, 20, -10); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(-20, 6); ctx.bezierCurveTo(-9, 3, -8, 22, 2, 15); ctx.stroke();
-      break;
-    default: // USD stablecoin
-      ctx.fillStyle = "#4b9a86"; ctx.beginPath(); ctx.arc(0, 0, 21, 0, TAU); ctx.fill();
-      ctx.fillStyle = "#fff"; ctx.fillRect(-13, -11, 26, 5); ctx.fillRect(-3, -8, 6, 23);
-      ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.ellipse(0, -1, 16, 4, 0, 0, TAU); ctx.stroke();
-  }
-  ctx.restore();
+function fillDot(ctx: CanvasRenderingContext2D, x: number, y: number, radius: number, color: string) {
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.arc(x, y, radius, 0, TAU);
+  ctx.fill();
 }
 
-function botMark(ctx: CanvasRenderingContext2D, x: number, y: number) {
-  ctx.save(); ctx.translate(x, y);
-  const metal = ctx.createLinearGradient(-30, -30, 35, 35);
-  metal.addColorStop(0, "#778698"); metal.addColorStop(.45, "#384658"); metal.addColorStop(1, "#202c3d");
-  ctx.fillStyle = metal; ctx.beginPath(); ctx.roundRect(-34, -24, 68, 51, 13); ctx.fill();
-  ctx.strokeStyle = "#d8e0e5"; ctx.lineWidth = 1; ctx.stroke();
-  ctx.fillStyle = "#74849a"; ctx.beginPath(); ctx.roundRect(-42, -10, 5, 23, 2); ctx.roundRect(37, -10, 5, 23, 2); ctx.fill();
-  ctx.strokeStyle = "#8495aa"; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(0, -24); ctx.lineTo(0, -36); ctx.stroke();
-  ctx.fillStyle = "#c3deee"; ctx.beginPath(); ctx.arc(0, -39, 4, 0, TAU); ctx.fill();
-  ctx.fillStyle = "#c3deee";
-  ctx.beginPath(); ctx.roundRect(-21, -7, 15, 9, 3); ctx.roundRect(6, -7, 15, 9, 3); ctx.fill();
-  ctx.fillStyle = "#667887"; ctx.beginPath(); ctx.roundRect(-11, 14, 22, 2, 1); ctx.fill();
+/** Original cartoon marks for meme-coin culture: dog, frog, cat, hatted dog, rocket, moon, candle, laugh. */
+function memeMark(ctx: CanvasRenderingContext2D, mark: number) {
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  switch (mark % 8) {
+    case 0:
+      drawDog(ctx, false);
+      break;
+    case 1:
+      drawFrog(ctx);
+      break;
+    case 2:
+      drawCat(ctx);
+      break;
+    case 3:
+      drawDog(ctx, true);
+      break;
+    case 4:
+      drawRocket(ctx);
+      break;
+    case 5:
+      drawMoon(ctx);
+      break;
+    case 6:
+      drawCandle(ctx);
+      break;
+    default:
+      drawLaugh(ctx);
+      break;
+  }
+}
+
+function drawDog(ctx: CanvasRenderingContext2D, withHat: boolean) {
+  ctx.fillStyle = "#d3924e";
+  ctx.beginPath();
+  ctx.ellipse(-13, -10, 6, 9, -0.5, 0, TAU);
+  ctx.ellipse(13, -10, 6, 9, 0.5, 0, TAU);
+  ctx.fill();
+  ctx.fillStyle = "#ffe1b5";
+  ctx.beginPath();
+  ctx.arc(0, 2, 14, 0, TAU);
+  ctx.fill();
+  ctx.fillStyle = "#fff8ee";
+  ctx.beginPath();
+  ctx.ellipse(0, 8, 8, 6.5, 0, 0, TAU);
+  ctx.fill();
+  fillDot(ctx, -5.5, -1, 2.6, "#241910");
+  fillDot(ctx, 5.5, -1, 2.6, "#241910");
+  fillDot(ctx, -4.7, -2, 0.8, "#fff");
+  fillDot(ctx, 6.3, -2, 0.8, "#fff");
+  ctx.fillStyle = "#2a2118";
+  ctx.beginPath();
+  ctx.ellipse(0, 6, 2.6, 1.8, 0, 0, TAU);
+  ctx.fill();
+  ctx.fillStyle = "#e56b86";
+  ctx.beginPath();
+  ctx.ellipse(0, 13, 3.2, 4.2, 0, 0, TAU);
+  ctx.fill();
+  if (!withHat) return;
+  ctx.fillStyle = "#ef3b4c";
+  ctx.beginPath();
+  ctx.arc(0, -8, 12, Math.PI, TAU);
+  ctx.fill();
+  ctx.fillRect(-12, -10, 24, 5);
+  ctx.fillStyle = "#ffd1dc";
+  ctx.beginPath();
+  ctx.arc(9, -16, 3.4, 0, TAU);
+  ctx.fill();
+}
+
+function drawFrog(ctx: CanvasRenderingContext2D) {
+  ctx.fillStyle = "#3cba4f";
+  ctx.beginPath();
+  ctx.arc(0, 5, 14, 0, TAU);
+  ctx.fill();
+  fillDot(ctx, -10, -8, 7.5, "#3cba4f");
+  fillDot(ctx, 10, -8, 7.5, "#3cba4f");
+  fillDot(ctx, -10, -8, 4.6, "#f4fff6");
+  fillDot(ctx, 10, -8, 4.6, "#f4fff6");
+  fillDot(ctx, -9, -7, 2.2, "#1a1a1a");
+  fillDot(ctx, 11, -7, 2.2, "#1a1a1a");
+  ctx.strokeStyle = "#1d4a24";
+  ctx.lineWidth = 1.7;
+  ctx.beginPath();
+  ctx.arc(0, 7, 7, 0.2, Math.PI - 0.2);
+  ctx.stroke();
+  fillDot(ctx, -11, 8, 1.8, "#ef6b7a");
+  fillDot(ctx, 11, 8, 1.8, "#ef6b7a");
+}
+
+function drawCat(ctx: CanvasRenderingContext2D) {
+  ctx.fillStyle = "#f4b56a";
+  ctx.beginPath();
+  ctx.moveTo(-15, -2);
+  ctx.lineTo(-10, -18);
+  ctx.lineTo(-2, -4);
+  ctx.closePath();
+  ctx.moveTo(15, -2);
+  ctx.lineTo(10, -18);
+  ctx.lineTo(2, -4);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = "#f07a8a";
+  ctx.beginPath();
+  ctx.moveTo(-12, -4);
+  ctx.lineTo(-10, -12);
+  ctx.lineTo(-5, -4);
+  ctx.closePath();
+  ctx.moveTo(12, -4);
+  ctx.lineTo(10, -12);
+  ctx.lineTo(5, -4);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = "#f4b56a";
+  ctx.beginPath();
+  ctx.arc(0, 4, 13, 0, TAU);
+  ctx.fill();
+  ctx.fillStyle = "#2a2118";
+  ctx.beginPath();
+  ctx.ellipse(-5, 2, 1.8, 2.8, 0, 0, TAU);
+  ctx.ellipse(5, 2, 1.8, 2.8, 0, 0, TAU);
+  ctx.fill();
+  ctx.fillStyle = "#e07a8a";
+  ctx.beginPath();
+  ctx.moveTo(0, 8);
+  ctx.lineTo(-2.4, 5.4);
+  ctx.lineTo(2.4, 5.4);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = "#fff6e8";
+  ctx.lineWidth = 1.1;
+  ctx.beginPath();
+  ctx.moveTo(-6, 8); ctx.lineTo(-16, 6);
+  ctx.moveTo(-6, 10); ctx.lineTo(-16, 12);
+  ctx.moveTo(6, 8); ctx.lineTo(16, 6);
+  ctx.moveTo(6, 10); ctx.lineTo(16, 12);
+  ctx.stroke();
+}
+
+function drawRocket(ctx: CanvasRenderingContext2D) {
+  ctx.fillStyle = "#ffb020";
+  ctx.beginPath();
+  ctx.moveTo(-5, 8);
+  ctx.lineTo(0, 20);
+  ctx.lineTo(5, 8);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = "#ff5a1f";
+  ctx.beginPath();
+  ctx.moveTo(-3, 8);
+  ctx.lineTo(0, 16);
+  ctx.lineTo(3, 8);
+  ctx.closePath();
+  ctx.fill();
+  const body = ctx.createLinearGradient(-10, 0, 10, 0);
+  body.addColorStop(0, "#d7e4f5");
+  body.addColorStop(1, "#8ea4c4");
+  ctx.fillStyle = body;
+  ctx.beginPath();
+  ctx.moveTo(0, -18);
+  ctx.quadraticCurveTo(11, -6, 9, 10);
+  ctx.lineTo(-9, 10);
+  ctx.quadraticCurveTo(-11, -6, 0, -18);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = "#5b7cff";
+  ctx.beginPath();
+  ctx.moveTo(-9, 2);
+  ctx.lineTo(-17, 12);
+  ctx.lineTo(-9, 10);
+  ctx.closePath();
+  ctx.moveTo(9, 2);
+  ctx.lineTo(17, 12);
+  ctx.lineTo(9, 10);
+  ctx.closePath();
+  ctx.fill();
+  fillDot(ctx, 0, -3, 3.6, "#7ec8ff");
+  fillDot(ctx, 0, -3, 1.8, "#e8f6ff");
+}
+
+function drawMoon(ctx: CanvasRenderingContext2D) {
+  ctx.fillStyle = "#ffe08a";
+  ctx.beginPath();
+  ctx.arc(-3, 0, 13, -1.15, 1.15);
+  ctx.arc(5, 0, 11, 0.95, -0.95, true);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawCandle(ctx: CanvasRenderingContext2D) {
+  ctx.strokeStyle = "#d9ffe8";
+  ctx.lineWidth = 2.2;
+  ctx.beginPath();
+  ctx.moveTo(0, -16);
+  ctx.lineTo(0, 16);
+  ctx.stroke();
+  ctx.fillStyle = "#3dd68c";
+  ctx.beginPath();
+  ctx.roundRect(-7, -7, 14, 15, 3);
+  ctx.fill();
+  ctx.fillStyle = "#b8ffd6";
+  ctx.fillRect(-7, -7, 4, 15);
+}
+
+function drawLaugh(ctx: CanvasRenderingContext2D) {
+  ctx.fillStyle = "#ffd23a";
+  ctx.beginPath();
+  ctx.arc(0, 1, 15, 0, TAU);
+  ctx.fill();
+  ctx.strokeStyle = "#3a2a10";
+  ctx.lineWidth = 1.8;
+  ctx.beginPath();
+  ctx.arc(-6, -1, 3.2, Math.PI * 1.15, Math.PI * 1.85);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(6, -1, 3.2, Math.PI * 1.15, Math.PI * 1.85);
+  ctx.stroke();
+  ctx.fillStyle = "#3a2a10";
+  ctx.beginPath();
+  ctx.ellipse(0, 6, 6.5, 4.5, 0, 0, Math.PI);
+  ctx.fill();
+  ctx.fillStyle = "#ff6b8a";
+  ctx.beginPath();
+  ctx.ellipse(0, 9, 3.2, 2, 0, 0, TAU);
+  ctx.fill();
+  ctx.fillStyle = "#7ec8ff";
+  ctx.beginPath();
+  ctx.ellipse(-12, 3, 1.7, 2.6, -0.4, 0, TAU);
+  ctx.ellipse(12, 3, 1.7, 2.6, 0.4, 0, TAU);
+  ctx.fill();
+}
+
+function tokenMark(ctx: CanvasRenderingContext2D, mark: number, x: number, y: number, size: number) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(size / 40, size / 40);
+  memeMark(ctx, mark);
   ctx.restore();
 }
 
@@ -187,7 +363,7 @@ export function createJourneyScene() {
   let lastTime = 0;
   let originTime = 0;
   return (ctx: CanvasRenderingContext2D, width: number, height: number, time: number) => {
-    const worldWidth = width < 640 ? 590 : 800;
+    const worldWidth = width < 640 ? 980 : 1680;
     const scale = width / worldWidth;
     const worldHeight = height / scale;
     if (!field || field.width !== worldWidth || Math.abs(field.height - worldHeight) > 1 || time < lastTime || time - lastTime > .5) {
@@ -197,7 +373,7 @@ export function createJourneyScene() {
     field.advanceTo(time - originTime);
     lastTime = time;
     ctx.clearRect(0, 0, width, height);
-    ctx.fillStyle = "#010513"; ctx.fillRect(0, 0, width, height);
+    ctx.fillStyle = "#000"; ctx.fillRect(0, 0, width, height);
     ctx.save(); ctx.scale(scale, scale);
     const c = field.center;
     // Fine straight connections follow nearby circles, underneath every disc.
@@ -215,7 +391,7 @@ export function createJourneyScene() {
       ctx.fillStyle = "#010513"; ctx.fill(); ctx.lineWidth = 1;
       ctx.strokeStyle = "#202a3d"; ctx.stroke();
       ctx.save(); ctx.globalAlpha = p.opacity;
-      tokenMark(ctx, p.mark, p.x, p.y, 35 + p.radius * .14); ctx.restore();
+      tokenMark(ctx, p.mark, p.x, p.y, 56 + p.radius * .18); ctx.restore();
     }
     // The elevated central disc is the only element with a pronounced shadow.
     ctx.save(); ctx.shadowColor = "#00000080"; ctx.shadowBlur = 26; ctx.shadowOffsetY = 11;
@@ -223,11 +399,10 @@ export function createJourneyScene() {
     disc.addColorStop(0, "#152035"); disc.addColorStop(1, "#080f1d");
     ctx.fillStyle = disc; ctx.beginPath(); ctx.arc(c.x, c.y, c.radius, 0, TAU); ctx.fill(); ctx.restore();
     ctx.strokeStyle = "#35425b"; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(c.x, c.y, c.radius, 0, TAU); ctx.stroke();
-    botMark(ctx, c.x, c.y);
     ctx.restore();
     const fade = ctx.createLinearGradient(0, 0, 0, height);
-    fade.addColorStop(0, "#010513c0"); fade.addColorStop(.12, "#01051300");
-    fade.addColorStop(.86, "#01051300"); fade.addColorStop(1, "#010513cc");
+    fade.addColorStop(0, "#000000c0"); fade.addColorStop(.12, "#00000000");
+    fade.addColorStop(.86, "#00000000"); fade.addColorStop(1, "#000000e6");
     ctx.fillStyle = fade; ctx.fillRect(0, 0, width, height);
   };
 }

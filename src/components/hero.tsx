@@ -2,7 +2,6 @@
 
 import Image from "next/image";
 import SiteNav from "./site-nav";
-import BotJourneySection from "./bot-journey";
 import styles from "./hero-background.module.css";
 import {
   PreviewSection,
@@ -61,7 +60,6 @@ export default function Hero() {
 
       <>
         <SolutionSection />
-        <BotJourneySection />
         <ProblemSection />
         <PreviewSection />
       </>
