@@ -3,8 +3,8 @@
 import type { ReactNode } from "react";
 import Image from "next/image";
 import { motion } from "motion/react";
-
-import logoMark from "./icons/logo-mark.svg";
+import { Activity, Check, Plus, SlidersHorizontal, Wallet } from "lucide-react";
+import flowStyles from "./how-it-works.module.css";
 
 /** Shared scroll-reveal preset used by every section block below. Lower
    threshold + bottom margin so each section fades in just before it enters
@@ -21,22 +21,122 @@ const reveal = {
   transition: { duration: 0.5, ease: "easeOut" as const },
 };
 
-type LoopStep = {
-  src: string;
-  label: string;
-  /** Optional mobile-only asset override for narrower viewports. */
-  mobileSrc?: string;
-};
-
-const LOOP_STEPS: LoopStep[] = [
-  { src: "/feature_1.svg", label: "Describe what you want" },
-  { src: "/feature_3.svg", label: "Fund the bot" },
+// Matches the Fleet → spawn dialog → dashboard flow in trenchers_fe.
+const HOW_IT_WORKS_STEPS = [
   {
-    src: "/feature_2.svg",
-    mobileSrc: "/feature_2_mobile.svg",
-    label: "Let it run while you are asleep",
+    id: "spawn",
+    title: "Create your agent",
+    description:
+      "Open Fleet, choose Paper or Live, then select Spawn agent. Give your agent a name to begin.",
   },
-];
+  {
+    id: "configure",
+    title: "Set the trading rules",
+    description:
+      "Choose your trade size, entry conditions, holder limits, take-profit levels, and stop-loss rules.",
+  },
+  {
+    id: "fund",
+    title: "Fund your agent",
+    description:
+      "Select Add balance to give your agent simulated funds in Paper, or fund its live wallet with real SOL.",
+  },
+  {
+    id: "monitor",
+    title: "Start and monitor",
+    description:
+      "Start your agent, track its positions and activity, and pause or adjust its trading rules as needed.",
+  },
+] as const;
+
+type FlowStepId = (typeof HOW_IT_WORKS_STEPS)[number]["id"];
+
+/** Decorative UI illustrations; the complete instructions sit below them. */
+function FlowStepPreview({ step }: { step: FlowStepId }) {
+  return (
+    <div aria-hidden="true" className={flowStyles.preview}>
+      {step === "spawn" && (
+        <div className="w-full rounded-xl border border-white/10 bg-[#080d1d] p-4 shadow-lg">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="text-xs font-medium text-white/80">Fleet</span>
+            <span className="flex items-center gap-1.5 rounded-md bg-white px-2.5 py-1.5 text-[10px] font-medium text-[#010513]">
+              <Plus size={12} /> Spawn agent
+            </span>
+          </div>
+          <div className="mt-5 inline-flex gap-1 rounded-md border border-white/8 p-1 text-[10px]">
+            <span className="rounded bg-[#8c95ff]/15 px-3 py-1 text-[#c5cbff]">Paper</span>
+            <span className="px-3 py-1 text-white/50">Live</span>
+          </div>
+          <div className="mt-4 border-t border-white/8 pt-3">
+            <span className="text-[10px] text-white/50">Agent name</span>
+            <div className="mt-1.5 flex items-center gap-1 text-xs text-white/85">
+              My agent<span className="h-3 w-px bg-[#aeb7ff]" />
+            </div>
+          </div>
+        </div>
+      )}
+      {step === "configure" && (
+        <div className="w-full rounded-xl border border-white/10 bg-[#080d1d] p-4 shadow-lg">
+          <div className="mb-4 flex items-center gap-2 text-xs font-medium text-white/80">
+            <SlidersHorizontal size={14} className="text-[#b5bdff]" /> Your strategy
+          </div>
+          <div className="space-y-3.5">
+            {[
+              { label: "Per-trade size", width: "38%" },
+              { label: "Entry filters", width: "64%" },
+              { label: "Take-profit & stops", width: "48%" },
+            ].map((setting) => (
+              <div key={setting.label}>
+                <div className="mb-2 text-[10px] text-white/60">{setting.label}</div>
+                <div className="h-1 rounded-full bg-white/8">
+                  <div className="relative h-full rounded-full bg-[#aeb7ff]/65" style={{ width: setting.width }}>
+                    <span className="absolute -top-0.5 right-0 size-2 rounded-full bg-[#d0d5ff]" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {step === "fund" && (
+        <div className="w-full rounded-xl border border-white/10 bg-[#080d1d] p-4 shadow-lg">
+          <div className="flex items-center gap-2 text-xs font-medium text-white/80">
+            <Wallet size={14} className="shrink-0 text-[#b5bdff]" /> Agent balance
+          </div>
+          <div className="mt-4 rounded-lg border border-white/8 bg-white/3 p-3">
+            <div className="text-[10px] text-white/50">Amount</div>
+            <div className="mt-2 flex items-center justify-between text-white/85">
+              <span className="text-lg">—</span>
+              <span className="text-[11px]">SOL</span>
+            </div>
+          </div>
+          <div className="mt-3 rounded-md bg-[#c5cbff] px-3 py-2 text-center text-[10px] font-medium text-[#010513]">
+            Add balance
+          </div>
+        </div>
+      )}
+      {step === "monitor" && (
+        <div className="w-full rounded-xl border border-white/10 bg-[#080d1d] p-4 shadow-lg">
+          <div className="flex items-center justify-between gap-2 text-xs font-medium text-white/80">
+            <span className="flex items-center gap-2"><Activity size={14} className="text-[#b5bdff]" /> Dashboard</span>
+            <span className="rounded-full bg-[#8c95ff]/15 px-2 py-1 text-[9px] text-[#c5cbff]">Paper</span>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-3 border-b border-white/8 pb-2 text-[10px]">
+            <span className="text-white/85">Watch Feed</span>
+            <span className="text-white/45">Positions</span>
+            <span className="text-white/45">Activity</span>
+          </div>
+          <div className="mt-4 flex items-center gap-2 text-[11px] text-white/70">
+            <span className="size-1.5 rounded-full bg-[#aeb7ff]" /> Watching tokens
+          </div>
+          <div className="mt-3 flex items-center gap-2 text-[11px] text-white/50">
+            <Check size={12} className="text-[#b5bdff]" /> Checking your entry rules
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function Eyebrow({ children }: { children: ReactNode }) {
   return (
@@ -213,85 +313,49 @@ export function ProblemSection() {
 }
 
 /* ----------------------------------------------------------------------- */
-/* Section 2: Solution                                                      */
+/* Section 2: How it works                                                 */
 /* ----------------------------------------------------------------------- */
 
 export function SolutionSection() {
   return (
-    <section className="site-canvas-bg relative w-full border-t border-white/6">
-      <div className="mx-auto w-full max-w-6xl px-5 py-24 md:px-8 md:py-32">
+    <section id="how-it-works" aria-labelledby="how-it-works-heading" className="site-canvas-bg relative w-full border-t border-white/6">
+      <div className="mx-auto w-full max-w-7xl px-5 py-20 md:px-8 md:py-28">
         <motion.div
-          className="mx-auto flex w-full max-w-6xl flex-col gap-8 rounded-2xl border border-white/8 bg-white/4 px-6 py-8 shadow-[0_20px_60px_-40px_rgba(0,0,0,0.85)] sm:px-7 sm:py-9 md:gap-10 md:px-8 md:py-10 lg:flex-row lg:items-stretch lg:gap-0 lg:px-8 lg:py-10"
+          className="mb-9 flex flex-col items-start gap-5 md:mb-12 md:flex-row md:items-end md:justify-between md:gap-10"
           {...reveal}
         >
-          <div className="flex min-w-0 flex-1 flex-col items-start gap-5 text-left md:gap-6 lg:pr-5">
-            <h2 className="text-balance text-[26px] font-medium leading-[1.08] tracking-[-0.02em] text-white sm:text-[32px] md:text-[36px] lg:text-[40px]">
-              One terminal. Spawnable AI agents. Full control.
+          <div className="flex min-w-0 flex-col items-start gap-4 text-left">
+            <Eyebrow>How it works</Eyebrow>
+            <h2 id="how-it-works-heading" className="text-balance text-[32px] font-medium leading-[1.08] tracking-[-0.03em] text-white sm:text-[38px] md:text-[44px]">
+              Your agent. Your rules.
             </h2>
-            <p className="max-w-full text-balance text-[14px] leading-[1.72] text-white/55 md:text-[16px]">
-              TrenchersAI gives traders one place to discover, snipe, copy,
-              track, and manage positions with AI agents built directly into the
-              terminal.
-            </p>
           </div>
+          <p className="max-w-[43ch] text-balance text-[14px] leading-[1.72] text-white/55 md:text-[16px]">
+            Create an agent, set its rules, add a balance, and follow its
+            activity in Paper or Live.
+          </p>
         </motion.div>
 
-        <motion.div
-          className="mt-3 w-full"
-          {...reveal}
-          transition={{ ...reveal.transition, delay: 0.05 }}
-        >
-          <div className="mt-0 mx-auto grid w-full max-w-6xl grid-cols-1 gap-2 sm:gap-3 lg:grid-cols-2">
-            {LOOP_STEPS.map((step, index) => (
-              <div
-                key={step.src}
-                className={index === 2 ? "min-w-0 lg:col-span-2" : "min-w-0"}
-              >
-                <div className="flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border border-white/8 bg-white/4 p-3 shadow-[0_20px_60px_-40px_rgba(0,0,0,0.85)] sm:p-4">
-                  <div className="relative aspect-16/10 w-full min-h-[320px] min-w-0 overflow-hidden rounded-xl bg-black/35 ring-1 ring-inset ring-white/6 sm:min-h-[400px] lg:min-h-[480px]">
-                    {step.mobileSrc ? (
-                      <>
-                        <Image
-                          src={step.mobileSrc}
-                          alt={step.label}
-                          fill
-                          className="object-contain p-2 sm:hidden"
-                          sizes="100vw"
-                        />
-                        <Image
-                          src={step.src}
-                          alt={step.label}
-                          fill
-                          className="hidden object-contain p-3 sm:block"
-                          sizes={
-                            index === 2
-                              ? "(min-width: 1024px) 1100px, 100vw"
-                              : "(min-width: 1024px) 520px, 100vw"
-                          }
-                        />
-                      </>
-                    ) : (
-                      <Image
-                        src={step.src}
-                        alt={step.label}
-                        fill
-                        className="object-contain p-2 sm:p-3"
-                        sizes={
-                          index === 2
-                            ? "(min-width: 1024px) 1100px, 100vw"
-                            : "(min-width: 1024px) 520px, 100vw"
-                        }
-                      />
-                    )}
-                  </div>
-                  <p className="mt-3 px-1 text-left text-[14px] font-medium leading-snug tracking-[-0.01em] text-white sm:text-[15px] md:mt-4 md:text-[16px]">
-                    {step.label}
-                  </p>
+        <ol className={flowStyles.grid}>
+          {HOW_IT_WORKS_STEPS.map((step, index) => (
+            <motion.li
+              key={step.id}
+              data-step={step.id}
+              className={flowStyles.card}
+              {...reveal}
+              transition={{ ...reveal.transition, delay: index * 0.04 }}
+            >
+              <FlowStepPreview step={step.id} />
+              <div className={flowStyles.content}>
+                <div className={flowStyles.captionHeading}>
+                  <span aria-hidden="true" className={flowStyles.number}>0{index + 1}</span>
+                  <h3 className={flowStyles.title}>{step.title}</h3>
                 </div>
+                <p className={flowStyles.description}>{step.description}</p>
               </div>
-            ))}
-          </div>
-        </motion.div>
+            </motion.li>
+          ))}
+        </ol>
       </div>
     </section>
   );

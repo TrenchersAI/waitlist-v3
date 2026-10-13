@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import BotJourneyVisual from "./bot-journey";
 import logoMark from "./icons/logo-mark.svg";
 
 const FOOTER_LINK_CLASS =
@@ -11,7 +12,7 @@ const FOOTER_LINK_CLASS =
 
 export default function SiteFooter() {
   const pathname = usePathname();
-  if (pathname === "/analytics" || pathname?.startsWith("/analytics/")) {
+  if (pathname === "/avatar-lab" || pathname === "/analytics" || pathname?.startsWith("/analytics/")) {
     return null;
   }
 
@@ -95,11 +96,17 @@ export default function SiteFooter() {
           <p className="mt-2 sm:mt-0">© {year} Trenchers</p>
         </div>
       </div>
-      <div className="relative mt-6 w-full overflow-hidden pt-2 pb-0">
-        <p className="-mb-1 select-none whitespace-nowrap text-center text-[clamp(42px,9.8vw,172px)] leading-none font-black tracking-[0.08em] text-transparent bg-linear-to-b from-white/88 via-white/58 to-white/24 bg-clip-text sm:-mb-2 sm:tracking-[0.09em] md:tracking-[0.12em]">
-          TRENCHERS
-        </p>
-      </div>
+      {pathname === "/" ? (
+        <div className="mt-4 w-full">
+          <BotJourneyVisual />
+        </div>
+      ) : (
+        <div className="relative mt-6 w-full overflow-hidden pt-2 pb-0">
+          <p className="-mb-1 select-none whitespace-nowrap text-center text-[clamp(42px,9.8vw,172px)] leading-none font-black tracking-[0.08em] text-transparent bg-linear-to-b from-white/88 via-white/58 to-white/24 bg-clip-text sm:-mb-2 sm:tracking-[0.09em] md:tracking-[0.12em]">
+            TRENCHERS
+          </p>
+        </div>
+      )}
     </footer>
   );
 }

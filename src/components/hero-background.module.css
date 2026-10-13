@@ -1,0 +1,25 @@
+.heroBackground {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: #010513;
+}
+
+.heroArtwork {
+  object-fit: cover;
+  object-position: center;
+}
+
+.heroBackground::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgb(1 5 19 / 8%) 0%, transparent 60%, rgb(1 5 19 / 10%) 80%, #010513 100%),
+    radial-gradient(ellipse at 50% 47%, rgb(1 5 19 / 30%) 0%, transparent 65%);
+}
+
+@media (max-width: 767px) {
+  .heroArtwork { object-position: 42% center; }
+}
