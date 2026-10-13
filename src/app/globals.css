@@ -1,14 +1,14 @@
 @import "tailwindcss";
 
 :root {
-  --background: #0a0a0a;
+  --background: #010513;
   --foreground: #ededed;
 
   /**
    * Full-page background (`body`, `.site-canvas-bg`): base color + optional
    * top-weighted radial wash. Independent from `--terminal-*`.
    */
-  --site-base-color: #0a0a0a;
+  --site-base-color: #010513;
   /**
    * Extra top-weighted radial darken (edges stay transparent). 0 disables this layer.
    * Does not affect `.terminal-panel-bg`.
@@ -152,46 +152,6 @@ input.hero-waitlist-email:autofill:focus {
 }
 
 /**
- * Feature strip marquee (mobile hero). Edge fade keeps the items from
- * popping in/out abruptly. Items are duplicated in the DOM so the track
- * can translate by -50% and loop seamlessly. Reduced-motion users get a
- * static row (handled by the prefers-reduced-motion block below).
- */
-.feature-strip-marquee {
-  overflow: hidden;
-  mask-image: linear-gradient(
-    to right,
-    transparent 0%,
-    black 10%,
-    black 90%,
-    transparent 100%
-  );
-  -webkit-mask-image: linear-gradient(
-    to right,
-    transparent 0%,
-    black 10%,
-    black 90%,
-    transparent 100%
-  );
-}
-
-.feature-strip-track {
-  display: flex;
-  width: max-content;
-  gap: 0.5rem;
-  animation: feature-strip-scroll 28s linear infinite;
-}
-
-@keyframes feature-strip-scroll {
-  from {
-    transform: translateX(0);
-  }
-  to {
-    transform: translateX(-50%);
-  }
-}
-
-/**
  * Entrance for survey long-form answer cards. The masonry grid remounts on
  * every page change (keyed on the page index), so each card replays this
  * fade-and-rise; per-card `animation-delay` set inline staggers the reveal.
@@ -213,9 +173,6 @@ input.hero-waitlist-email:autofill:focus {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .feature-strip-track {
-    animation: none;
-  }
   *,
   *::before,
   *::after {

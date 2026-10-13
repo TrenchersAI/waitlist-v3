@@ -11,6 +11,7 @@ export default function FinalCtaSection() {
 
   if (
     pathname === "/analytics" ||
+    pathname === "/avatar-lab" ||
     pathname?.startsWith("/analytics/") ||
     pathname?.startsWith("/survey") ||
     pathname?.startsWith("/blog") ||

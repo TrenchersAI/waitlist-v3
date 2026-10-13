@@ -1,0 +1,162 @@
+.grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem;
+}
+
+.card {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  min-inline-size: 0;
+  gap: 1rem;
+  padding: 1.5rem;
+  overflow: clip;
+  border: 1px solid rgb(255 255 255 / 9%);
+  border-radius: 1.125rem;
+  background: #080d1b;
+}
+
+.content {
+  position: relative;
+  z-index: 1;
+  min-inline-size: 0;
+  flex-shrink: 0;
+}
+
+.captionHeading {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  inline-size: 1.625rem;
+  block-size: 1.625rem;
+  border: 1px solid rgb(185 196 255 / 18%);
+  border-radius: 0.5rem;
+  background: rgb(174 183 255 / 5%);
+  color: #aeb7d6;
+  font-family: monospace;
+  font-size: 0.6875rem;
+  letter-spacing: 0.06em;
+}
+
+.title {
+  color: #fff;
+  font-size: 1.125rem;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+}
+
+.description {
+  max-inline-size: 52ch;
+  margin-block-start: 0.625rem;
+  color: rgb(255 255 255 / 56%);
+  font-size: 0.875rem;
+  line-height: 1.7;
+}
+
+.preview {
+  position: relative;
+  z-index: 0;
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  min-inline-size: 0;
+  min-block-size: 14rem;
+  padding: 1rem;
+  overflow: clip;
+  pointer-events: none;
+}
+
+.preview > div {
+  position: relative;
+  z-index: 1;
+  max-inline-size: 22rem;
+  box-shadow: 0 1.5rem 3rem -1rem rgb(0 0 0 / 40%);
+}
+
+.card[data-step="spawn"] {
+  background: radial-gradient(ellipse at 30% 10%, rgb(99 102 241 / 17%), transparent 70%), #080d1b;
+}
+
+.card[data-step="spawn"] .preview::before,
+.card[data-step="spawn"] .preview::after {
+  content: "";
+  position: absolute;
+  inline-size: 25rem;
+  aspect-ratio: 1;
+  border: 1px solid rgb(174 183 255 / 8%);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.card[data-step="spawn"] .preview::after {
+  inline-size: 32rem;
+}
+
+.card[data-step="fund"] {
+  background: radial-gradient(ellipse at 50% 10%, rgb(74 153 211 / 13%), transparent 75%), #080d1b;
+}
+
+.card[data-step="monitor"] {
+  background: radial-gradient(ellipse at 80% 20%, rgb(121 113 212 / 15%), transparent 80%), #080d1b;
+}
+
+.card[data-step="configure"] {
+  background: radial-gradient(ellipse at 50% 10%, rgb(140 149 255 / 12%), transparent 70%), #080d1b;
+}
+
+@media (min-width: 640px) {
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .grid {
+    grid-template-columns: repeat(14, minmax(0, 1fr));
+    grid-template-rows: repeat(2, minmax(24rem, 1fr));
+  }
+
+  .content {
+    min-block-size: 5.25rem;
+  }
+
+  .card[data-step="spawn"] {
+    grid-column: span 5;
+  }
+
+  .card[data-step="configure"] {
+    grid-column: span 9;
+  }
+
+  .card[data-step="fund"] {
+    grid-column: span 9;
+  }
+
+  .card[data-step="monitor"] {
+    grid-column: span 5;
+  }
+
+  .card[data-step="configure"] .preview > div,
+  .card[data-step="fund"] .preview > div {
+    max-inline-size: 28rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}

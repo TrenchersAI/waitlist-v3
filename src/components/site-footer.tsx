@@ -11,7 +11,7 @@ const FOOTER_LINK_CLASS =
 
 export default function SiteFooter() {
   const pathname = usePathname();
-  if (pathname === "/analytics" || pathname?.startsWith("/analytics/")) {
+  if (pathname === "/avatar-lab" || pathname === "/analytics" || pathname?.startsWith("/analytics/")) {
     return null;
   }
 

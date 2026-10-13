@@ -1,0 +1,33 @@
+.section {
+  position: relative;
+  overflow: clip;
+  background: #010513;
+  scroll-margin-top: 5rem;
+}
+.container { max-inline-size: 84rem; margin-inline: auto; padding: 6rem 1.5rem 3rem; }
+.heading { position: relative; z-index: 1; display: flex; align-items: flex-end; justify-content: space-between; gap: 2rem; max-inline-size: 72rem; margin-inline: auto; }
+.eyebrow { color: #8b96a7; font-size: .625rem; font-weight: 500; letter-spacing: .2em; text-transform: uppercase; }
+.heading h2 { margin-block: 1.25rem 0; color: #f0f3f8; font-size: clamp(2.5rem, 4.4vw, 3.75rem); font-weight: 450; line-height: 1.04; letter-spacing: -.055em; }
+.intro { max-inline-size: 39ch; padding-block-end: .25rem; color: #8d98a9; font-size: .875rem; line-height: 1.8; }
+.journey { max-inline-size: 60rem; margin: 3rem auto 0; }
+.stage { position: relative; overflow: clip; isolation: isolate; border-radius: 1.25rem; inline-size: 100%; aspect-ratio: 3 / 2; background: #010513; }
+.canvas { display: block; inline-size: 100%; block-size: 100%; }
+.footer { display: flex; align-items: center; justify-content: space-between; gap: 1rem; max-inline-size: 60rem; min-block-size: 2.75rem; margin: 1rem auto 0; color: #717f99; font-size: .625rem; letter-spacing: .04em; }
+.controls { display: flex; gap: .25rem; }
+.controls button { display: grid; place-items: center; inline-size: 2.75rem; block-size: 2.75rem; border: 1px solid transparent; border-radius: 50%; color: #8f9cb5; cursor: pointer; transition: color .2s, background-color .2s; }
+.controls button:hover { color: #e2ebff; background: #acbeff0c; }
+.controls button:focus-visible { outline: 2px solid #b4caff; outline-offset: 2px; }
+.srOnly { position: absolute; inline-size: 1px; block-size: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+@media (max-width: 639px) {
+  .container { padding: 4.5rem 0 2.25rem; }
+  .heading { padding-inline: 1.5rem; display: block; }
+  .heading h2 { font-size: 2.75rem; }
+  .intro { font-size: .8125rem; max-inline-size: 34ch; margin-block-start: 1.25rem; }
+  .journey { margin: 2rem 1rem 0; }
+  .stage { aspect-ratio: 4 / 5; border-radius: .875rem; }
+  .footer { padding-inline: 1.5rem; margin-block-start: .5rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .controls button { transition: none; }
+}
+

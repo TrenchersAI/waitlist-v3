@@ -7,6 +7,7 @@ const RESERVED_SEGMENTS = new Set([
   "",
   "api",
   "analytics",
+  "avatar-lab",
   "about-us",
   "privacy",
   "survey",
