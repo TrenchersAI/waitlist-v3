@@ -4,7 +4,8 @@ import dynamic from "next/dynamic";
 
 import SiteNav from "./site-nav";
 import {
-  PreviewSection,
+  FirstTradeSection,
+  GoLiveSection,
   ProblemSection,
   SolutionSection,
 } from "./why-trenchersai";
@@ -103,7 +104,8 @@ export default function Hero() {
       <>
         <ProblemSection />
         <SolutionSection />
-        <PreviewSection />
+        <FirstTradeSection />
+        <GoLiveSection />
       </>
     </>
   );

@@ -1,10 +1,14 @@
 "use client";
 
 import type { ReactNode } from "react";
-import Image from "next/image";
 import { motion } from "motion/react";
 
 import logoMark from "./icons/logo-mark.svg";
+import { ChatPreview } from "./product/chat-preview";
+import { FirstTradePreview } from "./product/first-trade-preview";
+import { FundPreview } from "./product/fund-preview";
+import { GoLivePreview } from "./product/go-live-preview";
+import { RunPreview } from "./product/run-preview";
 
 /** Shared scroll-reveal preset used by every section block below. Lower
    threshold + bottom margin so each section fades in just before it enters
@@ -22,20 +26,15 @@ const reveal = {
 };
 
 type LoopStep = {
-  src: string;
   label: string;
-  /** Optional mobile-only asset override for narrower viewports. */
-  mobileSrc?: string;
+  /** Live product UI, ported from trenchers_fe (`src/components/product`). */
+  visual: ReactNode;
 };
 
 const LOOP_STEPS: LoopStep[] = [
-  { src: "/feature_1.svg", label: "Describe what you want" },
-  { src: "/feature_3.svg", label: "Fund the bot" },
-  {
-    src: "/feature_2.svg",
-    mobileSrc: "/feature_2_mobile.svg",
-    label: "Let it run while you are asleep",
-  },
+  { label: "Describe what you want", visual: <ChatPreview /> },
+  { label: "Fund the bot", visual: <FundPreview /> },
+  { label: "Let it run while you are asleep", visual: <RunPreview /> },
 ];
 
 function Eyebrow({ children }: { children: ReactNode }) {
@@ -244,45 +243,18 @@ export function SolutionSection() {
           <div className="mt-0 mx-auto grid w-full max-w-6xl grid-cols-1 gap-2 sm:gap-3 lg:grid-cols-2">
             {LOOP_STEPS.map((step, index) => (
               <div
-                key={step.src}
+                key={step.label}
                 className={index === 2 ? "min-w-0 lg:col-span-2" : "min-w-0"}
               >
                 <div className="flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border border-white/8 bg-white/4 p-3 shadow-[0_20px_60px_-40px_rgba(0,0,0,0.85)] sm:p-4">
-                  <div className="relative aspect-16/10 w-full min-h-[320px] min-w-0 overflow-hidden rounded-xl bg-black/35 ring-1 ring-inset ring-white/6 sm:min-h-[400px] lg:min-h-[480px]">
-                    {step.mobileSrc ? (
-                      <>
-                        <Image
-                          src={step.mobileSrc}
-                          alt={step.label}
-                          fill
-                          className="object-contain p-2 sm:hidden"
-                          sizes="100vw"
-                        />
-                        <Image
-                          src={step.src}
-                          alt={step.label}
-                          fill
-                          className="hidden object-contain p-3 sm:block"
-                          sizes={
-                            index === 2
-                              ? "(min-width: 1024px) 1100px, 100vw"
-                              : "(min-width: 1024px) 520px, 100vw"
-                          }
-                        />
-                      </>
-                    ) : (
-                      <Image
-                        src={step.src}
-                        alt={step.label}
-                        fill
-                        className="object-contain p-2 sm:p-3"
-                        sizes={
-                          index === 2
-                            ? "(min-width: 1024px) 1100px, 100vw"
-                            : "(min-width: 1024px) 520px, 100vw"
-                        }
-                      />
-                    )}
+                  <div
+                    className={
+                      index === 2
+                        ? "relative flex w-full min-h-[320px] min-w-0 items-center justify-center overflow-hidden rounded-xl bg-black/35 px-4 py-8 ring-1 ring-inset ring-white/6 sm:min-h-[400px] sm:px-8"
+                        : "relative flex aspect-16/10 w-full min-h-[320px] min-w-0 items-center justify-center overflow-hidden rounded-xl bg-black/35 p-4 ring-1 ring-inset ring-white/6 sm:min-h-[400px] sm:p-6 lg:min-h-[480px]"
+                    }
+                  >
+                    {step.visual}
                   </div>
                   <p className="mt-3 px-1 text-left text-[14px] font-medium leading-snug tracking-[-0.01em] text-white sm:text-[15px] md:mt-4 md:text-[16px]">
                     {step.label}
@@ -298,99 +270,72 @@ export function SolutionSection() {
 }
 
 /* ----------------------------------------------------------------------- */
-/* Section 3: Product preview                                               */
+/* Section 3: Paper to live                                                 */
 /* ----------------------------------------------------------------------- */
 
-export function PreviewSection() {
+type SectionStep = { title: string; body: string };
+
+function SectionSteps({ steps }: { steps: readonly SectionStep[] }) {
+  return (
+    <ol className="flex flex-col gap-5">
+      {steps.map((step, i) => (
+        <li key={step.title} className="flex gap-4">
+          <span className="inline-flex size-7 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/4 text-[12px] font-medium tabular-nums text-white/70">
+            {i + 1}
+          </span>
+          <div className="min-w-0">
+            <h3 className="text-[15px] font-medium leading-snug text-white md:text-[16px]">
+              {step.title}
+            </h3>
+            <p className="mt-1 text-pretty text-[14px] leading-[1.6] text-white/55">
+              {step.body}
+            </p>
+          </div>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+const FIRST_TRADE_STEPS = [
+  {
+    title: "Scans every launch",
+    body: "New tokens, the moment they appear.",
+  },
+  {
+    title: "Checks every gate",
+    body: "Holders, liquidity, dev, snipers.",
+  },
+  {
+    title: "Buys when all pass",
+    body: "Your first trade, no clicks needed.",
+  },
+] as const;
+
+export function FirstTradeSection() {
   return (
     <section className="site-canvas-bg relative w-full border-t border-white/6">
-      <div className="mx-auto w-full max-w-6xl px-4 py-20 sm:px-6 md:px-8 md:py-28">
+      <div className="mx-auto w-full max-w-6xl px-5 py-24 md:px-8 md:py-32">
         <motion.div
-          className="relative flex flex-col gap-6 overflow-hidden rounded-[24px] bg-[linear-gradient(160deg,rgba(255,255,255,0.12)_0%,rgba(255,255,255,0.05)_58%,rgba(140,149,255,0.1)_100%)] px-6 py-8 text-left shadow-[0_18px_50px_-35px_rgba(0,0,0,0.7)] md:px-8 md:py-9 lg:px-9"
+          className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]"
           {...reveal}
         >
-          <div
-            aria-hidden
-            className="pointer-events-none absolute -right-20 -top-20 h-52 w-52 rounded-full bg-[#8C95FF]/12 blur-3xl"
-          />
-          <div className="-mx-6 -mt-8 mb-1 flex items-center justify-between bg-black/10 px-6 py-3 md:-mx-8 md:-mt-9 md:px-8 lg:-mx-9 lg:px-9">
-            <div className="flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-full bg-white/20" />
-              <span className="h-2.5 w-2.5 rounded-full bg-white/20" />
-              <span className="h-2.5 w-2.5 rounded-full bg-white/20" />
+          <div className="flex min-w-0 flex-col gap-8 rounded-2xl border border-white/8 bg-white/4 px-6 py-8 shadow-[0_20px_60px_-40px_rgba(0,0,0,0.85)] sm:px-7 sm:py-9 md:px-8 md:py-10 lg:order-2">
+            <div className="flex flex-col items-start gap-5 text-left md:gap-6">
+              <Eyebrow>First trade</Eyebrow>
+              <h2 className="text-balance text-[26px] font-medium leading-[1.08] tracking-[-0.02em] text-white sm:text-[32px] md:text-[36px] lg:text-[40px]">
+                Watch it hunt for its first trade.
+              </h2>
+              <p className="text-balance text-[14px] leading-[1.72] text-white/55 md:text-[16px]">
+                Every new launch is checked against your rules.
+              </p>
             </div>
-            <span className="text-[10.5px] font-semibold tracking-[0.18em] text-white/45 uppercase">
-              Inside the terminal
-            </span>
-            <span aria-hidden className="h-2.5 w-10" />
-          </div>
-          <h2 className="max-w-[18ch] text-balance text-[32px] font-medium leading-[1.08] tracking-tight text-white md:text-[44px]">
-            The pro terminal traders know.
-          </h2>
-          <h3 className="text-balance text-[24px] font-medium leading-[1.12] tracking-tight text-[#C5CBFF] md:text-[32px]">
-            But with AI.
-          </h3>
-
-          <div className="mt-1 flex max-w-[64ch] flex-col gap-4 text-[15px] leading-[1.72] text-white/72 md:text-[17px]">
-            <p>
-              TrenchersAI brings the tools traders already use across the
-              trenches into one terminal: sniping, copy trading, whale tracking,
-              charts, watchlists, position management, and fast execution.
-            </p>
-            <p>
-              Then it adds the missing layer: AI agents that help configure and
-              run bots without turning the product into a black box.
-            </p>
+            <SectionSteps steps={FIRST_TRADE_STEPS} />
           </div>
 
-          <div className="mt-1 flex flex-col gap-2 rounded-xl bg-white/4 p-4 text-[15px] font-medium leading-[1.55] text-white/92 md:p-5 md:text-[17px]">
-            <p className="flex items-start gap-2.5">
-              <span
-                aria-hidden
-                className="mt-2 h-1.5 w-1.5 rounded-full bg-white/65"
-              />
-              <span>Manual when you want control</span>
-            </p>
-            <p className="flex items-start gap-2.5">
-              <span
-                aria-hidden
-                className="mt-2 h-1.5 w-1.5 rounded-full bg-white/65"
-              />
-              <span>AI-assisted when you want speed.</span>
-            </p>
-            <p className="flex items-start gap-2.5">
-              <span
-                aria-hidden
-                className="mt-2 h-1.5 w-1.5 rounded-full bg-white/65"
-              />
-              <span>
-                Delegated when you want the agent to handle the setup.
-              </span>
-            </p>
-          </div>
-        </motion.div>
-
-        <motion.div
-          className="group relative mt-8 overflow-hidden rounded-[24px] bg-[#141414] p-3 sm:p-4 md:mt-10"
-          {...reveal}
-          transition={{ ...reveal.transition, delay: 0.05 }}
-        >
-          <div aria-hidden className="pointer-events-none absolute inset-0" />
-          <div className="relative overflow-hidden rounded-[18px] bg-black/35 p-2 sm:p-3">
-            <div className="relative aspect-21/9 w-full min-w-0 overflow-hidden rounded-xl bg-black/35 ring-1 ring-inset ring-white/6">
-              <Image
-                src="/image.png"
-                alt="TrenchersAI terminal preview"
-                width={1854}
-                height={925}
-                sizes="(min-width: 1280px) 1100px, 100vw"
-                unoptimized
-                className="h-full w-full object-cover object-top transition-transform duration-500 group-hover:scale-[1.03]"
-              />
-              <div
-                aria-hidden
-                className="pointer-events-none absolute inset-x-0 bottom-0 h-[42%] bg-linear-to-t from-[#0D0D0D] to-transparent"
-              />
+          <div className="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-white/8 bg-white/4 p-3 shadow-[0_20px_60px_-40px_rgba(0,0,0,0.85)] sm:p-4 lg:order-1">
+            <div className="relative flex w-full min-w-0 flex-1 items-center overflow-hidden rounded-xl bg-black/35 px-3 py-5 ring-1 ring-inset ring-white/6 sm:px-5 sm:py-6">
+              <FirstTradePreview />
             </div>
           </div>
         </motion.div>
@@ -398,3 +343,52 @@ export function PreviewSection() {
     </section>
   );
 }
+
+const GO_LIVE_STEPS = [
+  {
+    title: "Prove it on paper",
+    body: "Simulated SOL, zero risk.",
+  },
+  {
+    title: "Go live on purpose",
+    body: "One confirm clones it to a live agent.",
+  },
+  {
+    title: "Its own wallet, your cap",
+    body: "It only trades what you fund.",
+  },
+] as const;
+
+export function GoLiveSection() {
+  return (
+    <section className="site-canvas-bg relative w-full border-t border-white/6">
+      <div className="mx-auto w-full max-w-6xl px-5 py-24 md:px-8 md:py-32">
+        <motion.div
+          className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]"
+          {...reveal}
+        >
+          <div className="flex min-w-0 flex-col gap-8 rounded-2xl border border-white/8 bg-white/4 px-6 py-8 shadow-[0_20px_60px_-40px_rgba(0,0,0,0.85)] sm:px-7 sm:py-9 md:px-8 md:py-10">
+            <div className="flex flex-col items-start gap-5 text-left md:gap-6">
+              <Eyebrow>Paper to live</Eyebrow>
+              <h2 className="text-balance text-[26px] font-medium leading-[1.08] tracking-[-0.02em] text-white sm:text-[32px] md:text-[36px] lg:text-[40px]">
+                Paper first. Live when you are ready.
+              </h2>
+              <p className="text-balance text-[14px] leading-[1.72] text-white/55 md:text-[16px]">
+                Test with simulated SOL, then promote when you trust it.
+              </p>
+            </div>
+
+            <SectionSteps steps={GO_LIVE_STEPS} />
+          </div>
+
+          <div className="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-white/8 bg-white/4 p-3 shadow-[0_20px_60px_-40px_rgba(0,0,0,0.85)] sm:p-4">
+            <div className="relative flex w-full min-w-0 flex-1 items-center justify-center overflow-hidden rounded-xl bg-black/35 px-2 py-6 ring-1 ring-inset ring-white/6 sm:px-8 sm:py-8">
+              <GoLivePreview />
+            </div>
+          </div>
+        </motion.div>
+      </div>
+    </section>
+  );
+}
+

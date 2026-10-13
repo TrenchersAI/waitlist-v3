@@ -35,7 +35,7 @@ export default function FinalCtaSection() {
           id="final-cta-heading"
           className="mt-5 text-balance text-[28px] font-medium leading-[1.1] tracking-[-0.02em] text-white sm:text-[36px] md:text-[40px]"
         >
-          Join the vibe trenchers.
+          Trade the trenches.
         </h2>
         <p className="mx-auto mt-4 max-w-[52ch] text-balance text-[15px] leading-[1.65] text-white/60 md:text-[16px]">
           TrenchersAI is live in public beta. One terminal to discover, snipe,
