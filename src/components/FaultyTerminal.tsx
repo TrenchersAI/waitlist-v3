@@ -740,7 +740,7 @@ export default function FaultyTerminal({
       gl.uniform1f(cu.uScale, s.scale);
       gl.uniform2f(cu.uMouse, mouse.x, mouse.y);
       gl.uniform1f(cu.uMouseStrength, s.mouseStrength);
-      gl.uniform1f(cu.uUseMouse, s.mouseReact ? 1 : 0);
+      gl.uniform1f(cu.uUseMouse, !reduce && s.mouseReact ? 1 : 0);
       gl.uniform1f(cu.uPageLoadProgress, introClock);
       gl.uniform1f(cu.uUsePageLoadAnimation, s.pageLoadAnimation ? 1 : 0);
       gl.uniform2i(cu.uOrigin, cells.x, cells.y);
@@ -786,7 +786,7 @@ export default function FaultyTerminal({
       gl.uniform1i(mu.uGlyphs, s.glyphs);
       gl.uniform1f(mu.uGlow, s.glow);
       gl.uniform1f(mu.uScramble, s.scramble);
-      gl.uniform1f(mu.uMouseGlow, s.mouseGlow);
+      gl.uniform1f(mu.uMouseGlow, reduce ? 0 : s.mouseGlow);
       gl.uniform1f(mu.uVignette, s.vignette);
       gl.uniform4fv(mu.uClicks, clicks);
       gl.uniform1i(mu.uClickMode, s.clickEffect);
@@ -819,12 +819,14 @@ export default function FaultyTerminal({
       last = now;
       clock += dt;
       if (!s.pause && !reduce) iTime += dt * s.timeScale;
-      const targetX = pointer.inside ? pointer.x : 0.5;
-      const targetY = pointer.inside ? pointer.y : 0.5;
-      const follow = 1 - Math.exp(-dt / (pointer.inside ? 0.19988 : 0.6));
-      mouse.x += (targetX - mouse.x) * follow;
-      mouse.y += (targetY - mouse.y) * follow;
-      hover += ((pointer.inside ? 1 : 0) - hover) * (1 - Math.exp(-dt / 0.35));
+      const targetX = reduce || !pointer.inside ? 0.5 : pointer.x;
+      const targetY = reduce || !pointer.inside ? 0.5 : pointer.y;
+      if (!reduce) {
+        const follow = 1 - Math.exp(-dt / (pointer.inside ? 0.19988 : 0.6));
+        mouse.x += (targetX - mouse.x) * follow;
+        mouse.y += (targetY - mouse.y) * follow;
+        hover += ((pointer.inside ? 1 : 0) - hover) * (1 - Math.exp(-dt / 0.35));
+      }
       for (let k = 0; k < MAX_CLICKS; k++) {
         if (clicks[k * 4 + 3] > 0 && clock - clicks[k * 4 + 2] > s.clickSeconds) clicks[k * 4 + 3] = 0;
       }
@@ -834,8 +836,10 @@ export default function FaultyTerminal({
       draw();
       if (introClock < 1) introClock = Math.min(1, introClock + dt / INTRO_SECONDS);
       let busy = !(s.pause || reduce) || introClock < 1;
-      busy = busy || Math.abs(targetX - mouse.x) + Math.abs(targetY - mouse.y) > 0.0001;
-      busy = busy || Math.abs((pointer.inside ? 1 : 0) - hover) > 0.001;
+      if (!reduce) {
+        busy = busy || Math.abs(targetX - mouse.x) + Math.abs(targetY - mouse.y) > 0.0001;
+        busy = busy || Math.abs((pointer.inside ? 1 : 0) - hover) > 0.001;
+      }
       for (let k = 0; k < MAX_CLICKS; k++) busy = busy || clicks[k * 4 + 3] > 0;
       quiet = busy ? 0 : quiet + dt;
       if (quiet < 2.5) raf = requestAnimationFrame(frame);
@@ -857,6 +861,7 @@ export default function FaultyTerminal({
     };
 
     const onPointerMove = (event: PointerEvent) => {
+      if (reduce) return;
       const { x, y, inside } = locate(event);
       const was = pointer.inside;
       pointer.inside = inside;
@@ -881,6 +886,7 @@ export default function FaultyTerminal({
     };
 
     const onPointerLeave = () => {
+      if (reduce) return;
       pointer.inside = false;
       wake();
     };
