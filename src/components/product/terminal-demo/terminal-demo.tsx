@@ -30,6 +30,7 @@ import SnipersHoldingIcon from "../icons/snipers-holding-icon";
 import SolUsdIcon from "../icons/sol-usd-icon";
 import SolanaBlackIcon from "../icons/solana-black-icon";
 import SolanaIcon from "../icons/solana-icon";
+import SolanaLogoIcon from "../icons/solana-logo-icon";
 import SolanaWhiteIcon from "../icons/solana-white-icon";
 import SolscanLogoIcon from "../icons/solscan-logo-icon";
 import UsdcWhiteIcon from "../icons/usdc-white-icon";
@@ -274,9 +275,8 @@ function TokenHeader({ mc }: { mc: number }) {
     <section className="flex h-[62px] items-center justify-between px-2 py-[9.2px]">
       <div className="flex items-center gap-3">
         <span className="rounded-sm border border-[#12af80] p-0.5">
-          <span className="grid size-10 place-items-center rounded-[3px] bg-[linear-gradient(135deg,#3f7d3a,#1b3b1f)] text-[17px] font-bold text-[#c9f27a]">
-            G
-          </span>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/terminal-demo/goblin.jpg" alt="" className="size-10 rounded-[3px] object-cover" />
         </span>
         <div className="flex flex-col gap-1">
           <div className="flex items-baseline gap-2">
@@ -677,7 +677,7 @@ function PositionFooter() {
         <div key={i} className="flex flex-1 items-center">
           {i > 0 ? <span className="h-5 w-px bg-white/8" /> : null}
           <span className="flex flex-1 items-center justify-center gap-1 text-xs" style={{ color: cell.c }}>
-            <SolanaWhiteIcon className="size-3 text-[#4D68FF]" />
+            <SolanaLogoIcon className="size-3.5 shrink-0" />
             {cell.v}
           </span>
         </div>
@@ -691,13 +691,14 @@ const TONE = {
   warn: "#f0b04a",
   safe: "#12af80",
   unknown: "#545454",
+  neutral: "rgba(255,255,255,0.9)",
   ok: "#21975A",
 } as const;
 
 const INFO: { label: string; value: string; tone: keyof typeof TONE; Icon: (p: { className?: string }) => ReactNode }[] = [
   { label: "Top 10 H.", value: "24.8%", tone: "safe", Icon: HolderConcentrationIcon },
   { label: "Dev holding", value: "3.2%", tone: "warn", Icon: DevHoldingIcon },
-  { label: "Bundlers", value: "—", tone: "unknown", Icon: BundleHoldingIcon },
+  { label: "Bundlers", value: "12", tone: "neutral", Icon: BundleHoldingIcon },
   { label: "Insiders H.", value: "1.6%", tone: "danger", Icon: InsidersHoldingIcon },
   { label: "Bundles H.", value: "4.1%", tone: "safe", Icon: BundleHoldingIcon },
   { label: "Burned Liq.", value: "Yes", tone: "safe", Icon: LiquidityIcon },
