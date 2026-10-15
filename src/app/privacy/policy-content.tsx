@@ -71,7 +71,8 @@ export function PolicyIntro() {
       <List>
         <li>
           our websites at <Code>trenchers.ai</Code>,{" "}
-          <Code>www.trenchers.ai</Code>, <Code>beta.trenchers.ai</Code> and{" "}
+          <Code>www.trenchers.ai</Code>, <Code>beta.trenchers.ai</Code>,{" "}
+          <Code>waitlist.trenchers.ai</Code> and{" "}
           <Code>docs.trenchers.ai</Code> (the “<strong>Site</strong>”);
         </li>
         <li>

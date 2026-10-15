@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 
-// The waitlist moved off the apex when the app launched there (2026-09).
-export const SITE_ORIGIN = "https://docs.trenchers.ai";
+// The waitlist moved off the apex when the app launched there (2026-09), and
+// from docs.trenchers.ai to waitlist.trenchers.ai in 2026-10. docs.* still
+// serves the site (old email links, Android assetlinks) but is not canonical.
+export const SITE_ORIGIN = "https://waitlist.trenchers.ai";
 
 /** The product. Every "start trading" CTA points here. */
 export const APP_ORIGIN = "https://trenchers.ai";
