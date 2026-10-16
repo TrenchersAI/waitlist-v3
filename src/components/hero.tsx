@@ -12,9 +12,9 @@ import {
 
 const START_TRADING_URL = "https://trenchers.ai";
 
-/** Faulty Terminal is a WebGL2 canvas. Load it client-only so it never runs
+/** Gradient Waves is a WebGL2 canvas. Load it client-only so it never runs
    during SSR/prerender. */
-const FaultyTerminal = dynamic(() => import("./FaultyTerminal"), { ssr: false });
+const GradientWaves = dynamic(() => import("./GradientWaves"), { ssr: false });
 
 export default function Hero() {
   return (
@@ -25,10 +25,15 @@ export default function Hero() {
         id="hero"
         className="site-canvas-bg relative flex min-h-dvh w-full items-center justify-center overflow-hidden"
       >
-        {/* Faulty Terminal (reactbits.dev/backgrounds/faulty-terminal), white tint.
-           Pointer events stay on the copy. */}
-        <div aria-hidden className="pointer-events-none absolute inset-0 opacity-[0.13]">
-          <FaultyTerminal tint="#ffffff" />
+        {/* Gradient Waves (reactbits.dev). Pointer events stay on the copy. */}
+        <div aria-hidden className="pointer-events-none absolute inset-0">
+          <GradientWaves
+            waveColor="#38bdf8"
+            amplitude={1.8}
+            swell={25}
+            lightAngle={150}
+            speed={0.5}
+          />
         </div>
 
         <div
