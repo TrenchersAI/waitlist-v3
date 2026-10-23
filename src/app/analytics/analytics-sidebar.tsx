@@ -8,6 +8,7 @@ import {
   ClipboardList,
   Coins,
   FlaskConical,
+  HandCoins,
   Scale,
   KeyRound,
   LayoutDashboard,
@@ -39,6 +40,7 @@ export type AnalyticsSection =
   | "router-trades"
   | "volume"
   | "paper-volume"
+  | "paper-grants"
   | "revenue"
   | "platform-accounting";
 
@@ -56,6 +58,7 @@ const ITEMS: ReadonlyArray<ItemDef> = [
   { id: "router-trades", label: "Router trades", icon: Route },
   { id: "volume", label: "Trading volume", icon: TrendingUp },
   { id: "paper-volume", label: "Paper volume", icon: FlaskConical },
+  { id: "paper-grants", label: "Paper SOL given", icon: HandCoins },
   { id: "revenue", label: "Trading revenue", icon: Coins },
   { id: "platform-accounting", label: "Platform accounting", icon: Scale },
   { id: "referrals", label: "Referrals", icon: Share2 },
