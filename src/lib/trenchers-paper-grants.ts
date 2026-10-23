@@ -7,14 +7,20 @@
 // this answers "how much paper SOL did WE hand out, to whom, and who approved
 // it" — the cost side of running the paper programme.
 //
-// SOURCE: the ops console's `PaperSolRequest` table (`ops-db.ts`). Every
+// SOURCE: the ops console's `PaperSolRequest` table, read over HTTPS from its
+// `GET /api/paper-sol/analytics` feed (bearer `OPS_ANALYTICS_TOKEN`). Every
 // "Request sol" tap in the terminal is relayed by st-api to ops, which owns
 // the record and the decision. An approval credits the user's paper pool via
-// st-api (`POST /admin/paper-wallet/credit`) and ONLY THEN marks the row
-// `approved` with `creditedLamports` + `decidedAt`, so an approved row is a
-// credit that really landed. Nothing else creates paper credits, and the
-// trenchers DB keeps only a running per-user total with no date, so this
-// table is the one place the per-day series can come from.
+// st-api and ONLY THEN marks the row `approved` with `creditedLamports` +
+// `decidedAt`, so an approved row is a credit that really landed. Nothing
+// else creates paper credits, and the trenchers DB keeps only a running
+// per-user total with no date, so this feed is the one place the per-day
+// series can come from. (The ops Postgres runs in Docker on the ops box with
+// no published port, hence a feed rather than a connection string.)
+//
+// The feed returns raw rows; everything below is aggregated here. Volume is
+// small (one row per request), so pulling the full window and 60s-caching it
+// is cheaper and simpler than a bespoke aggregate contract.
 //
 // The stack is the two ways a grant gets approved:
 //   • AUTO     — ops auto-approves a real user's FIRST-EVER request
@@ -26,25 +32,44 @@
 // admin-set default). It is derived at read time, not granted on a date, so it
 // has no event to chart. This dashboard is top-ups only.
 //
-// Day bucketing is on `decidedAt` (when the SOL actually landed), UTC. Prisma
-// stores timestamps in UTC, so `date()` on the column is a UTC day.
-//
-// ENV: production only (`env = 'production'`) — staging asks credit a
-// different backend and are not real hand-outs.
+// Day bucketing is on `decidedAt` (when the SOL actually landed), UTC.
 //
 // DATA FLOOR: 2026-08-18 — the day the `PaperSolRequest` table (and the
 // "Request sol" button) shipped. There are no earlier rows.
 
 import { unstable_cache } from "next/cache";
 
-import { getOpsPool } from "@/src/lib/ops-db";
+import { opsOrigin } from "@/src/lib/ops-desk";
 import { getTrenchersPool } from "@/src/lib/trenchers-db";
 
 /** First day paper top-ups exist (UTC). */
 export const PAPER_GRANTS_FLOOR_ISO = "2026-08-18";
 
-/** Which ops environment's rows count as real hand-outs. */
-const OPS_ENV = "production";
+const LAMPORTS_PER_SOL = 1e9;
+
+/** One row of the ops feed. */
+type FeedRow = {
+  id: string;
+  userId: string;
+  username: string | null;
+  email: string | null;
+  wallet: string | null;
+  status: string; // pending | approved | rejected
+  amountLamports: number;
+  creditedLamports: number | null;
+  autoApproved: boolean;
+  decidedByEmail: string | null;
+  decidedAt: string | null; // ISO
+  requestedAt: string; // ISO
+  note: string | null;
+};
+
+type FeedPayload = {
+  env: string;
+  floor: string;
+  since: string;
+  requests: FeedRow[];
+};
 
 /** One day of the stacked chart: total = auto + operator (all SOL). */
 export type PaperGrantDay = {
@@ -100,17 +125,22 @@ export type PaperGrantRecipientsPayload = {
   recipients: PaperGrantRecipient[];
 };
 
-function num(v: unknown): number {
-  const n = typeof v === "string" ? Number.parseFloat(v) : Number(v);
-  return Number.isFinite(n) ? n : 0;
-}
-
 /** `YYYY-MM-DD`, and not before the data floor. */
 export function isValidPaperGrantDay(date: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return false;
   const t = Date.parse(`${date}T00:00:00Z`);
   if (Number.isNaN(t)) return false;
   return t >= Date.parse(`${PAPER_GRANTS_FLOOR_ISO}T00:00:00Z`);
+}
+
+/** The SOL a row actually credited: what st-api confirmed, else the ask. */
+function grantSol(r: FeedRow): number {
+  return (r.creditedLamports ?? r.amountLamports) / LAMPORTS_PER_SOL;
+}
+
+/** UTC day (YYYY-MM-DD) of an ISO timestamp. */
+function utcDay(iso: string): string {
+  return iso.slice(0, 10);
 }
 
 /** Continuous UTC day list from the floor through today (full axis even on
@@ -134,206 +164,207 @@ function dayAxis(): string[] {
   return out;
 }
 
-/** Paper SOL handed out per day, split auto vs operator, plus the day's
- *  request/decision counts and the current pending backlog. */
-async function loadPaperGrants(): Promise<PaperGrantsPayload> {
-  const pool = getOpsPool();
-  const empty: PaperGrantsPayload = {
-    floor: PAPER_GRANTS_FLOOR_ISO,
-    days: [],
-    pending: { count: 0, sol: 0 },
-  };
-  if (!pool) return empty;
-
-  // Approved grants by decision day and approver kind. `creditedLamports` is
-  // what st-api confirmed it credited; it equals `amountLamports` today but is
-  // the honest figure, so prefer it and fall back only for a legacy null.
-  const approved = await pool.query<{
-    date: string;
-    auto: boolean;
-    grants: string;
-    sol: string;
-  }>(
-    `SELECT to_char(date("decidedAt"), 'YYYY-MM-DD')               AS date,
-            "autoApproved"                                           AS auto,
-            count(*)                                                 AS grants,
-            sum(COALESCE("creditedLamports", "amountLamports")) / 1e9 AS sol
-       FROM "PaperSolRequest"
-      WHERE env = $1
-        AND status = 'approved'
-        AND "decidedAt" IS NOT NULL
-        AND "decidedAt" >= $2::date
-      GROUP BY 1, 2`,
-    [OPS_ENV, PAPER_GRANTS_FLOOR_ISO],
-  );
-
-  // Distinct recipients per day across BOTH kinds (a user can't be both on
-  // one day in practice, but count it right regardless).
-  const usersByDay = await pool.query<{ date: string; users: string }>(
-    `SELECT to_char(date("decidedAt"), 'YYYY-MM-DD') AS date,
-            count(DISTINCT "userId")                   AS users
-       FROM "PaperSolRequest"
-      WHERE env = $1
-        AND status = 'approved'
-        AND "decidedAt" IS NOT NULL
-        AND "decidedAt" >= $2::date
-      GROUP BY 1`,
-    [OPS_ENV, PAPER_GRANTS_FLOOR_ISO],
-  );
-
-  const rejected = await pool.query<{ date: string; n: string }>(
-    `SELECT to_char(date("decidedAt"), 'YYYY-MM-DD') AS date, count(*) AS n
-       FROM "PaperSolRequest"
-      WHERE env = $1
-        AND status = 'rejected'
-        AND "decidedAt" IS NOT NULL
-        AND "decidedAt" >= $2::date
-      GROUP BY 1`,
-    [OPS_ENV, PAPER_GRANTS_FLOOR_ISO],
-  );
-
-  const requested = await pool.query<{ date: string; n: string }>(
-    `SELECT to_char(date("requestedAt"), 'YYYY-MM-DD') AS date, count(*) AS n
-       FROM "PaperSolRequest"
-      WHERE env = $1
-        AND "requestedAt" >= $2::date
-      GROUP BY 1`,
-    [OPS_ENV, PAPER_GRANTS_FLOOR_ISO],
-  );
-
-  const pending = await pool.query<{ n: string; sol: string }>(
-    `SELECT count(*) AS n, COALESCE(sum("amountLamports"), 0) / 1e9 AS sol
-       FROM "PaperSolRequest"
-      WHERE env = $1 AND status = 'pending'`,
-    [OPS_ENV],
-  );
-
-  const autoByDay = new Map<string, { sol: number; grants: number }>();
-  const opByDay = new Map<string, { sol: number; grants: number }>();
-  for (const r of approved.rows) {
-    const target = r.auto ? autoByDay : opByDay;
-    target.set(r.date, { sol: num(r.sol), grants: num(r.grants) });
+/** Pull every production request since the floor from the ops feed. Returns
+ *  null when the feed is not configured or unreachable, so callers can render
+ *  the empty state instead of a crash. */
+async function loadFeed(): Promise<FeedRow[] | null> {
+  const token = process.env.OPS_ANALYTICS_TOKEN;
+  if (!token) return null;
+  const url = `${opsOrigin()}/api/paper-sol/analytics?env=production&since=${PAPER_GRANTS_FLOOR_ISO}`;
+  try {
+    const res = await fetch(url, {
+      headers: { authorization: `Bearer ${token}` },
+      cache: "no-store",
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!res.ok) {
+      console.warn(`[paper-grants] ops feed HTTP ${res.status}`);
+      return null;
+    }
+    const body = (await res.json()) as FeedPayload;
+    return Array.isArray(body.requests) ? body.requests : null;
+  } catch (e) {
+    console.warn("[paper-grants] ops feed unreachable:", (e as Error).message);
+    return null;
   }
-  const recipientsByDay = new Map<string, number>();
-  for (const r of usersByDay.rows) recipientsByDay.set(r.date, num(r.users));
-  const rejectedByDay = new Map<string, number>();
-  for (const r of rejected.rows) rejectedByDay.set(r.date, num(r.n));
-  const requestedByDay = new Map<string, number>();
-  for (const r of requested.rows) requestedByDay.set(r.date, num(r.n));
-
-  const days = dayAxis().map((date) => {
-    const a = autoByDay.get(date);
-    const o = opByDay.get(date);
-    const auto = a?.sol ?? 0;
-    const operator = o?.sol ?? 0;
-    return {
-      date,
-      auto,
-      operator,
-      total: auto + operator,
-      grants: (a?.grants ?? 0) + (o?.grants ?? 0),
-      users: recipientsByDay.get(date) ?? 0,
-      rejected: rejectedByDay.get(date) ?? 0,
-      requested: requestedByDay.get(date) ?? 0,
-    };
-  });
-
-  const p = pending.rows[0];
-  return {
-    floor: PAPER_GRANTS_FLOOR_ISO,
-    days,
-    pending: { count: num(p?.n), sol: num(p?.sol) },
-  };
 }
 
-// 60s cache, same as the trading dashboards.
-export const fetchPaperGrants = unstable_cache(
-  loadPaperGrants,
-  ["paper-grants"],
-  { revalidate: 60 },
-);
+// 60s cache on the raw feed: both endpoints derive from it, so a bar and its
+// drill-down always come from the same snapshot.
+const fetchFeed = unstable_cache(loadFeed, ["paper-grants-feed"], {
+  revalidate: 60,
+});
 
-// Recipients per day is tiny in practice; the cap is a safety net.
-const LIMIT = 500;
+/** Approved rows with a decision time, i.e. credits that landed. */
+function approvedRows(rows: FeedRow[]): (FeedRow & { decidedAt: string })[] {
+  return rows.filter(
+    (r): r is FeedRow & { decidedAt: string } =>
+      r.status === "approved" && r.decidedAt != null,
+  );
+}
+
+/** Paper SOL handed out per day, split auto vs operator, plus the day's
+ *  request/decision counts and the current pending backlog. */
+export async function fetchPaperGrants(): Promise<PaperGrantsPayload> {
+  const rows = await fetchFeed();
+  if (!rows) {
+    return { floor: PAPER_GRANTS_FLOOR_ISO, days: [], pending: { count: 0, sol: 0 } };
+  }
+
+  const byDay = new Map<string, PaperGrantDay>();
+  const recipientsByDay = new Map<string, Set<string>>();
+  const dayFor = (date: string): PaperGrantDay => {
+    let d = byDay.get(date);
+    if (!d) {
+      d = {
+        date,
+        total: 0,
+        auto: 0,
+        operator: 0,
+        grants: 0,
+        users: 0,
+        rejected: 0,
+        requested: 0,
+      };
+      byDay.set(date, d);
+    }
+    return d;
+  };
+
+  for (const r of rows) {
+    dayFor(utcDay(r.requestedAt)).requested += 1;
+    if (r.status === "rejected" && r.decidedAt) {
+      dayFor(utcDay(r.decidedAt)).rejected += 1;
+    }
+  }
+  for (const r of approvedRows(rows)) {
+    const date = utcDay(r.decidedAt);
+    const d = dayFor(date);
+    const sol = grantSol(r);
+    if (r.autoApproved) d.auto += sol;
+    else d.operator += sol;
+    d.total += sol;
+    d.grants += 1;
+    let set = recipientsByDay.get(date);
+    if (!set) {
+      set = new Set();
+      recipientsByDay.set(date, set);
+    }
+    set.add(r.userId);
+  }
+
+  const days = dayAxis().map((date) => {
+    const d = byDay.get(date);
+    const users = recipientsByDay.get(date)?.size ?? 0;
+    return d
+      ? { ...d, users }
+      : {
+          date,
+          total: 0,
+          auto: 0,
+          operator: 0,
+          grants: 0,
+          users: 0,
+          rejected: 0,
+          requested: 0,
+        };
+  });
+
+  const pendingRows = rows.filter((r) => r.status === "pending");
+  const pending = {
+    count: pendingRows.length,
+    sol: pendingRows.reduce((a, r) => a + r.amountLamports / LAMPORTS_PER_SOL, 0),
+  };
+
+  return { floor: PAPER_GRANTS_FLOOR_ISO, days, pending };
+}
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** Who received paper SOL on one UTC day, ranked by SOL. Identity comes from
  *  the trenchers `users` table (live username / display name / wallet) when
- *  the id resolves, else from the ops row's denormalised copy. Deliberately
- *  NOT `unstable_cache`d: that helper keys on static keyParts, not the date
- *  argument, so every day would collide into one entry. */
+ *  the id resolves, else from the ops row's denormalised copy. */
 export async function fetchPaperGrantRecipientsForDay(
   date: string,
 ): Promise<PaperGrantRecipient[]> {
-  const pool = getOpsPool();
-  if (!pool) return [];
+  const rows = await fetchFeed();
+  if (!rows) return [];
 
-  const q = await pool.query<{
-    user_id: string;
-    username: string | null;
-    email: string | null;
-    wallet: string | null;
-    sol: string;
-    grants: string;
-    auto_grants: string;
-    approved_by: string[] | null;
-    note: string | null;
-    // `pg` hands a timestamptz back as a Date; typed loosely so a text cast
-    // elsewhere can't break the ISO conversion below.
-    last_at: Date | string | null;
-    lifetime_grants: string;
-    lifetime_sol: string;
-  }>(
-    `WITH day AS (
-       SELECT "userId"                                                  AS user_id,
-              max("username")                                           AS username,
-              max("email")                                              AS email,
-              max("wallet")                                             AS wallet,
-              sum(COALESCE("creditedLamports", "amountLamports")) / 1e9 AS sol,
-              count(*)                                                  AS grants,
-              count(*) FILTER (WHERE "autoApproved")                    AS auto_grants,
-              array_remove(
-                array_agg(DISTINCT "decidedByEmail")
-                  FILTER (WHERE NOT "autoApproved"),
-                NULL
-              )                                                         AS approved_by,
-              string_agg(DISTINCT "note", ' · ')
-                FILTER (WHERE "note" IS NOT NULL AND NOT "autoApproved") AS note,
-              (max("decidedAt") AT TIME ZONE 'UTC')                     AS last_at
-         FROM "PaperSolRequest"
-        WHERE env = $1
-          AND status = 'approved'
-          AND "decidedAt" >= $2::date
-          AND "decidedAt" <  ($2::date + INTERVAL '1 day')
-        GROUP BY "userId"
-     )
-     SELECT day.*,
-            life.n   AS lifetime_grants,
-            life.sol AS lifetime_sol
-       FROM day
-       JOIN LATERAL (
-         SELECT count(*) AS n,
-                sum(COALESCE("creditedLamports", "amountLamports")) / 1e9 AS sol
-           FROM "PaperSolRequest" p
-          WHERE p."userId" = day.user_id
-            AND p.env = $1
-            AND p.status = 'approved'
-            AND p."decidedAt" < ($2::date + INTERVAL '1 day')
-       ) life ON true
-      ORDER BY day.sol DESC, day.last_at DESC
-      LIMIT ${LIMIT}`,
-    [OPS_ENV, date],
-  );
+  const approved = approvedRows(rows);
+  const dayEnd = `${date}T23:59:59.999Z`;
+
+  // Lifetime through the END of that day, per user, for the Nth-top-up badge.
+  const lifetime = new Map<string, { grants: number; sol: number }>();
+  for (const r of approved) {
+    if (r.decidedAt > dayEnd) continue;
+    const l = lifetime.get(r.userId) ?? { grants: 0, sol: 0 };
+    l.grants += 1;
+    l.sol += grantSol(r);
+    lifetime.set(r.userId, l);
+  }
+
+  const byUser = new Map<string, PaperGrantRecipient>();
+  const approvers = new Map<string, Set<string>>();
+  const notes = new Map<string, Set<string>>();
+  for (const r of approved) {
+    if (utcDay(r.decidedAt) !== date) continue;
+    let rec = byUser.get(r.userId);
+    if (!rec) {
+      const life = lifetime.get(r.userId) ?? { grants: 0, sol: 0 };
+      rec = {
+        userId: r.userId,
+        username: r.username,
+        displayName: null,
+        email: r.email,
+        wallet: r.wallet,
+        sol: 0,
+        grants: 0,
+        autoGrants: 0,
+        approvedBy: [],
+        note: null,
+        lastAt: null,
+        lifetimeGrants: life.grants,
+        lifetimeSol: life.sol,
+      };
+      byUser.set(r.userId, rec);
+    }
+    rec.sol += grantSol(r);
+    rec.grants += 1;
+    if (r.autoApproved) rec.autoGrants += 1;
+    if (!rec.lastAt || r.decidedAt > rec.lastAt) rec.lastAt = r.decidedAt;
+    // Prefer any non-null identity the ops copy has across the day's rows.
+    rec.username ??= r.username;
+    rec.email ??= r.email;
+    rec.wallet ??= r.wallet;
+    if (!r.autoApproved) {
+      if (r.decidedByEmail) {
+        let set = approvers.get(r.userId);
+        if (!set) {
+          set = new Set();
+          approvers.set(r.userId, set);
+        }
+        set.add(r.decidedByEmail);
+      }
+      if (r.note) {
+        let set = notes.get(r.userId);
+        if (!set) {
+          set = new Set();
+          notes.set(r.userId, set);
+        }
+        set.add(r.note);
+      }
+    }
+  }
+  for (const [userId, rec] of byUser) {
+    rec.approvedBy = [...(approvers.get(userId) ?? [])];
+    const n = notes.get(userId);
+    rec.note = n && n.size > 0 ? [...n].join(" · ") : null;
+  }
 
   // Live identity from the trading backend, where the user record actually
   // lives. Best-effort: a missing pool or a failed lookup leaves the ops copy.
-  const ids = q.rows.map((r) => r.user_id).filter((id) => UUID_RE.test(id));
-  const identity = new Map<
-    string,
-    { username: string | null; displayName: string | null; wallet: string | null }
-  >();
+  const ids = [...byUser.keys()].filter((id) => UUID_RE.test(id));
   const trenchers = getTrenchersPool();
   if (trenchers && ids.length > 0) {
     try {
@@ -349,11 +380,11 @@ export async function fetchPaperGrantRecipientsForDay(
         [ids],
       );
       for (const r of u.rows) {
-        identity.set(r.id, {
-          username: r.username,
-          displayName: r.display_name,
-          wallet: r.wallet_address,
-        });
+        const rec = byUser.get(r.id);
+        if (!rec) continue;
+        rec.username = r.username ?? rec.username;
+        rec.displayName = r.display_name;
+        rec.wallet = r.wallet_address ?? rec.wallet;
       }
     } catch (e) {
       console.warn(
@@ -363,28 +394,7 @@ export async function fetchPaperGrantRecipientsForDay(
     }
   }
 
-  return q.rows.map((r) => {
-    const live = identity.get(r.user_id);
-    const lastAt =
-      r.last_at == null
-        ? null
-        : r.last_at instanceof Date
-          ? r.last_at.toISOString()
-          : new Date(r.last_at).toISOString();
-    return {
-      userId: r.user_id,
-      username: live?.username ?? r.username,
-      displayName: live?.displayName ?? null,
-      email: r.email,
-      wallet: live?.wallet ?? r.wallet,
-      sol: num(r.sol),
-      grants: num(r.grants),
-      autoGrants: num(r.auto_grants),
-      approvedBy: r.approved_by ?? [],
-      note: r.note,
-      lastAt,
-      lifetimeGrants: num(r.lifetime_grants),
-      lifetimeSol: num(r.lifetime_sol),
-    };
-  });
+  return [...byUser.values()].sort(
+    (a, b) => b.sol - a.sol || (b.lastAt ?? "").localeCompare(a.lastAt ?? ""),
+  );
 }

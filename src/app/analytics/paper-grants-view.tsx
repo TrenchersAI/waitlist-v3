@@ -300,7 +300,7 @@ export function PaperGrantsContent() {
           </div>
         ) : allDays.length === 0 ? (
           <div className="flex h-[220px] items-center justify-center text-sm text-white/40">
-            No paper SOL data yet (or OPS_DATABASE_URL is unset).
+            No paper SOL data yet (or OPS_ANALYTICS_TOKEN is unset).
           </div>
         ) : (
           <TradingBarChart
