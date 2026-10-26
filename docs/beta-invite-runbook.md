@@ -137,23 +137,27 @@ is reserved" screen. Grant first, always.
    substitute and it protects against Resend's 4% ceiling on the first big
    wave.
 
-## Canonical host: always use docs.trenchers.ai
+## Canonical host: always use waitlist.trenchers.ai
 
-Since the apex launch (2026-09-10) this site answers on
-`https://docs.trenchers.ai`; `trenchers.ai` and `www.trenchers.ai` serve
+Since 2026-10-08 the canonical host is `https://waitlist.trenchers.ai`
+(it was `https://docs.trenchers.ai` from the apex launch on 2026-09-10).
+`docs.trenchers.ai` still serves the site directly, with no redirect, so
+links and unsubscribe URLs in emails already sent keep working, and the
+Arena Android assetlinks stay valid. Never turn docs.* into a redirect.
+`trenchers.ai` and `www.trenchers.ai` serve
 the trading app. Any machine-to-machine URL that lands on the app host first
 goes through a redirect, and POSTs generally do not survive redirects, which
 is exactly what silently broke two things in the past:
 
 * **The Resend webhook.** Behind a redirect it never reached the handler, so
   zero events were recorded. The endpoint must be
-  `https://docs.trenchers.ai/api/webhooks/resend`.
+  `https://waitlist.trenchers.ai/api/webhooks/resend`.
 * **RFC 8058 one-click unsubscribe.** Gmail and Yahoo POST to the
   List-Unsubscribe URL. Behind a redirect that POST can fail silently, and a
   user whose unsubscribe does nothing reaches for the spam button instead.
   That feeds complaint rate, which is the tightest constraint we have.
 
-`NEXT_PUBLIC_SITE_URL` must therefore be `https://docs.trenchers.ai`
+`NEXT_PUBLIC_SITE_URL` must therefore be `https://waitlist.trenchers.ai`
 everywhere, locally and in Vercel. Links already in the wild that point at
 `www.trenchers.ai/api/survey/*`, `/api/claim/*` or `/api/waitlist` are
 rescued by method-preserving 307 redirects in the app's `vercel.json`
