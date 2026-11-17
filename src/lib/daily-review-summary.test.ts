@@ -93,7 +93,9 @@ test("health groups: empty series and empty groups are 'not measured'", () => {
   assert.equal(seriesStats({ name: "x", unit: "", points: [] }), null);
   assert.equal(healthGroupOf("rt_client_price_stale_seconds"), "browser");
   assert.equal(healthGroupOf("clickhouse_query_p95_seconds"), "clickhouse");
-  assert.equal(healthGroupOf("manual_trade_total"), "platform");
+  assert.equal(healthGroupOf("manual_trades_by_outcome_failed"), "manual");
+  assert.equal(healthGroupOf("manual_p95_click_to_confirm_s"), "manual");
+  assert.equal(healthGroupOf("pod_restarts"), "platform");
 });
 
 test("HTML and Slack output escape user-controlled text", () => {

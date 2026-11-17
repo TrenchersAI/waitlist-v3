@@ -81,10 +81,16 @@ export type HealthSeries = {
   points: [number, number][];
 };
 
-export type HealthGroup = "browser" | "indexer" | "clickhouse" | "platform";
+export type HealthGroup =
+  | "manual"
+  | "browser"
+  | "indexer"
+  | "clickhouse"
+  | "platform";
 
 export const HEALTH_GROUPS: ReadonlyArray<{ id: HealthGroup; label: string }> =
   [
+    { id: "manual", label: "Manual trading (Prometheus)" },
     { id: "browser", label: "Browser" },
     { id: "indexer", label: "Indexer" },
     { id: "clickhouse", label: "ClickHouse" },
@@ -108,6 +114,9 @@ export const NOT_MEASURED = "not measured";
 /** Which page section a health series belongs to, from its name. */
 export function healthGroupOf(name: string): HealthGroup {
   const n = name.toLowerCase();
+  // st-api /admin/daily-review/metrics names: manual_trades_by_outcome_*,
+  // manual_failures_by_reason_*, manual_p50/p95_click_to_confirm_s.
+  if (n.startsWith("manual_")) return "manual";
   if (n.startsWith("rt_client") || n.startsWith("browser")) return "browser";
   if (n.includes("indexer")) return "indexer";
   if (n.includes("clickhouse") || n.startsWith("ch_")) return "clickhouse";
