@@ -19,6 +19,7 @@ import { FalconClaimContent } from "@/src/app/analytics/falcon/falcon-claim-view
 import { PartnersContent } from "@/src/app/analytics/partners/partners-view";
 import { BotsAnalyticsContent } from "@/src/app/analytics/bots-view";
 import { RouterTradesContent } from "@/src/app/analytics/router-trades-view";
+import { DailyReviewContent } from "@/src/app/analytics/daily-review-view";
 import { PulseAnalyticsContent } from "@/src/app/analytics/pulse-view";
 import { PaperAnalyticsContent } from "@/src/app/analytics/paper-analytics-view";
 import { PaperGrantsContent } from "@/src/app/analytics/paper-grants-view";
@@ -706,6 +707,7 @@ export default function AnalyticsDashboard({
             section === "partners" ||
             section === "bots" ||
             section === "router-trades" ||
+            section === "daily-review" ||
             section === "pulse" ||
             section === "volume" ||
             section === "paper-volume" ||
@@ -750,6 +752,8 @@ export default function AnalyticsDashboard({
               <BotsAnalyticsContent />
             ) : section === "router-trades" ? (
               <RouterTradesContent />
+            ) : section === "daily-review" ? (
+              <DailyReviewContent />
             ) : section === "pulse" ? (
               <PulseAnalyticsContent />
             ) : section === "volume" ? (
@@ -1020,6 +1024,7 @@ function UsersSection(props: React.ComponentProps<typeof SignupsTable>) {
 // =========================================================================
 
 const SECTION_TITLE: Record<AnalyticsSection, string> = {
+  "daily-review": "Daily review",
   dashboard: "Dashboard",
   "user-activity": "User activity",
   pulse: "Live pulse",
@@ -1071,6 +1076,7 @@ function DashboardHeader({
       section === "falcon-claim" ||
       section === "bots" ||
       section === "router-trades" ||
+            section === "daily-review" ||
       section === "pulse" ||
       section === "volume" ||
       section === "paper-volume" ||
