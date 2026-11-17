@@ -305,3 +305,18 @@ model AnalyticsSession {
 
   @@index([email])
 }
+
+/// One row per UTC day for the 07:00 IST Daily Review report (TRE-10015).
+/// The cron claims the row before sending and stamps each channel once it is
+/// delivered, so a Vercel retry or a manual re-run never sends twice. Not
+/// waitlist data.
+model DailyReviewReport {
+  day         String    @id // YYYY-MM-DD (UTC) of the run
+  claimedAt   DateTime?
+  emailSentAt DateTime?
+  emailId     String?
+  slackSentAt DateTime?
+  lastError   String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}

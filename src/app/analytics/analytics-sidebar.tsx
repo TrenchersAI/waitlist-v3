@@ -5,6 +5,7 @@ import {
   Bot,
   ChevronsLeft,
   ChevronsRight,
+  ClipboardCheck,
   ClipboardList,
   Coins,
   FlaskConical,
@@ -26,6 +27,7 @@ import {
 import { cn } from "@/src/lib/utils";
 
 export type AnalyticsSection =
+  | "daily-review"
   | "dashboard"
   | "user-activity"
   | "pulse"
@@ -51,6 +53,7 @@ type ItemDef = {
 };
 
 const ITEMS: ReadonlyArray<ItemDef> = [
+  { id: "daily-review", label: "Daily review", icon: ClipboardCheck },
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { id: "user-activity", label: "User activity", icon: UserCheck },
   { id: "pulse", label: "Live pulse", icon: Activity },
