@@ -44,6 +44,206 @@ export type FailedTrade = {
   signature: string | null;
 };
 
+/** One manual trade attempt (one execution_request). Every numeric field is
+ *  null when it was not measured; the UI renders null as "not measured". */
+export type AttemptOutcome = "success" | "failed" | "unknown" | "pending" | "rejected";
+
+export type ManualTradeRow = {
+  at: string;
+  userId: string;
+  side: string;
+  mint: string | null;
+  amountSol: number | null;
+  outcome: AttemptOutcome;
+  reason: string | null;
+  detail: string | null;
+  venue: string | null;
+  rails: string[];
+  firstAcceptedRail: string | null;
+  clickToSignMs: number | null;
+  signToSubmitMs: number | null;
+  submitToConfirmMs: number | null;
+  totalMs: number | null;
+  landedSlot: number | null;
+  slotsToLand: number | null;
+  cuConsumed: number | null;
+  cuPriceMicroLamports: number | null;
+  slippageBps: number | null;
+  signature: string | null;
+};
+
+export type RequestInput = {
+  at: string;
+  finishedAt: string | null;
+  userId: string;
+  side: string;
+  mint: string | null;
+  status: string;
+};
+
+export type EventInput = {
+  kind: string;
+  at: string;
+  signature: string | null;
+  rail: string | null;
+  errorKind: string | null;
+  detail: string | null;
+  data: Record<string, unknown> | null;
+};
+
+/** exec_attempt columns joined by signature. Timestamps are ISO strings. */
+export type AttemptInput = {
+  venue: string | null;
+  tClick: string | null;
+  tSigned: string | null;
+  tSent: string | null;
+  tConfirmed: string | null;
+  landedSlot: number | null;
+  /** exec_attempt.sent_slot (TRE-10167). null until that column exists. */
+  sentSlot: number | null;
+  cuConsumed: number | null;
+  cuPriceMicroLamports: number | null;
+  slippageBps: number | null;
+};
+
+const WSOL = "So11111111111111111111111111111111111111112";
+
+function num(v: unknown): number | null {
+  if (v === null || v === undefined || v === "") return null;
+  const n = typeof v === "number" ? v : Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+function str(v: unknown): string | null {
+  return typeof v === "string" && v.length > 0 ? v : null;
+}
+
+function gapMs(from: string | null, to: string | null): number | null {
+  if (!from || !to) return null;
+  const d = Date.parse(to) - Date.parse(from);
+  return Number.isFinite(d) && d >= 0 ? d : null;
+}
+
+function lastOf(events: EventInput[], kinds: string[]): EventInput | undefined {
+  for (let i = events.length - 1; i >= 0; i--) {
+    if (kinds.includes(events[i].kind)) return events[i];
+  }
+  return undefined;
+}
+
+function firstOf(events: EventInput[], kinds: string[]): EventInput | undefined {
+  return events.find((e) => kinds.includes(e.kind));
+}
+
+function solAmount(events: EventInput[]): number | null {
+  for (const kind of ["receipt_read", "confirmed", "requested"]) {
+    const d = lastOf(events, [kind])?.data;
+    if (!d) continue;
+    const input = str(d.input_mint);
+    const output = str(d.output_mint);
+    const raw =
+      input === WSOL
+        ? num(d.input_amount_raw)
+        : output === WSOL
+          ? num(d.output_amount_raw)
+          : null;
+    if (raw !== null) return raw / 1e9;
+  }
+  return null;
+}
+
+/** Pure row builder. Events must be ordered by sequence. Success-side columns
+ *  come from the exec_attempt when it matched; otherwise from the events. */
+export function buildManualTradeRow(
+  req: RequestInput,
+  events: EventInput[],
+  attempt: AttemptInput | null,
+): ManualTradeRow {
+  const sentEvent = firstOf(events, ["provider_submitted"]);
+  const outcome: AttemptOutcome =
+    req.status === "confirmed"
+      ? "success"
+      : req.status === "unknown"
+        ? "unknown"
+        : req.status === "failed"
+          ? // Failed with no provider submission = refused before it was sent.
+            sentEvent
+            ? "failed"
+            : "rejected"
+          : "pending";
+
+  const requested = firstOf(events, ["requested"]);
+  const signed = firstOf(events, ["signed"]);
+  const confirmEvent = lastOf(events, ["transaction_confirmed", "confirmed_failure"]);
+
+  const tClick = attempt?.tClick ?? requested?.at ?? req.at;
+  const tSigned = attempt?.tSigned ?? signed?.at ?? null;
+  const tSent = attempt?.tSent ?? sentEvent?.at ?? null;
+  const tConfirmed = attempt?.tConfirmed ?? confirmEvent?.at ?? null;
+
+  const errEvent = lastOf(events, ["confirmed_failure", "failed", "unknown"]);
+  const errored = [...events].reverse().find((e) => e.errorKind || e.detail);
+  const reason =
+    outcome === "success" ? null : (errored?.errorKind ?? errEvent?.errorKind ?? null);
+
+  const receipt = lastOf(events, ["receipt_read", "confirmed"])?.data;
+  const timeline =
+    receipt && typeof receipt.timeline === "object" && receipt.timeline
+      ? (receipt.timeline as Record<string, unknown>)
+      : null;
+  const landedSlot =
+    attempt?.landedSlot ??
+    num(confirmEvent?.data?.landed_slot) ??
+    num(confirmEvent?.data?.slot) ??
+    num(timeline?.landed_slot);
+  const sentSlot = attempt?.sentSlot ?? num(timeline?.submitted_slot);
+  const slotsToLand =
+    landedSlot !== null && sentSlot !== null && landedSlot >= sentSlot
+      ? landedSlot - sentSlot
+      : num(timeline?.slots_to_land);
+
+  const rails: string[] = [];
+  for (const e of events) {
+    if (
+      (e.kind === "provider_submitted" || e.kind === "provider_accepted") &&
+      e.rail &&
+      !rails.includes(e.rail)
+    ) {
+      rails.push(e.rail);
+    }
+  }
+
+  return {
+    at: req.at,
+    userId: req.userId,
+    side: req.side,
+    mint: req.mint,
+    amountSol: solAmount(events),
+    outcome,
+    reason: outcome === "success" ? null : (reason ?? "not recorded"),
+    detail: outcome === "success" ? null : (errored?.detail ?? null),
+    venue:
+      attempt?.venue ?? str(firstOf(events, ["plan"])?.data?.venue) ?? null,
+    rails,
+    firstAcceptedRail: firstOf(events, ["provider_accepted"])?.rail ?? null,
+    clickToSignMs: gapMs(tClick, tSigned),
+    signToSubmitMs: gapMs(tSigned, tSent),
+    submitToConfirmMs: gapMs(tSent, tConfirmed),
+    totalMs: gapMs(tClick, tConfirmed),
+    landedSlot,
+    slotsToLand,
+    cuConsumed: attempt?.cuConsumed ?? null,
+    cuPriceMicroLamports: attempt?.cuPriceMicroLamports ?? null,
+    slippageBps: attempt?.slippageBps ?? null,
+    signature:
+      attempt === null
+        ? (lastOf(events, ["signed"])?.signature ??
+          [...events].reverse().find((e) => e.signature)?.signature ??
+          null)
+        : ([...events].reverse().find((e) => e.signature)?.signature ?? null),
+  };
+}
+
 export type TradeTotals = {
   success: number;
   failed: number;
@@ -65,6 +265,9 @@ export type TradesSection =
       failedTrades: FailedTrade[];
       /** True when the failed-trade list hit its row cap. */
       failedTradesTruncated: boolean;
+      /** Every manual attempt in the window, newest first (TRE-10168). */
+      attempts: ManualTradeRow[];
+      attemptsTruncated: boolean;
     }
   | { state: "not_measured"; reason: string };
 
@@ -192,7 +395,8 @@ export type DailyReviewReport = {
   slackText: string;
 };
 
-const MAX_FAILED_TRADES_IN_REPORT = 10;
+const MAX_FAILED_TRADES_IN_REPORT = 50;
+const MAX_SLOWEST_IN_REPORT = 10;
 const MAX_REASONS_IN_REPORT = 5;
 
 function tradeBlocks(trades: TradesSection): Block[] {
@@ -263,7 +467,32 @@ function tradeBlocks(trades: TradesSection): Block[] {
     });
   }
 
-  return [summary, reasons, latency, failed];
+  const slowest = [...trades.attempts]
+    .filter((a) => a.totalMs !== null)
+    .sort((a, b) => (b.totalMs ?? 0) - (a.totalMs ?? 0))
+    .slice(0, MAX_SLOWEST_IN_REPORT);
+  const byOutcome = new Map<string, number>();
+  for (const a of trades.attempts) {
+    byOutcome.set(a.outcome, (byOutcome.get(a.outcome) ?? 0) + 1);
+  }
+  const perTx: Block = {
+    title: "Per-transaction view",
+    lines: [
+      {
+        text: `${trades.attempts.length} attempts${trades.attemptsTruncated ? " (capped)" : ""}: ${["success", "failed", "rejected", "unknown", "pending"].map((o) => `${byOutcome.get(o) ?? 0} ${o}`).join(", ")}`,
+      },
+      ...(slowest.length === 0
+        ? [{ text: `Slowest: ${NOT_MEASURED}` }]
+        : slowest.map((a) => ({
+            text: `Slow ${formatMs(a.totalMs ?? 0)} ${a.at.slice(11, 16)} UTC ${a.side} ${a.outcome} user ${shortId(a.userId)}`,
+            link: a.signature
+              ? { url: solscanTxUrl(a.signature), label: "tx" }
+              : undefined,
+          }))),
+    ],
+  };
+
+  return [summary, reasons, latency, failed, perTx];
 }
 
 function healthBlocks(health: HealthSection): Block[] {
