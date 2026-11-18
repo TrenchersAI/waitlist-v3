@@ -6,6 +6,7 @@ import { test } from "node:test";
 
 import {
   buildDailyReviewReport,
+  buildManualTradeRow,
   healthGroupOf,
   seriesStats,
   type DailyReview,
@@ -41,6 +42,8 @@ function review(over: Partial<DailyReview> = {}): DailyReview {
         },
       ],
       failedTradesTruncated: false,
+      attempts: [],
+      attemptsTruncated: false,
     },
     health: {
       state: "ok",
@@ -113,4 +116,90 @@ test("no em-dash anywhere in the output", () => {
   for (const body of [r.subject, r.text, r.html, r.slackText]) {
     assert.ok(!body.includes("\u2014"));
   }
+});
+
+const REQ = {
+  at: "2026-11-16T10:00:00.000Z",
+  finishedAt: null,
+  userId: "u1",
+  side: "buy",
+  mint: "M1",
+  status: "confirmed",
+};
+const ev = (kind: string, at: string, extra: object = {}) => ({
+  kind,
+  at,
+  signature: null,
+  rail: null,
+  errorKind: null,
+  detail: null,
+  data: null,
+  ...extra,
+});
+
+test("row builder: success joins attempt columns and measures slots", () => {
+  const row = buildManualTradeRow(
+    REQ,
+    [
+      ev("requested", "2026-11-16T10:00:00.000Z"),
+      ev("signed", "2026-11-16T10:00:00.100Z", { signature: "SIG" }),
+      ev("provider_submitted", "2026-11-16T10:00:00.200Z", { rail: "jito" }),
+      ev("provider_accepted", "2026-11-16T10:00:00.250Z", { rail: "jito" }),
+    ],
+    {
+      venue: "pumpswap",
+      tClick: "2026-11-16T10:00:00.000Z",
+      tSigned: "2026-11-16T10:00:00.100Z",
+      tSent: "2026-11-16T10:00:00.300Z",
+      tConfirmed: "2026-11-16T10:00:01.000Z",
+      landedSlot: 105,
+      sentSlot: 100,
+      cuConsumed: 90000,
+      cuPriceMicroLamports: 5000,
+      slippageBps: 12,
+    },
+  );
+  assert.equal(row.outcome, "success");
+  assert.equal(row.clickToSignMs, 100);
+  assert.equal(row.signToSubmitMs, 200);
+  assert.equal(row.submitToConfirmMs, 700);
+  assert.equal(row.totalMs, 1000);
+  assert.equal(row.slotsToLand, 5);
+  assert.equal(row.firstAcceptedRail, "jito");
+  assert.deepEqual(row.rails, ["jito"]);
+  assert.equal(row.signature, "SIG");
+});
+
+test("row builder: failure without attempt keeps nulls, never 0", () => {
+  const row = buildManualTradeRow(
+    { ...REQ, status: "failed" },
+    [
+      ev("requested", "2026-11-16T10:00:00.000Z"),
+      ev("signed", "2026-11-16T10:00:00.100Z", { signature: "SIGF" }),
+      ev("provider_submitted", "2026-11-16T10:00:00.200Z", { rail: "rpc" }),
+      ev("confirmed_failure", "2026-11-16T10:00:02.000Z", {
+        errorKind: "slippage_exceeded",
+        data: { landed_slot: 777 },
+      }),
+    ],
+    null,
+  );
+  assert.equal(row.outcome, "failed");
+  assert.equal(row.reason, "slippage_exceeded");
+  assert.equal(row.landedSlot, 777);
+  assert.equal(row.slotsToLand, null);
+  assert.equal(row.cuConsumed, null);
+  assert.equal(row.slippageBps, null);
+  assert.equal(row.signature, "SIGF");
+});
+
+test("row builder: failed before any submission is rejected", () => {
+  const row = buildManualTradeRow(
+    { ...REQ, status: "failed" },
+    [ev("requested", REQ.at), ev("failed", REQ.at, { errorKind: "sim_reject" })],
+    null,
+  );
+  assert.equal(row.outcome, "rejected");
+  assert.equal(row.totalMs, null);
+  assert.equal(row.signature, null);
 });

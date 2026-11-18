@@ -14,6 +14,8 @@ import {
   HEALTH_GROUPS,
   NOT_MEASURED,
   formatMs,
+  type AttemptOutcome,
+  type ManualTradeRow,
   formatNumber,
   healthGroupOf,
   pointTimeMs,
@@ -146,6 +148,116 @@ function HBarList({ rows }: { rows: { label: string; value: number }[] }) {
   );
 }
 
+const NM = <span className="text-white/35">{NOT_MEASURED}</span>;
+
+function ms(v: number | null) {
+  return v === null ? NM : formatMs(v);
+}
+function numCell(v: number | null) {
+  return v === null ? NM : formatNumber(v);
+}
+const OUTCOME_COLOR: Record<AttemptOutcome, string> = {
+  success: "text-emerald-300",
+  failed: "text-red-300",
+  rejected: "text-red-300",
+  unknown: "text-amber-300",
+  pending: "text-white/60",
+};
+
+function AttemptsTable({ rows, truncated }: { rows: ManualTradeRow[]; truncated: boolean }) {
+  const [filter, setFilter] = useState<"all" | AttemptOutcome>("all");
+  const shown = filter === "all" ? rows : rows.filter((r) => r.outcome === filter);
+  const heads = [
+    "Time", "User", "Side", "Token", "SOL", "Outcome", "Reason", "Venue", "Rails",
+    "First accepted", "Click to sign", "Sign to submit", "Submit to confirm", "Total",
+    "Landed slot", "Slots to land", "CU used", "Priority fee (micro-lamports/CU)",
+    "Slippage (bps)", "Signature",
+  ];
+  return (
+    <Card
+      title="Every manual trade attempt"
+      sub={truncated ? "newest 500 shown" : `${shown.length} of ${rows.length} rows`}
+    >
+      <div className="mb-2 flex flex-wrap gap-1.5">
+        {(["all", "success", "failed", "rejected", "unknown", "pending"] as const).map((o) => (
+          <button
+            key={o}
+            type="button"
+            onClick={() => setFilter(o)}
+            className={cn(
+              "rounded border px-2 py-0.5 text-xs",
+              filter === o ? "border-white/40 text-white" : "border-white/10 text-white/50",
+            )}
+          >
+            {o}
+          </button>
+        ))}
+      </div>
+      {shown.length === 0 ? (
+        <p className="text-sm text-white/50">No attempts match.</p>
+      ) : (
+        <div className="overflow-x-auto scrollbar-minimal-black">
+          <table className="w-full min-w-[1600px] text-xs">
+            <thead className="text-white/45">
+              <tr>
+                {heads.map((h) => (
+                  <th key={h} className="py-1.5 pr-2 text-left font-medium whitespace-nowrap">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="text-white/85">
+              {shown.map((r, i) => (
+                <tr key={`${r.at}-${r.userId}-${i}`} className="border-t border-white/5 align-top">
+                  <td className="py-1.5 pr-2 tabular-nums whitespace-nowrap">{fmtTime(r.at)}</td>
+                  <td className="py-1.5 pr-2 font-mono">
+                    <a href={deskProfileUrl(r.userId)} target="_blank" rel="noreferrer" className="hover:underline">
+                      {r.userId.slice(0, 8)}
+                    </a>
+                  </td>
+                  <td className="py-1.5 pr-2">{r.side}</td>
+                  <td className="py-1.5 pr-2 font-mono">{r.mint ? `${r.mint.slice(0, 6)}...` : NM}</td>
+                  <td className="py-1.5 pr-2 tabular-nums">{numCell(r.amountSol)}</td>
+                  <td className={cn("py-1.5 pr-2", OUTCOME_COLOR[r.outcome])}>{r.outcome}</td>
+                  <td className="max-w-[240px] py-1.5 pr-2 break-words" title={r.detail ?? undefined}>
+                    {r.reason ?? ""}
+                  </td>
+                  <td className="py-1.5 pr-2">{r.venue ?? NM}</td>
+                  <td className="py-1.5 pr-2">{r.rails.length ? r.rails.join(", ") : NM}</td>
+                  <td className="py-1.5 pr-2">{r.firstAcceptedRail ?? NM}</td>
+                  <td className="py-1.5 pr-2 tabular-nums">{ms(r.clickToSignMs)}</td>
+                  <td className="py-1.5 pr-2 tabular-nums">{ms(r.signToSubmitMs)}</td>
+                  <td className="py-1.5 pr-2 tabular-nums">{ms(r.submitToConfirmMs)}</td>
+                  <td className="py-1.5 pr-2 tabular-nums">{ms(r.totalMs)}</td>
+                  <td className="py-1.5 pr-2 tabular-nums">{r.landedSlot === null ? NM : r.landedSlot}</td>
+                  <td className="py-1.5 pr-2 tabular-nums">{numCell(r.slotsToLand)}</td>
+                  <td className="py-1.5 pr-2 tabular-nums">{numCell(r.cuConsumed)}</td>
+                  <td className="py-1.5 pr-2 tabular-nums">{numCell(r.cuPriceMicroLamports)}</td>
+                  <td className="py-1.5 pr-2 tabular-nums">{numCell(r.slippageBps)}</td>
+                  <td className="py-1.5 font-mono">
+                    {r.signature ? (
+                      <a
+                        href={solscanTxUrl(r.signature)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 hover:underline"
+                      >
+                        {r.signature.slice(0, 8)}
+                        <ExternalLink className="size-3" aria-hidden />
+                      </a>
+                    ) : (
+                      NM
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </Card>
+  );
+}
+
 function TradeSections({ trades, loading }: { trades: TradesSection | null; loading: boolean }) {
   if (!loading && trades?.state === "not_measured") {
     return (
@@ -274,6 +386,8 @@ function TradeSections({ trades, loading }: { trades: TradesSection | null; load
           </div>
         )}
       </Card>
+
+      {ok ? <AttemptsTable rows={ok.attempts} truncated={ok.attemptsTruncated} /> : null}
     </>
   );
 }

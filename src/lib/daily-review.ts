@@ -27,6 +27,10 @@ import { unstable_cache } from "next/cache";
 import {
   type DailyReview,
   type FailedTrade,
+  type EventInput,
+  type AttemptInput,
+  type ManualTradeRow,
+  buildManualTradeRow,
   type FailureReason,
   type HealthSection,
   type HealthSeries,
@@ -46,6 +50,13 @@ const MAX_FAILED_ROWS = 500;
 const MAX_MANUAL_USERS = 2_000;
 const MAX_ATTEMPTS = 5_000;
 const MAX_STAGES = 40;
+const MAX_ATTEMPT_ROWS = 500;
+const MAX_ATTEMPT_EVENTS = 20_000;
+
+/** TRE-10167 adds exec_attempt.sent_slot. Flip to true once that migration is
+ *  on prod; until then the column is not selected, so the query cannot break
+ *  and slots to land falls back to the receipt_read timeline or "not measured". */
+const EXEC_ATTEMPT_HAS_SENT_SLOT = false;
 const DETAIL_MAX_CHARS = 240;
 const HEALTH_TIMEOUT_MS = 8_000;
 const MAX_HEALTH_SERIES = 100;
@@ -143,6 +154,139 @@ const FAILED_SQL = `
   ) sig ON true
   ORDER BY r.started_at DESC`;
 
+// One row per manual request (execution_request_retention index on started_at),
+// left-joined to exec_attempt by the request's signature (partial index on
+// signature). Failed requests have no exec_attempt, so they keep NULL columns.
+const ATTEMPTS_SQL = `
+  WITH r AS (
+    SELECT id, user_id, side, mint, started_at, finished_at, status
+    FROM execution_request
+    WHERE started_at >= $1 AND started_at < $2 AND bot_id IS NULL
+    ORDER BY started_at DESC
+    LIMIT ${MAX_ATTEMPT_ROWS + 1}
+  )
+  SELECT r.id::text AS id, r.user_id::text AS user_id, r.side, r.mint,
+         r.started_at, r.finished_at, r.status,
+         a.quote_venue, a.t_click, a.t_signed, a.t_sent, a.t_confirmed,
+         a.landed_slot, ${EXEC_ATTEMPT_HAS_SENT_SLOT ? "a.sent_slot" : "NULL::bigint AS sent_slot"},
+         a.cu_consumed, a.cu_price_micro_lamports, a.slip_vs_quote_bps
+  FROM r
+  LEFT JOIN LATERAL (
+    SELECT x.quote_venue, x.t_click, x.t_signed, x.t_sent, x.t_confirmed,
+           x.landed_slot, ${EXEC_ATTEMPT_HAS_SENT_SLOT ? "x.sent_slot," : ""}
+           x.cu_consumed, x.cu_price_micro_lamports, x.slip_vs_quote_bps
+    FROM exec_attempt x
+    WHERE x.signature IN (
+      SELECT e.signature FROM execution_event e
+      WHERE e.execution_id = r.id AND e.signature IS NOT NULL)
+    ORDER BY x.created_at DESC
+    LIMIT 1
+  ) a ON true
+  ORDER BY r.started_at DESC`;
+
+const ATTEMPT_EVENTS_SQL = `
+  SELECT e.execution_id::text AS execution_id, e.kind, e.at, e.signature, e.rail,
+         e.error_kind, left(e.detail, ${DETAIL_MAX_CHARS}) AS detail,
+         CASE WHEN e.kind IN ('requested', 'plan', 'receipt_read', 'confirmed',
+                              'transaction_confirmed', 'confirmed_failure')
+              THEN e.data END AS data
+  FROM execution_event e
+  WHERE e.execution_id::text = ANY($1::text[])
+  ORDER BY e.execution_id, e.sequence
+  LIMIT ${MAX_ATTEMPT_EVENTS}`;
+
+type AttemptSqlRow = {
+  id: string;
+  user_id: string;
+  side: string;
+  mint: string | null;
+  started_at: Date;
+  finished_at: Date | null;
+  status: string;
+  quote_venue: string | null;
+  t_click: Date | null;
+  t_signed: Date | null;
+  t_sent: Date | null;
+  t_confirmed: Date | null;
+  landed_slot: string | number | null;
+  sent_slot: string | number | null;
+  cu_consumed: string | number | null;
+  cu_price_micro_lamports: string | number | null;
+  slip_vs_quote_bps: string | number | null;
+};
+type EventSqlRow = {
+  execution_id: string;
+  kind: string;
+  at: Date;
+  signature: string | null;
+  rail: string | null;
+  error_kind: string | null;
+  detail: string | null;
+  data: Record<string, unknown> | null;
+};
+
+const iso = (d: Date | null): string | null => (d ? new Date(d).toISOString() : null);
+const n = (v: string | number | null): number | null =>
+  v === null || v === undefined ? null : Number.isFinite(Number(v)) ? Number(v) : null;
+
+async function loadAttempts(
+  pool: NonNullable<ReturnType<typeof getTrenchersPool>>,
+  params: string[],
+): Promise<{ rows: ManualTradeRow[]; truncated: boolean }> {
+  const reqs = await pool.query<AttemptSqlRow>(ATTEMPTS_SQL, params);
+  const truncated = reqs.rows.length > MAX_ATTEMPT_ROWS;
+  const kept = reqs.rows.slice(0, MAX_ATTEMPT_ROWS);
+  const byId = new Map<string, EventInput[]>();
+  if (kept.length > 0) {
+    const ev = await pool.query<EventSqlRow>(ATTEMPT_EVENTS_SQL, [
+      kept.map((r) => r.id),
+    ]);
+    for (const e of ev.rows) {
+      const list = byId.get(e.execution_id) ?? [];
+      list.push({
+        kind: e.kind,
+        at: new Date(e.at).toISOString(),
+        signature: e.signature,
+        rail: e.rail,
+        errorKind: e.error_kind,
+        detail: e.detail,
+        data: e.data && typeof e.data === "object" ? e.data : null,
+      });
+      byId.set(e.execution_id, list);
+    }
+  }
+  const rows = kept.map((r) => {
+    const matched = r.t_click !== null || r.t_confirmed !== null || r.landed_slot !== null || r.quote_venue !== null || r.cu_consumed !== null;
+    const attempt: AttemptInput | null = matched
+      ? {
+          venue: r.quote_venue,
+          tClick: iso(r.t_click),
+          tSigned: iso(r.t_signed),
+          tSent: iso(r.t_sent),
+          tConfirmed: iso(r.t_confirmed),
+          landedSlot: n(r.landed_slot),
+          sentSlot: n(r.sent_slot),
+          cuConsumed: n(r.cu_consumed),
+          cuPriceMicroLamports: n(r.cu_price_micro_lamports),
+          slippageBps: n(r.slip_vs_quote_bps),
+        }
+      : null;
+    return buildManualTradeRow(
+      {
+        at: new Date(r.started_at).toISOString(),
+        finishedAt: iso(r.finished_at),
+        userId: r.user_id,
+        side: r.side,
+        mint: r.mint,
+        status: r.status,
+      },
+      byId.get(r.id) ?? [],
+      attempt,
+    );
+  });
+  return { rows, truncated };
+}
+
 // Users with a manual request in the window: the index path into exec_attempt.
 const MANUAL_USERS_CTE = `
   u AS (
@@ -194,11 +338,12 @@ export async function loadManualTrades(w: ReviewWindow): Promise<TradesSection> 
   }
   const params = [w.start.toISOString(), w.end.toISOString()];
   try {
-    const [hourly, failed, rejected, latency] = await Promise.all([
+    const [hourly, failed, rejected, latency, attemptsRes] = await Promise.all([
       pool.query<HourRow>(HOURLY_SQL, params),
       pool.query<FailedRow>(FAILED_SQL, params),
       pool.query<{ rejected: string }>(REJECTED_SQL, params),
       pool.query<LatencyRow>(LATENCY_SQL, params),
+      loadAttempts(pool, params),
     ]);
 
     const byHour = emptyHours(w);
@@ -256,6 +401,8 @@ export async function loadManualTrades(w: ReviewWindow): Promise<TradesSection> 
       latency: stages,
       failedTrades,
       failedTradesTruncated,
+      attempts: attemptsRes.rows,
+      attemptsTruncated: attemptsRes.truncated,
     };
   } catch (err) {
     console.error(
